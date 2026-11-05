@@ -1,0 +1,72 @@
+{
+ "parts": {
+  "shell_bottom": [
+   "#3A3D42",
+   0.55,
+   "PETG, 3D printed (Graphite)"
+  ],
+  "shell_top": [
+   "#3A3D42",
+   0.55,
+   "PETG, 3D printed (Graphite)"
+  ],
+  "carbon_sachet": [
+   "#2A2A30",
+   0.9,
+   "Coconut-shell activated carbon in polypropylene non-woven"
+  ],
+  "silica_sachet": [
+   "#DCE3EB",
+   0.85,
+   "White Type A silica gel in polypropylene non-woven"
+  ],
+  "scent_beads": [
+   "#E3A43B",
+   0.6,
+   "Pre-scented EVA aroma beads"
+  ],
+  "pull_cord": [
+   "#D6CBB8",
+   0.8,
+   "2 mm polyester/nylon cord"
+  ]
+ },
+ "sizes": {
+  "S": {
+   "outside_mm": [
+    120.4,
+    40.8,
+    28.4
+   ],
+   "beads": 64,
+   "glb_kb": {
+    "assembled": 1129,
+    "exploded": 1129
+   }
+  },
+  "M": {
+   "outside_mm": [
+    134.0,
+    46.8,
+    30.0
+   ],
+   "beads": 90,
+   "glb_kb": {
+    "assembled": 1280,
+    "exploded": 1280
+   }
+  },
+  "L": {
+   "outside_mm": [
+    148.0,
+    54.8,
+    30.0
+   ],
+   "beads": 95,
+   "glb_kb": {
+    "assembled": 1407,
+    "exploded": 1407
+   }
+  }
+ }
+}

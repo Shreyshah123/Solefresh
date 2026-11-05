@@ -1,0 +1,17 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright-core');
+const b = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await p.goto('http://localhost:4520/', { waitUntil: 'load' });
+await p.waitForFunction(() => document.documentElement.classList.contains('gl-live'));
+await p.waitForTimeout(2000);
+const probe = () => p.evaluate(() => { const x = window.__sf.explorer, c = document.querySelector('.world__gl'), r = c.getBoundingClientRect(); return { running: x.running, visible: x.visible, ready: x.slot.ready, heroW: x.heroWeight, scale: x.slot.pose.scale.x, canvas: [c.width, c.height, Math.round(r.width), Math.round(r.height), Math.round(r.top)], host: [x.host.clientWidth, x.host.clientHeight], fit: x.fit, cam: x.camera.position.toArray().map(v => +v.toFixed(2)), aspect: +x.camera.aspect.toFixed(2), floors: x.floors.map(f => [f.visible, +f.material.opacity.toFixed(2)]), stage: document.documentElement.dataset.stage }; });
+console.log('at top:', JSON.stringify(await probe()));
+await p.screenshot({ path: 'lab/probe-m-top.png', clip: { x: 0, y: 0, width: 390, height: 400 } });
+await p.evaluate(() => scrollTo(0, 300)); await p.waitForTimeout(800);
+console.log('at 300:', JSON.stringify(await probe()));
+await p.evaluate(() => scrollTo(0, 0)); await p.waitForTimeout(800);
+console.log('back top:', JSON.stringify(await probe()));
+await p.screenshot({ path: 'lab/probe-m-back.png', clip: { x: 0, y: 0, width: 390, height: 400 } });
+await b.close();

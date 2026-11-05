@@ -1,0 +1,464 @@
+{
+  "brand": {
+    "name": "SoleFresh",
+    "tagline": "Fresh Shoes. Every Day.",
+    "support": "A reusable shoe-care product designed to manage odor and moisture and keep footwear fresher between wears.",
+    "program": "Developed through INCubatoredu",
+    "contactEmail": "shrey.shah.608@k12.friscoisd.org",
+    "copyright": "SoleFresh. All rights reserved."
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "explorer",
+        "label": "Who it's for"
+      },
+      {
+        "id": "what",
+        "label": "What it does"
+      },
+      {
+        "id": "how",
+        "label": "How it works"
+      },
+      {
+        "id": "inside",
+        "label": "Inside"
+      },
+      {
+        "id": "customize",
+        "label": "Customize"
+      },
+      {
+        "id": "bulk",
+        "anchor": "pilot",
+        "label": "Facility pilot"
+      },
+      {
+        "id": "why",
+        "label": "Why SoleFresh"
+      },
+      {
+        "id": "story",
+        "label": "Story"
+      },
+      {
+        "id": "faq",
+        "label": "FAQ"
+      }
+    ],
+    "bulk": "Join the facility pilot",
+    "bulkShort": "Join pilot",
+    "waitlist": "Join waitlist"
+  },
+  "segments": {
+    "label": "Who it's for",
+    "orgNote": "Designed for shared and high-use footwear.",
+    "functions": [
+      "Odor management",
+      "Moisture management",
+      "Fragrance"
+    ],
+    "items": [
+      {
+        "id": "bowling",
+        "venue": "bowling",
+        "org": true,
+        "orgType": "Bowling center",
+        "name": "Bowling centers",
+        "line": "Rental shoe inventories used by many customers daily.",
+        "photo": null
+      },
+      {
+        "id": "rinks",
+        "venue": "rink",
+        "org": true,
+        "orgType": "Skating rink",
+        "name": "Skating rinks",
+        "line": "Shared rental skates, ice and roller.",
+        "photo": null
+      },
+      {
+        "id": "schools",
+        "venue": "school",
+        "org": true,
+        "orgType": "School or athletic department",
+        "name": "Schools and athletic departments",
+        "line": "Equipment rooms and team footwear.",
+        "photo": null
+      },
+      {
+        "id": "teams",
+        "venue": "team",
+        "org": true,
+        "orgType": "Sports team or club",
+        "name": "Sports teams and clubs",
+        "line": "Training and competition footwear.",
+        "photo": null
+      },
+      {
+        "id": "people",
+        "venue": "track",
+        "org": false,
+        "orgType": null,
+        "name": "Athletes and everyday wearers",
+        "line": "Gym-goers, runners, students, and sneaker enthusiasts.",
+        "photo": null
+      }
+    ]
+  },
+  "what": {
+    "heading": "What it does.",
+    "lede": "Three functions in one reusable product.",
+    "hotspots": [
+      {
+        "id": "odor",
+        "label": "Odor",
+        "text": "Designed to help manage the odors that build up in shoes through repeated use.",
+        "part": "carbon_sachet",
+        "at": [
+          -0.5,
+          0,
+          0.9
+        ]
+      },
+      {
+        "id": "moisture",
+        "label": "Moisture",
+        "text": "Designed to help address dampness from sweat and everyday activity.",
+        "part": "silica_sachet",
+        "at": [
+          0.25,
+          0.2,
+          0.9
+        ]
+      },
+      {
+        "id": "fragrance",
+        "label": "Fragrance",
+        "text": "A fragrance component intended to leave shoes smelling fresher between wears.",
+        "part": "scent_beads",
+        "at": [
+          0,
+          0,
+          0.7
+        ]
+      }
+    ],
+    "note": {
+      "lead": "Reusable.",
+      "text": "Built for repeated use, not thrown away."
+    }
+  },
+  "how": {
+    "heading": "How it works.",
+    "steps": [
+      {
+        "id": "finish",
+        "title": "Finish wearing your shoes",
+        "caption": "Take them off after practice, a shift, or a session."
+      },
+      {
+        "id": "place",
+        "title": "Place SoleFresh inside",
+        "caption": "Set it inside the shoe while the shoe is not being worn."
+      },
+      {
+        "id": "work",
+        "title": "Let it work between wears",
+        "caption": "It stays inside while the shoes rest."
+      },
+      {
+        "id": "remove",
+        "title": "Remove and reuse",
+        "caption": "Take it out before the next wear. Put it back after."
+      }
+    ]
+  },
+  "inside": {
+    "heading": "What's inside.",
+    "note": "Current prototype design (v3.2). Materials are still being tested.",
+    "prompt": "Select a part to see what it does.",
+    "layers": [
+      {
+        "id": "shell_bottom",
+        "name": "Shell bottom",
+        "role": "3D-printed PETG. Holds the divider and the scent bay."
+      },
+      {
+        "id": "carbon_sachet",
+        "name": "Carbon sachet",
+        "role": "Activated carbon in a sealed fabric pouch, facing the insole. For odor."
+      },
+      {
+        "id": "silica_sachet",
+        "name": "Silica sachet",
+        "role": "Silica gel beads in a sealed fabric pouch. For moisture."
+      },
+      {
+        "id": "scent_beads",
+        "name": "Scent beads",
+        "role": "Pre-scented aroma beads at the heel end. For fragrance."
+      },
+      {
+        "id": "shell_top",
+        "name": "Shell top",
+        "role": "3D-printed PETG. Snaps onto the bottom half."
+      },
+      {
+        "id": "pull_cord",
+        "name": "Pull cord",
+        "role": "Lets you pull it out of the shoe."
+      }
+    ]
+  },
+  "customize": {
+    "heading": "Make it yours.",
+    "lede": "Preview colors and sizes.",
+    "dragHint": {
+      "fine": "Drag the product to turn it.",
+      "touch": "Drag the product sideways to turn it.",
+      "keys": "Product preview. Turn it with the left and right arrow keys."
+    },
+    "note": "Prototype colors and sizes. Final options may change.",
+    "defaults": {
+      "color": "graphite",
+      "size": "M"
+    },
+    "colorLabel": "Color",
+    "colors": [
+      {
+        "id": "graphite",
+        "name": "Graphite",
+        "hex": "#3A3D42"
+      },
+      {
+        "id": "fog",
+        "name": "Fog",
+        "hex": "#C9CCCF"
+      },
+      {
+        "id": "sand",
+        "name": "Sand",
+        "hex": "#D6CBB8"
+      },
+      {
+        "id": "sage",
+        "name": "Sage",
+        "hex": "#8E9F94"
+      }
+    ],
+    "sizeLabel": "Size",
+    "sizeOutside": "{l} × {w} × {h} mm including the cord loop",
+    "sizeLoading": "Loading size {size}…",
+    "sizeError": "Couldn't load size {size}. Try again.",
+    "fit": "Fit by shoe size is still unknown.",
+    "sizes": [
+      {
+        "id": "S",
+        "label": "S"
+      },
+      {
+        "id": "M",
+        "label": "M"
+      },
+      {
+        "id": "L",
+        "label": "L"
+      }
+    ]
+  },
+  "bulk": {
+    "heading": "Join the facility pilot.",
+    "lines": [
+      "SoleFresh is in development.",
+      "We're looking for bowling centers, rinks, schools and teams to help test the between-wear workflow.",
+      "After you submit, we'll reach out to talk about your inventory and what a pilot could look like.",
+      "No commitment."
+    ],
+    "form": {
+      "orgTypes": [
+        "Bowling center",
+        "Skating rink",
+        "School or athletic department",
+        "Sports team or club",
+        "Other"
+      ],
+      "pairs": [
+        "Under 50",
+        "50 to 200",
+        "200 to 500",
+        "500+"
+      ],
+      "button": "Join the facility pilot",
+      "done": "Thanks. We'll reach out to talk about your inventory and what a pilot could look like.",
+      "offline": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. You can reach us at {email}."
+    }
+  },
+  "forms": {
+    "note": "We'll only use this to contact you about SoleFresh.",
+    "sending": "Sending…",
+    "invalid": "Some fields need attention.",
+    "temporary": "Something went wrong on our side, so this wasn't sent. What you typed is still here. Please try again.",
+    "timeout": "That took too long, so it may not have been sent. What you typed is still here. Please try again.",
+    "network": "Couldn't reach the server, so this wasn't sent. What you typed is still here. Check your connection and try again.",
+    "rateLimited": "Too many tries in a row, so this wasn't sent. What you typed is still here. Please wait a minute and try again."
+  },
+  "why": {
+    "heading": "One week of shoe care.",
+    "lede": "Four routines. Pick one to see what it involves day to day.",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "methods": [
+      {
+        "id": "spray",
+        "label": "Spray",
+        "icon": "spray",
+        "mark": "Spray",
+        "legend": "Sprayed into the shoes each day."
+      },
+      {
+        "id": "disposable",
+        "label": "Disposable freshener",
+        "icon": "sachet",
+        "mark": "In use",
+        "legend": "A disposable is used, then replaced."
+      },
+      {
+        "id": "moisture",
+        "label": "Moisture pack",
+        "icon": "pack",
+        "mark": "In shoe",
+        "legend": "A moisture pack sits in the shoe."
+      },
+      {
+        "id": "solefresh",
+        "label": "SoleFresh",
+        "icon": "sole",
+        "mark": "Place in",
+        "legend": "Placed in after wear and reused."
+      }
+    ],
+    "fine": "Shows intended routines. SoleFresh performance is still being tested."
+  },
+  "story": {
+    "heading": "Our story.",
+    "line": "SoleFresh is a student-founded startup developed through the INCubatoredu program.",
+    "currentLabel": "Current stage",
+    "milestones": [
+      {
+        "id": "concept",
+        "title": "Concept",
+        "text": "A reusable product that handles odor, moisture and freshness in one."
+      },
+      {
+        "id": "research",
+        "title": "Customer research",
+        "text": "Surveyed high school athletes about shoe odor, current solutions and what they'd pay."
+      },
+      {
+        "id": "prototype",
+        "title": "First prototype",
+        "text": "Built an early physical prototype to test the concept."
+      },
+      {
+        "id": "learned",
+        "title": "What we learned",
+        "text": "Found challenges in moisture-management speed, fragrance interaction and construction."
+      },
+      {
+        "id": "refining",
+        "title": "Refining now",
+        "text": "Improving materials, effectiveness, cost and durability.",
+        "current": true
+      }
+    ],
+    "faqHeading": "Questions.",
+    "faq": [
+      {
+        "q": "What is SoleFresh?",
+        "a": "A reusable shoe-care product being developed to help manage shoe odor, moisture and freshness."
+      },
+      {
+        "q": "Who is it for?",
+        "a": "Organizations that manage shared or high-use footwear, plus individual athletes and everyday wearers."
+      },
+      {
+        "q": "How do you use it?",
+        "a": "Place it inside your shoes when they aren't being worn. Remove it before wearing them again."
+      },
+      {
+        "q": "Is it reusable?",
+        "a": "Yes. Lifespan and care instructions are still being determined."
+      },
+      {
+        "q": "Does it have a fragrance?",
+        "a": "Yes. Specific scents and the fragrance system haven't been announced."
+      },
+      {
+        "q": "How long does it take to work?",
+        "a": "Performance testing is still needed before we can give a reliable estimate."
+      },
+      {
+        "q": "How much does it cost?",
+        "a": "Final pricing hasn't been set, and there's nothing to buy yet. Affordability is a development priority. Facilities and teams can join the pilot to help test it."
+      },
+      {
+        "q": "When will it be available?",
+        "a": "It's in development. No launch date has been announced."
+      }
+    ]
+  },
+  "close": {
+    "heading": "Fresh Shoes. Every Day.",
+    "org": {
+      "label": "For organizations",
+      "text": "Facilities, schools, rinks and teams that manage shared footwear.",
+      "button": "Join the facility pilot"
+    },
+    "ind": {
+      "label": "For individuals",
+      "text": "Be first to hear when early access opens.",
+      "button": "Join the waitlist",
+      "done": "You're on the list. We'll email you when early access opens.",
+      "offline": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. You can reach us at {email}."
+    }
+  },
+  "footer": {
+    "privacy": "Privacy"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "back": "Back to SoleFresh",
+    "intro": "SoleFresh is a student-founded startup developed through the INCubatoredu program. This page covers what you send us through the forms on this site.",
+    "sections": [
+      {
+        "heading": "What we collect",
+        "text": "The facility pilot form asks for your organization's name and type, your name and email, and optionally the approximate pairs of shoes you manage, a phone number and a message. The waitlist form asks for your email."
+      },
+      {
+        "heading": "How we use it",
+        "text": "We'll only use this to contact you about SoleFresh."
+      },
+      {
+        "heading": "Where it goes",
+        "text": "When you submit a form, this site's server passes your details to Google Sheets, a Google service. They are saved as a row in a private spreadsheet in a Google account we control, on Google's servers. We keep them for as long as we need them to contact you about SoleFresh, and delete them when you ask. See {googlePrivacy}."
+      },
+      {
+        "heading": "This site",
+        "text": "This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type. Its fonts load from Google Fonts, so Google receives your IP address. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel."
+      },
+      {
+        "heading": "Your choices",
+        "text": "To see, change or delete what you've sent us, email {email}."
+      }
+    ]
+  }
+}

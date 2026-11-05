@@ -1,0 +1,15 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright-core');
+const b = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && errs.push(m.type() + ': ' + m.text()));
+const failed = []; p.on('response', (r) => r.status() >= 400 && failed.push(r.status() + ' ' + r.url()));
+await p.goto('http://localhost:4520/', { waitUntil: 'load' });
+await p.waitForSelector('html.sf-ready');
+await p.waitForFunction(() => document.documentElement.classList.contains('gl-live') || document.documentElement.classList.contains('gl-off'), null, { timeout: 30000 });
+await p.waitForTimeout(1500);
+console.log(JSON.stringify(await p.evaluate(() => ({ gl: document.documentElement.classList.contains('gl-live'), tops: window.__sf.tops.map(Math.round), lenis: !!window.__sf.lenis, layers: window.__sf.world?.slot.layers.length, stage: document.documentElement.dataset.stage }))));
+await p.screenshot({ path: 'lab/smoke-0.png' });
+console.log('errors:', errs.length ? errs : 'none'); console.log('failed:', failed.length ? failed : 'none');
+await b.close();

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SoleFresh: reusable shoe care for shared and high-use footwear</title>
+<meta name="description" content="SoleFresh is a reusable shoe-care product in development, designed to manage odor and moisture for bowling centers, skating rinks, schools, teams, and athletes. Join the facility pilot or the waitlist.">
+<meta name="theme-color" content="#F1EFEA">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>document.documentElement.classList.replace('no-js', 'js');</script>
+</head>
+<body id="top">
+<a class="skip" href="#explorer" data-jump="explorer">Skip to content</a>
+
+<!-- ================================================================ NAV == -->
+<header class="nav">
+  <!-- PLACEHOLDER:LOGO text wordmark until an official logo exists -->
+  <a class="nav__logo" href="#explorer" data-jump="explorer" aria-label="SoleFresh home">Sole<span>Fresh</span></a>
+  <nav class="nav__links" aria-label="Sections">
+      <a class="nav__link" href="#explorer" data-jump="explorer">Who it's for</a>
+      <a class="nav__link" href="#what" data-jump="what">What it does</a>
+      <a class="nav__link" href="#how" data-jump="how">How it works</a>
+      <a class="nav__link" href="#inside" data-jump="inside">Inside</a>
+      <a class="nav__link" href="#customize" data-jump="customize">Customize</a>
+      <a class="nav__link" href="#pilot" data-jump="bulk">Facility pilot</a>
+      <a class="nav__link" href="#why" data-jump="why">Why SoleFresh</a>
+      <a class="nav__link" href="#story" data-jump="story">Story</a>
+      <a class="nav__link" href="#faq" data-jump="faq">FAQ</a>
+  </nav>
+  <div class="nav__cta">
+    <a class="nav__waitlist" href="#close" data-jump="close">Join waitlist</a>
+    <a class="btn btn--accent" href="#pilot" data-jump="bulk" data-bulk><span class="cta-long">Join the facility pilot</span><span class="cta-short">Join pilot</span></a>
+  </div>
+  <button class="nav__menu" type="button" aria-expanded="false" aria-controls="menu"><span class="vh">Menu</span><span class="nav__burger" aria-hidden="true"></span></button>
+</header>
+<div class="menu" id="menu" hidden>
+  <nav aria-label="Sections">
+      <a class="menu__link" href="#explorer" data-jump="explorer">Who it's for</a>
+      <a class="menu__link" href="#what" data-jump="what">What it does</a>
+      <a class="menu__link" href="#how" data-jump="how">How it works</a>
+      <a class="menu__link" href="#inside" data-jump="inside">Inside</a>
+      <a class="menu__link" href="#customize" data-jump="customize">Customize</a>
+      <a class="menu__link" href="#pilot" data-jump="bulk">Facility pilot</a>
+      <a class="menu__link" href="#why" data-jump="why">Why SoleFresh</a>
+      <a class="menu__link" href="#story" data-jump="story">Story</a>
+      <a class="menu__link" href="#faq" data-jump="faq">FAQ</a>
+  </nav>
+  <div class="menu__cta">
+    <a class="btn btn--accent" href="#pilot" data-jump="bulk" data-bulk>Join the facility pilot</a>
+    <a class="btn btn--ghost" href="#close" data-jump="close">Join waitlist</a>
+  </div>
+</div>
+
+<!-- Projected onto the product: the Stage 2 dots and leader lines (the cards themselves are plain HTML in
+     the stage) and the Stage 4 layer markers. -->
+<div class="overlay" data-overlay>
+  <svg class="overlay__lines" data-lines aria-hidden="true"><line data-line="odor" x1="0" y1="0" x2="0" y2="0"></line><line data-line="moisture" x1="0" y1="0" x2="0" y2="0"></line><line data-line="fragrance" x1="0" y1="0" x2="0" y2="0"></line></svg>
+  <div class="overlay__set" data-for="what" aria-hidden="true" hidden>
+    <span class="mk" data-hs="odor"><span class="mk__dot"></span></span>
+    <span class="mk" data-hs="moisture"><span class="mk__dot"></span></span>
+    <span class="mk" data-hs="fragrance"><span class="mk__dot"></span></span>
+  </div>
+</div>
+
+<!-- Paint warm-up: the GPU rasterizer compiles its pipelines for native form controls, a
+     translucent shadowed card, the Customize swatch rings and size pills and the layer chips the
+     first time they are painted. Painting them here, faint behind the hero, moves that one-time cost to page load
+     instead of a transition. -->
+<div class="warm" aria-hidden="true" inert><div class="warm__card"><select><option>a</option></select><textarea rows="1"></textarea><input type="text"><input type="radio"><button type="button">b</button><details open><summary>s</summary><p>p</p></details><span class="swatches"><span class="swatch" style="--sw1:#E9E7E1;--sw2:#2346FF"><span class="swatch__chip"><span class="swatch__dot"></span></span></span><span class="swatch" aria-pressed="true" style="--sw1:#2346FF;--sw2:#F1EFEA"><span class="swatch__chip"><span class="swatch__dot"></span></span></span></span><span class="sizes"><span class="size">a</span><span class="size" aria-pressed="true">b</span></span><span class="layer-btn">a</span><span class="layer-btn" aria-pressed="true">b</span></div></div>
+
+<main>
+<!-- .pin holds the stages that use the product. On wide screens the world is one fixed layer behind the whole
+     page and makes exactly one scroll-linked move per transition. Under 900px it is a band pinned under the nav
+     while these stages scroll beneath it, and it scrolls away with the end of .pin, before the Bulk form. -->
+<div class="pin">
+<div class="world" data-world aria-hidden="true">
+  <picture class="world__poster" data-poster>
+    <img src="assets/posters/bowling.webp" alt="" width="1600" height="1000" decoding="async" data-poster-img>
+  </picture>
+</div>
+
+<!-- ================================================ STAGE 1: WHO IT'S FOR == -->
+<section class="stage explorer stage--full" id="explorer" data-product="explorer" aria-labelledby="h-hero">
+  <div class="explorer__left">
+    <div class="explorer__intro stage__in">
+      <h1 id="h-hero">Fresh Shoes. Every&nbsp;Day.</h1>
+      <p class="explorer__lede">A reusable shoe-care product designed to manage odor and moisture and keep footwear fresher between wears.</p>
+    </div>
+    <div class="who stage__in">
+      <p class="who__label" id="who-label">Who it's for</p>
+      <div class="who__list" role="tablist" aria-labelledby="who-label" aria-orientation="vertical">
+        <button class="who__item" role="tab" type="button" id="tab-bowling" data-aud="bowling" aria-selected="true" aria-controls="panel" tabindex="0">Bowling centers</button>
+        <button class="who__item" role="tab" type="button" id="tab-rinks" data-aud="rinks" aria-selected="false" aria-controls="panel" tabindex="-1">Skating rinks</button>
+        <button class="who__item" role="tab" type="button" id="tab-schools" data-aud="schools" aria-selected="false" aria-controls="panel" tabindex="-1">Schools and athletic departments</button>
+        <button class="who__item" role="tab" type="button" id="tab-teams" data-aud="teams" aria-selected="false" aria-controls="panel" tabindex="-1">Sports teams and clubs</button>
+        <button class="who__item" role="tab" type="button" id="tab-people" data-aud="people" aria-selected="false" aria-controls="panel" tabindex="-1">Athletes and everyday wearers</button>
+      </div>
+      <figure class="who__thumb" aria-hidden="true" data-thumb><img alt="" width="360" height="240" data-thumb-img></figure>
+    </div>
+  </div>
+  <aside class="panel stage__in" id="panel" role="tabpanel" aria-labelledby="tab-bowling" aria-live="polite">
+    <figure class="panel__thumb" aria-hidden="true"><img alt="" width="360" height="240" data-panel-thumb></figure>
+    <p class="panel__for" data-panel-for>For bowling centers</p>
+    <p class="panel__line" data-panel-line>Rental shoe inventories used by many customers daily.</p>
+    <div class="panel__org" data-panel-org>
+      <p class="panel__note">Designed for shared and high-use footwear.</p>
+      <a class="btn btn--accent" href="#pilot" data-jump="bulk" data-bulk>Join the facility pilot</a>
+    </div>
+    <div class="panel__ind" data-panel-ind hidden>
+      <ul class="panel__fns"><li>Odor management</li><li>Moisture management</li><li>Fragrance</li></ul>
+      <a class="btn btn--accent" href="#close" data-jump="close">Join waitlist</a>
+    </div>
+  </aside>
+</section>
+
+<!-- ================================================ STAGE 2: WHAT IT DOES == -->
+<section class="stage what stage--full" id="what" data-product="what" aria-labelledby="h-what">
+  <div class="what__head stage__in">
+    <h2 id="h-what">What it does.</h2>
+    <p class="what__lede">Three functions in one reusable product.</p>
+  </div>
+  <!-- always open, plain HTML: nothing here depends on WebGL or a hover -->
+  <div class="what__low">
+    <ul class="hs-cards" role="list" data-hs-cards>
+      <li class="hs-card" data-hs-card="odor"><h3 class="hs-card__label">Odor</h3><p class="hs-card__text">Designed to help manage the odors that build up in shoes through repeated use.</p></li>
+      <li class="hs-card" data-hs-card="moisture"><h3 class="hs-card__label">Moisture</h3><p class="hs-card__text">Designed to help address dampness from sweat and everyday activity.</p></li>
+      <li class="hs-card" data-hs-card="fragrance"><h3 class="hs-card__label">Fragrance</h3><p class="hs-card__text">A fragrance component intended to leave shoes smelling fresher between wears.</p></li>
+    </ul>
+    <p class="what__note"><b>Reusable.</b> Built for repeated use, not thrown away.</p>
+  </div>
+</section>
+
+<!-- ================================================ STAGE 3: HOW IT WORKS == -->
+<section class="stage how stage--full" id="how" data-product="how" aria-labelledby="h-how">
+  <div class="how__head stage__in"><h2 id="h-how">How it works.</h2></div>
+  <div class="how__bar stage__in">
+    <p class="how__caption" data-step-caption aria-live="polite">Take them off after practice, a shift, or a session.</p>
+    <div class="steps" role="tablist" aria-label="Steps">
+      <button type="button" class="step" role="tab" id="step-0" data-step="0" aria-selected="true" tabindex="0"><span class="step__n" aria-hidden="true">1</span><span class="step__t">Finish wearing your shoes</span><span class="step__bar" aria-hidden="true"><i></i></span></button>
+      <button type="button" class="step" role="tab" id="step-1" data-step="1" aria-selected="false" tabindex="-1"><span class="step__n" aria-hidden="true">2</span><span class="step__t">Place SoleFresh inside</span><span class="step__bar" aria-hidden="true"><i></i></span></button>
+      <button type="button" class="step" role="tab" id="step-2" data-step="2" aria-selected="false" tabindex="-1"><span class="step__n" aria-hidden="true">3</span><span class="step__t">Let it work between wears</span><span class="step__bar" aria-hidden="true"><i></i></span></button>
+      <button type="button" class="step" role="tab" id="step-3" data-step="3" aria-selected="false" tabindex="-1"><span class="step__n" aria-hidden="true">4</span><span class="step__t">Remove and reuse</span><span class="step__bar" aria-hidden="true"><i></i></span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================= STAGE 4: INSIDE == -->
+<section class="stage inside stage--full" id="inside" data-product="inside" aria-labelledby="h-inside">
+  <div class="inside__head stage__in">
+    <h2 id="h-inside">What's inside.</h2>
+    <p class="inside__note">Current prototype design (v3.2). Materials are still being tested.</p>
+    <p class="inside__prompt" data-inside-prompt>Select a part to see what it does.</p>
+  </div>
+  <div class="inside__list stage__in" role="group" aria-label="Parts">
+    <button type="button" class="layer-btn" data-layer="0" aria-pressed="false">Shell bottom</button>
+    <button type="button" class="layer-btn" data-layer="1" aria-pressed="false">Carbon sachet</button>
+    <button type="button" class="layer-btn" data-layer="2" aria-pressed="false">Silica sachet</button>
+    <button type="button" class="layer-btn" data-layer="3" aria-pressed="false">Scent beads</button>
+    <button type="button" class="layer-btn" data-layer="4" aria-pressed="false">Shell top</button>
+    <button type="button" class="layer-btn" data-layer="5" aria-pressed="false">Pull cord</button>
+  </div>
+  <aside class="sheet" data-sheet aria-live="polite">
+    <div class="sheet__body">
+      <p class="sheet__prompt" data-sheet-prompt>Select a part to see what it does.</p>
+      <div class="sheet__detail" data-sheet-detail hidden>
+        <p class="sheet__name" data-sheet-name></p>
+        <p class="sheet__role" data-sheet-role></p>
+      </div>
+      <button type="button" class="sheet__close" data-sheet-close aria-label="Close">Close</button>
+    </div>
+  </aside>
+</section>
+
+<!-- ===================================================== STAGE 5: CUSTOMIZE == -->
+<section class="stage customize stage--full" id="customize" data-product="customize" aria-labelledby="h-customize">
+  <div class="customize__head stage__in">
+    <h2 id="h-customize">Make it yours.</h2>
+    <p class="customize__lede">Preview colors and sizes. <span class="fine-only">Drag the product to turn it.</span><span class="touch-only">Drag the product sideways to turn it.</span></p>
+  </div>
+  <div class="customize__drag" data-drag aria-hidden="true"></div>
+  <div class="customize__side customize__side--color stage__in">
+    <p class="eyebrow" id="color-label">Color</p>
+    <div class="swatches" role="group" aria-labelledby="color-label">
+      <button type="button" class="swatch" data-color="graphite" aria-pressed="true" aria-label="Graphite" style="--sw1:#3A3D42"><span class="swatch__chip" aria-hidden="true"></span></button>
+      <button type="button" class="swatch" data-color="fog" aria-pressed="false" aria-label="Fog" style="--sw1:#C9CCCF"><span class="swatch__chip" aria-hidden="true"></span></button>
+      <button type="button" class="swatch" data-color="sand" aria-pressed="false" aria-label="Sand" style="--sw1:#D6CBB8"><span class="swatch__chip" aria-hidden="true"></span></button>
+      <button type="button" class="swatch" data-color="sage" aria-pressed="false" aria-label="Sage" style="--sw1:#8E9F94"><span class="swatch__chip" aria-hidden="true"></span></button>
+    </div>
+    <p class="customize__pick" data-color-name aria-live="polite">Graphite</p>
+  </div>
+  <div class="customize__side customize__side--size stage__in">
+    <p class="eyebrow" id="size-label">Size</p>
+    <div class="sizes" role="group" aria-labelledby="size-label">
+      <button type="button" class="size" data-size="S" aria-pressed="false">S</button>
+      <button type="button" class="size" data-size="M" aria-pressed="true">M</button>
+      <button type="button" class="size" data-size="L" aria-pressed="false">L</button>
+    </div>
+    <p class="customize__pick" data-size-label aria-live="polite">134 × 47 × 30 mm including the cord loop</p>
+    <p class="customize__fit">Fit by shoe size is still unknown.</p>
+  </div>
+  <p class="customize__note stage__in">Prototype colors and sizes. Final options may change.</p>
+</section>
+
+</div><!-- /.pin -->
+
+<!-- =============================================== STAGE 6: FACILITY PILOT == -->
+<section class="stage bulk" id="pilot" data-product="bulk" aria-labelledby="h-bulk">
+  <div class="bulk__card stage__in">
+    <div class="bulk__intro">
+      <h2 id="h-bulk">Join the facility pilot.</h2>
+      <ul class="bulk__lines"><li>SoleFresh is in development.</li><li>We're looking for bowling centers, rinks, schools and teams to help test the between-wear workflow.</li><li>After you submit, we'll reach out to talk about your inventory and what a pilot could look like.</li><li>No commitment.</li></ul>
+    </div>
+    <form class="form" method="post" action="/api/bulk" data-form="bulk" novalidate>
+      <div class="hp" aria-hidden="true"><label>Leave empty <input type="text" name="hp_check" tabindex="-1" autocomplete="off"></label></div>
+      <div class="field"><label for="b-org">Organization name</label><input id="b-org" name="organization" type="text" autocomplete="organization" required aria-describedby="err-b-org"><p class="field__err" id="err-b-org" data-err="organization"></p></div>
+      <div class="field"><label for="b-type">Organization type</label><select id="b-type" name="type" required aria-describedby="err-b-type"><option value="">Choose one</option><option>Bowling center</option><option>Skating rink</option><option>School or athletic department</option><option>Sports team or club</option><option>Other</option></select><p class="field__err" id="err-b-type" data-err="type"></p></div>
+      <fieldset class="field field--radios" aria-describedby="err-b-pairs"><legend>Approximate pairs of shoes managed <span class="opt">optional</span></legend><div class="radios"><label class="radio"><input type="radio" name="pairs" value="Under 50"><span>Under 50</span></label><label class="radio"><input type="radio" name="pairs" value="50 to 200"><span>50 to 200</span></label><label class="radio"><input type="radio" name="pairs" value="200 to 500"><span>200 to 500</span></label><label class="radio"><input type="radio" name="pairs" value="500+"><span>500+</span></label></div><p class="field__err" id="err-b-pairs" data-err="pairs"></p></fieldset>
+      <div class="field"><label for="b-name">Your name</label><input id="b-name" name="name" type="text" autocomplete="name" required aria-describedby="err-b-name"><p class="field__err" id="err-b-name" data-err="name"></p></div>
+      <div class="field field--half"><label for="b-email">Email</label><input id="b-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="err-b-email"><p class="field__err" id="err-b-email" data-err="email"></p></div>
+      <div class="field field--half"><label for="b-phone">Phone <span class="opt">optional</span></label><input id="b-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" aria-describedby="err-b-phone"><p class="field__err" id="err-b-phone" data-err="phone"></p></div>
+      <div class="field"><label for="b-msg">Message <span class="opt">optional</span></label><textarea id="b-msg" name="message" rows="3" aria-describedby="err-b-msg"></textarea><p class="field__err" id="err-b-msg" data-err="message"></p></div>
+      <div class="form__actions"><button class="btn btn--accent" type="submit">Join the facility pilot</button><p class="form__status" role="status" aria-live="polite"></p></div>
+      <p class="form__note">We'll only use this to contact you about SoleFresh.</p>
+      <div class="form__done" data-done tabindex="-1" hidden><p>Thanks. We'll reach out to talk about your inventory and what a pilot could look like.</p></div>
+    </form>
+  </div>
+</section>
+
+<!-- =============================================== STAGE 7: WHY SOLEFRESH == -->
+<section class="stage why" id="why" data-product="why" aria-labelledby="h-why">
+  <div class="why__panel stage__in">
+    <h2 id="h-why">One week of shoe care.</h2>
+    <p class="why__lede">Four routines. Pick one to see what it involves day to day.</p>
+    <div class="methods" role="group" aria-label="Routine">
+      <button type="button" class="method" data-method="spray" aria-pressed="false">Spray</button>
+      <button type="button" class="method" data-method="disposable" aria-pressed="false">Disposable freshener</button>
+      <button type="button" class="method" data-method="moisture" aria-pressed="false">Moisture pack</button>
+      <button type="button" class="method" data-method="solefresh" aria-pressed="true">SoleFresh</button>
+    </div>
+    <p class="why__legend" data-legend aria-live="polite">Placed in after wear and reused.</p>
+    <ol class="week" data-week aria-label="One week">
+      <li class="day" style="--i:0"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Mon</span></li>
+      <li class="day" style="--i:1"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Tue</span></li>
+      <li class="day" style="--i:2"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Wed</span></li>
+      <li class="day" style="--i:3"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Thu</span></li>
+      <li class="day" style="--i:4"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Fri</span></li>
+      <li class="day" style="--i:5"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Sat</span></li>
+      <li class="day" style="--i:6"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>Place in</span><span class="day__name">Sun</span></li>
+    </ol>
+    <p class="why__fine">Shows intended routines. SoleFresh performance is still being tested.</p>
+  </div>
+</section>
+
+<!-- =============================================== STAGE 8: STORY + FAQ == -->
+<section class="stage story" id="story" data-product="story" aria-labelledby="h-story">
+  <div class="story__panel stage__in">
+    <h2 id="h-story">Our story.</h2>
+    <p class="story__line">SoleFresh is a student-founded startup developed through the INCubatoredu program.</p>
+    <ol class="timeline" aria-label="Development timeline">
+      <li class="milestone"><button type="button" class="milestone__btn" data-ms="concept" aria-pressed="false" ><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">Concept</span></button></li>
+      <li class="milestone"><button type="button" class="milestone__btn" data-ms="research" aria-pressed="false" ><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">Customer research</span></button></li>
+      <li class="milestone"><button type="button" class="milestone__btn" data-ms="prototype" aria-pressed="false" ><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">First prototype</span></button></li>
+      <li class="milestone"><button type="button" class="milestone__btn" data-ms="learned" aria-pressed="false" ><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">What we learned</span></button></li>
+      <li class="milestone is-current"><button type="button" class="milestone__btn" data-ms="refining" aria-pressed="true" aria-describedby="ms-current"><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">Refining now</span><span class="milestone__now" id="ms-current">Current stage</span></button></li>
+    </ol>
+    <p class="milestone__text" data-ms-text aria-live="polite">Improving materials, effectiveness, cost and durability.</p>
+    <div class="faq" id="faq">
+      <h3>Questions.</h3>
+      <details class="faq__item" name="faq"><summary>What is SoleFresh?</summary><p>A reusable shoe-care product being developed to help manage shoe odor, moisture and freshness.</p></details>
+      <details class="faq__item" name="faq"><summary>Who is it for?</summary><p>Organizations that manage shared or high-use footwear, plus individual athletes and everyday wearers.</p></details>
+      <details class="faq__item" name="faq"><summary>How do you use it?</summary><p>Place it inside your shoes when they aren't being worn. Remove it before wearing them again.</p></details>
+      <details class="faq__item" name="faq"><summary>Is it reusable?</summary><p>Yes. Lifespan and care instructions are still being determined.</p></details>
+      <details class="faq__item" name="faq"><summary>Does it have a fragrance?</summary><p>Yes. Specific scents and the fragrance system haven't been announced.</p></details>
+      <details class="faq__item" name="faq"><summary>How long does it take to work?</summary><p>Performance testing is still needed before we can give a reliable estimate.</p></details>
+      <details class="faq__item" name="faq"><summary>How much does it cost?</summary><p>Final pricing hasn't been set, and there's nothing to buy yet. Affordability is a development priority. Facilities and teams can join the pilot to help test it.</p></details>
+      <details class="faq__item" name="faq"><summary>When will it be available?</summary><p>It's in development. No launch date has been announced.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== STAGE 9: CLOSE == -->
+<section class="stage close" id="close" data-product="close" aria-labelledby="h-close">
+  <div class="close__wrap stage__in">
+    <h2 id="h-close">Fresh Shoes. Every Day.</h2>
+    <div class="paths">
+      <div class="path">
+        <p class="path__label">For organizations</p>
+        <p class="path__text">Facilities, schools, rinks and teams that manage shared footwear.</p>
+        <a class="btn btn--accent" href="#pilot" data-jump="bulk" data-bulk>Join the facility pilot</a>
+      </div>
+      <div class="path">
+        <p class="path__label">For individuals</p>
+        <p class="path__text">Be first to hear when early access opens.</p>
+        <form class="form form--inline" method="post" action="/api/waitlist" data-form="waitlist" novalidate>
+          <div class="hp" aria-hidden="true"><label>Leave empty <input type="text" name="hp_check" tabindex="-1" autocomplete="off"></label></div>
+          <label class="vh" for="w-email">Email</label>
+          <div class="form__row"><input id="w-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required aria-describedby="err-w-email"><button class="btn btn--accent" type="submit">Join the waitlist</button></div>
+          <p class="field__err" id="err-w-email" data-err="email"></p>
+          <p class="form__status" role="status" aria-live="polite"></p>
+          <p class="form__note">We'll only use this to contact you about SoleFresh.</p>
+          <div class="form__done" data-done tabindex="-1" hidden><p>You're on the list. We'll email you when early access opens.</p></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <footer class="footer">
+    <span class="footer__logo">Sole<span>Fresh</span></span>
+    <span>Developed through INCubatoredu</span>
+    <span class="footer__contact" data-contact><a href="mailto:shrey.shah.608@k12.friscoisd.org">shrey.shah.608@k12.friscoisd.org</a></span>
+    <a class="footer__link" href="privacy.html">Privacy</a>
+    <span>&copy; <span data-year></span> SoleFresh. All rights reserved.</span>
+  </footer>
+</section>
+</main>
+
+<script type="module" src="dist/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "solefresh-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node tools/render.mjs",
+    "bundle": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && npx --yes esbuild@0.25.10 src/main.js --bundle --splitting --format=esm --minify --target=es2020 --outdir=dist",
+    "site": "npm run render && npm run bundle",
+    "models": "node tools/compress-models.mjs",
+    "test:forms": "node tools/test-forms.mjs"
+  },
+  "devDependencies": {
+    "lenis": "^1.3.26",
+    "playwright-core": "^1.64.1",
+    "three": "^0.186.1"
+  }
+}
