@@ -1,4 +1,4 @@
-// The real model: what is downloaded and when, the parts and their order, true scale between sizes, the opened layers,
+// The real model: what is downloaded and when, the parts and their order, true scale between sizes, the open stack,
 // colour touching only the shell, size swaps with a loading state, carry-forward to the rack.
 //   node lab/model-test.mjs
 import fs from 'node:fs';
@@ -31,11 +31,11 @@ const shoeMm = await p.evaluate(() => { const s = window.__sf.world.slot, u = 1.
 check('in the shoe, size M is 110 mm against a 300 mm shoe', Math.abs(shoeMm.len * shoeMm.mPerUnit - 109.8) < 0.5, `${(shoeMm.len * shoeMm.mPerUnit).toFixed(1)} mm`);
 
 console.log('explode');
-const ex = await p.evaluate(() => { const s = window.__sf.world.slot, D = window.__sf.MODEL.sizes.M.parts; s.setExplode(1); s.apply(); const out = s.parts.map((L) => [L.name, L.group.position.clone().add(s.fanMid).distanceTo(L.fan), +(D[L.name].explode[1] * 1000).toFixed(1), +(L.fwd * 1000).toFixed(1)]); s.setExplode(0); s.apply(); return out; });
-check('each part travels to its place in the opened product', ex.every(([, d]) => d < 1e-6), ex.map(([n, d]) => `${n} ${d.toExponential(0)}`).join(' '));
-check('the spacing toward the viewer comes from the exploded GLB (a fixed share of it)', ex.filter(([, , y]) => y).every(([, , y, l]) => Math.abs(l / y - ex[1][3] / ex[1][2]) < 1e-3), ex.map(([n, , y, l]) => `${n} ${y}>${l}`).join(' '));
-const order = await p.evaluate(() => { const s = window.__sf.world.slot, bad = []; const idx = ['shell_bottom', 'carbon_sachet', 'silica_sachet', 'shell_top'].map((n) => s.parts.findIndex((L) => L.name === n)); for (let u = 0; u <= 1.0001; u += 0.01) { s.setExplode(u); s.apply(); for (let k = 1; k < idx.length; k++) { const a = s.parts[idx[k - 1]], b = s.parts[idx[k]], clear = Math.abs(a.group.position.z - b.group.position.z) >= a.half.z + b.half.z; if (!clear && b.group.position.y < a.group.position.y - 1e-9) bad.push(u.toFixed(2)); } } s.setExplode(0); s.apply(); return bad; });
-check('no layer passes the one in front of it while they still overlap', !order.length, order.slice(0, 5).join(' '));
+const ex = await p.evaluate(() => { const s = window.__sf.world.slot, D = window.__sf.MODEL.sizes.M.parts; s.setExplode(1); s.apply(); const y = (n) => s.parts.find((L) => L.name === n).group.position.y, mm = (v) => +(v * 1000).toFixed(2); const out = { rest: s.parts.map((L) => [L.name, L.name === 'pull_cord' ? 0 : Math.abs(L.group.position.y - L.lift)]), gaps: [mm(D.carbon_sachet.min[1] + y('carbon_sachet') - D.shell_top.min[1]), mm(D.silica_sachet.min[1] + y('silica_sachet') - D.carbon_sachet.max[1] - y('carbon_sachet')), mm(D.shell_top.min[1] + y('shell_top') - D.silica_sachet.max[1] - y('silica_sachet'))] }; s.setExplode(0); s.apply(); return out; });
+check('each part rises to its level in the open stack', ex.rest.every(([, d]) => d < 1e-6), ex.rest.map(([n, d]) => `${n} ${d.toExponential(0)}`).join(' '));
+check('the stack has an even gap of 3 to 4 mm', ex.gaps.every((g) => g >= 3 && g <= 4), ex.gaps.join(' '));
+const order = await p.evaluate(() => { const s = window.__sf.world.slot, bad = []; const idx = ['shell_bottom', 'carbon_sachet', 'silica_sachet', 'shell_top'].map((n) => s.parts.findIndex((L) => L.name === n)); for (let u = 0; u <= 1.0001; u += 0.01) { s.setExplode(u); s.apply(); const ys = idx.map((i) => s.parts[i].group.position.y); for (let i = 1; i < ys.length; i++) if (ys[i] < ys[i - 1] - 1e-9) bad.push(u.toFixed(2)); } s.setExplode(0); s.apply(); return bad; });
+check('no layer ever passes the one in front of it', !order.length, order.slice(0, 5).join(' '));
 check('and no second model is fetched', glbs.length === 1);
 
 console.log('colour');
@@ -83,7 +83,7 @@ console.log('selection');
 await p.evaluate(() => document.querySelector('.nav__link[data-jump="inside"]').click()); await p.waitForTimeout(800);
 await p.click('.layer-btn[data-layer="3"]'); await p.waitForTimeout(600);
 const sel = await p.evaluate(() => { const s = window.__sf.world.slot; return { glow: s.parts.map((L) => +L.mat.emissiveIntensity.toFixed(2)), op: s.parts.map((L) => +L.mat.opacity.toFixed(2)), panel: document.querySelector('[data-sheet-name]').textContent, role: document.querySelector('[data-sheet-role]').textContent, em: '#' + s.parts[3].mat.emissive.getHexString() }; });
-check('a click highlights the real node and dims the rest', sel.op[3] === 1 && sel.op.filter((o, i) => i !== 3).every((o) => o < 0.5) && sel.em !== '#000000', JSON.stringify(sel.op));
+check('a click pops out the real node and dims the rest slightly', sel.op[3] === 1 && sel.op.filter((o, i) => i !== 3).every((o) => o > 0.5 && o < 0.75), JSON.stringify(sel.op));
 check('with its panel copy', sel.panel === 'Scent beads' && sel.role.includes('heel end'), sel.role);
 if (errs.length) { console.log('page errors:', errs); fails++; }
 console.log(`first visit GLB download: ${(glbs[0].bytes / 1024).toFixed(0)} KB`);

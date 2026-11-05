@@ -66,7 +66,14 @@ Every stage with text beside the product has a fit: `fitStages()` in `src/main.j
 
 ## Phones (under 900px, and screens under 520px tall)
 
-The browser scrolls the page: no snap, no Lenis. The `.world` band is `position: sticky` inside `.pin`, which wraps the stages that use the product (hero, What it does, How it works, Inside, Customize), so it scrolls away with the end of Customize and Bulk, the comparison, the Story, the FAQ and the close have the whole screen. Customize keeps the band because its swatches and sizes preview on the product. Below the band the world stops rendering and rests in Customize's state. Keep `NARROW` in `src/main.js` and the media query in `styles.css` in step.
+The browser scrolls the page: no snap, no Lenis. Each section is as tall as its content.
+
+- **The band:** `.world` is `position: sticky` inside `.pin`, which wraps the stages that use the product, so it scrolls away with the end of Customize and the form, the comparison, the Story, the FAQ and the close have the whole screen. Each section gives it its own height (`--band-*` in `styles.css`), bounded for short and tall screens and held back by the width where a wide scene would only add empty space. The canvas keeps the tallest of them and `--band-now` shows as much as the section has, eased through each travel, so nothing resizes during a scroll.
+- **Framing:** `frameStage()` in `src/world.js` measures what each section really puts on screen (the cord, the shoes, every Stage 3 step as it plays) and zooms and pans the whole picture to fit its band. A zoom cannot change anything's size relative to anything else, so the product stays true to the shoes. Inside and Customize also measure a popped part and a full turn: a second, wider frame the view eases to only while that happens, so at rest the product fills its space. `lab/mobile-test.mjs` checks all of it on rendered pixels.
+- **Short landscape:** under 520px tall the product sits beside the sections, in a sticky column, instead of above them (`SIDE` in `src/main.js`). Each section is framed in the whole column.
+- **Sections:** the hero puts the pilot button right after the intro and who it's for after that; the part details sit in the page, under the part list; the routine says its action once above a strip of days. The travel from How to Inside spreads over more of its scroll than on wide screens (`PHONE_SHAPES` in `src/world.js`), because a short section leaves it less room.
+
+Keep `NARROW` and `SIDE` in `src/main.js` and the media queries in `styles.css` in step.
 
 ## The product model
 
@@ -119,6 +126,7 @@ Deploy `site/` as the project root: framework preset Other, no build command (co
 - `layout-test.mjs` many window sizes in sizes M and L: Stage 2's cards, lines and product, the product clear of each stage's text, the header, no sideways overflow, phone details, WebGL off.
 - `model-test.mjs` what is downloaded and when, the parts and their PBR values, the opened layers, colour touching only the shell, size swaps, carry-forward to the rack, selection.
 - `form-test.mjs` the forms in a browser with the API mocked per case (`--mobile`). `api-test.mjs` the handlers against a local mock webhook, including the 10 second timeout, the rate limit and a Google Sheet that answers 200 without saving. `sheet-script-test.mjs` the Google Sheet script against a stand-in for Google's services.
+- `mobile-test.mjs` the phone layout at 320x568, 375x667, 390x844, 430x932, 768x1024 and 844x390, on rendered pixels: each section's picture at rest, through every Stage 3 step, with each part popped out, turned by a drag and along each travel stays in its space; headings clear of the sticky parts after a jump through the menu; no sideways overflow; tap sizes, 16px fields, the swatches, the routine (`--sizes`, `--model`). `mobile-shots.mjs` screenshots every section through the real menu, for before and after comparisons.
 - `pose-test.mjs` the upright poses, on real pixels with one part drawn at a time and with real clicks: Stage 1's size, place and stillness; Inside's stack and gaps; every way a part pops out and goes back, nothing clipped, no part through another; the size through each transition; rest, popped and mid-transition frames in `lab/pose/` (`--mobile`, `--size`, `--w --h`).
 - `verify-still.mjs` product still at rest, moving in transitions, reverse scroll matches forward, nav links land in the resting state.
 - `steps-test.mjs` Stage 3 consistency across skips, interrupts, replays and scrolling away mid-step; toe first in, heel first out; the working loop rests when idle and wakes on input; the layered open-up reverses (`--reduced`).

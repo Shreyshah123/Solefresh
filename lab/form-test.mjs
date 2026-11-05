@@ -77,9 +77,9 @@ await p.fill('#w-email', 'a@b.co'); answer = { status: 503, body: { ok: false, c
 check('waitlist not connected keeps the email', (await p.textContent(`${W} .form__status`)).includes("isn't connected yet") && (await p.inputValue('#w-email')) === 'a@b.co');
 const note = "We'll only use this to contact you about SoleFresh.";
 check('the line is under both forms', await p.evaluate((n) => [...document.querySelectorAll('form')].every((f) => f.querySelector('.form__note')?.textContent === n) && document.querySelectorAll('form').length === 2, note));
-check('the footer shows [YOUR EMAIL] and links to the privacy page', await p.evaluate(() => document.querySelector('[data-contact]').textContent === '[YOUR EMAIL]' && !!document.querySelector('.footer a[href="privacy.html"]')));
+check('the footer shows the contact address as a link, and links to the privacy page', await p.evaluate(() => { const c = document.querySelector('[data-contact] a'), e = window.__sf.C.brand.contactEmail; return c?.textContent === e && c.getAttribute('href') === `mailto:${e}` && !!document.querySelector('.footer a[href="privacy.html"]'); }));
 await p.goto('http://localhost:4520/privacy.html', { waitUntil: 'load' });
-check('the privacy page has its marked slot', (await p.textContent('.doc__slot')).startsWith('[RECEIVING SERVICE') && (await p.textContent('.doc')).includes('[YOUR EMAIL]'));
+check('the privacy page names Google Sheets, links its policy and gives the contact address, with no placeholder left', await p.evaluate(() => { const d = document.querySelector('.doc'), t = d.textContent; return t.includes('Google Sheets') && !!d.querySelector('a[href="https://policies.google.com/privacy"]') && !!d.querySelector('a[href^="mailto:"]') && !/\[YOUR EMAIL|\[RECEIVING/.test(t); }));
 if (errs.length) { console.log('page errors:', errs); fails++; }
 console.log(fails ? `FAILURES: ${fails}` : 'all form checks passed');
 await b.close();

@@ -98,7 +98,6 @@ export class ProductSlot extends THREE.Group {
     this.cur = { highlight: 0, sel: PARTS.map(() => 0) };
     this.cord = { swing: 0, lay: 0 };
     this.viewer = new THREE.Vector3(0, 0, 10); // the camera, set by the world: a popped part turns toward it
-    this.popDown = 0;                          // metres, set by the world for the phone band
     this.drag = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, held: false };
     this.colorT = 1; this.colorMs = 300;
     const ref = MODEL.sizes.M.parts.shell_bottom;
@@ -319,7 +318,6 @@ export class ProductSlot extends THREE.Group {
     const sideways = (1 - (1 - clamp(p / 0.42)) ** 3) * first + (side - first) * smooth((p - 0.75) / 0.25) + side * over * 0.6;
     out.addScaledVector(_view, fwd); out.z -= sideways;
     if (L.name === 'pull_cord') out.x -= POSES.inside_upright.pop.cordUp * 0.001 * smooth(p);   // it hangs below the stack: it comes up beside it, into view
-    else out.x += this.popDown * smooth(p);                                                     // the phone band is short: coming closer must not take its top out of the band
     _qf.setFromUnitVectors(_up, _view);
     _qp.identity().slerp(_qf, P.face * smooth((p - 0.5) / 0.5));
     L.group.quaternion.copy(_qp);

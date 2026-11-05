@@ -70,7 +70,7 @@ await go(0);
 await go(3);
 {
   const layer = () => p.evaluate(() => window.__sf.state.layer), hint = 'Select a part to see what it does.';
-  const panel = () => p.evaluate(() => { const v = (s) => { const e = document.querySelector(s); return e && !e.hidden && e.getClientRects().length ? e.textContent.trim() : ''; }; return { open: document.querySelector('[data-sheet]').classList.contains('is-open'), name: v('[data-sheet-name]'), prompt: v('[data-sheet-prompt]') || v('[data-inside-prompt]') }; });
+  const panel = () => p.evaluate(() => { const v = (s) => { const e = document.querySelector(s); return e && !e.hidden && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' ? e.textContent.trim() : ''; }; return { open: document.querySelector('[data-sheet]').classList.contains('is-open'), name: v('[data-sheet-name]'), prompt: v('[data-sheet-prompt]') || v('[data-inside-prompt]') }; });
   const state = () => p.evaluate(() => { const s = window.__sf.world.slot; return s.parts.map((L) => ({ name: L.name, pop: L.pop.p, opacity: +L.mat.opacity.toFixed(2) })); });
   const settled = async () => { await p.waitForTimeout(1000); return state(); };
   const out = (st) => st.filter((x) => x.pop > 0.5).map((x) => x.name);

@@ -17,6 +17,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const FINE = matchMedia('(hover: hover) and (pointer: fine)');
 const NARROW = matchMedia('(max-width: 899px), (max-height: 520px)'); // keep in step with styles.css: the phone layout
+const SIDE = matchMedia('(max-height: 520px) and (orientation: landscape)'); // and within it, short landscape: the product beside the text, not above it
 const html = document.documentElement;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -33,7 +34,16 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { s
 $('[data-year]').textContent = String(new Date().getFullYear());
 function navH() { return navEl.getBoundingClientRect().height; }
 /** The scroll position that rests on an element: its top under the nav and, on phones, under the band while the band is pinned. */
-function restY(el) { return Math.round(pageTop(el) - navH() - (NARROW.matches && el.closest('.pin') ? worldEl.offsetHeight : 0)); }
+function restY(el) { return Math.round(pageTop(el) - navH() - (bands[el.closest('[data-product]')?.dataset.product] || 0) - (NARROW.matches && !el.dataset.product ? 12 : 0)); } // an anchor inside a section gets a little air under the nav
+// Phones: how much of the screen the product gets in each section. The heights are in styles.css (--band-*), read here in px.
+// The canvas keeps one size, the tallest; .world shows as much of it as the section has, so nothing resizes while scrolling.
+const bands = {}, bandProbe = document.createElement('i'); bandProbe.style.cssText = 'position:absolute;width:0;visibility:hidden;pointer-events:none';
+function measureBands() {
+  if (!bandProbe.isConnected) document.body.append(bandProbe);
+  for (const s of stages) { const st = s.dataset.product; bandProbe.style.height = `var(--band-${st}, 0px)`; bands[st] = NARROW.matches && !SIDE.matches && s.closest('.pin') ? bandProbe.offsetHeight : 0; }
+}
+let bandNow = -1;
+function setBand(px) { const v = Math.round(px * 2) / 2; if (v !== bandNow) { bandNow = v; worldEl.style.setProperty('--band-now', v ? `${v}px` : ''); } }
 /** An element's top in the page, from layout, not the box on screen: an arrival fade moves that. */
 function pageTop(el) { let y = 0; for (let e = el; e; e = e.offsetParent) y += e.offsetTop; return y; }
 
@@ -46,6 +56,7 @@ function land(y, stage) {
   snap.jump(y);
   suppressUntil = performance.now() + 400; lastKey = ''; // the next scroll must reach the world, even if it computes the same travel as before the jump
   if (world) world.jumpTo(bandStage(stage));
+  setBand(bands[bandStage(stage)] || 0);
   // it lands at rest: a travel it cut short is over (its own scroll events are suppressed, so onScroll will not say so)
   const cut = !!html.dataset.travel; if (cut) html.dataset.travel = '';
   setStage(stage);
@@ -115,6 +126,7 @@ const LAST_BAND = stages.map((s) => !!s.closest('.pin')).lastIndexOf(true);   //
 /** On phones everything below the band is out of the world's sight: it rests in the band's last stage. */
 const bandStage = (stage) => (NARROW.matches && stages.findIndex((s) => s.dataset.product === stage) > LAST_BAND ? stages[LAST_BAND].dataset.product : stage);
 function measureStages() {
+  measureBands();
   tops.length = 0;
   for (const s of stages) tops.push(restY(s)); // integers: the browser rests on whole pixels
   snap.measure();
@@ -129,7 +141,7 @@ function onScroll(force = false) {
   for (let i = 1; i < stages.length; i++) {
     const a = stages[i - 1].dataset.product, b = stages[i].dataset.product;
     // phones scroll freely: the travel fits inside the stage and the space under the band, so every stage has a rest zone
-    const sp = narrow ? Math.min((innerHeight - navH() - worldEl.offsetHeight) * 0.6, (tops[i] - tops[i - 1]) * 0.6) : innerHeight * (TRAVEL[`${a}>${b}`] || TRAVEL.default), start = tops[i] - sp;
+    const sp = narrow ? Math.min(Math.max(innerHeight - navH() - (bands[b] || 0), (tops[i] - tops[i - 1]) * 0.7) * 0.8, (tops[i] - tops[i - 1]) * 0.8) : innerHeight * (TRAVEL[`${a}>${b}`] || TRAVEL.default), start = tops[i] - sp;
     if (y < start) break;
     from = a; to = b; at = i; span = sp; u = sp - (y - start) < 1 ? 1 : Math.min(1, (y - start) / sp); // within a pixel of the end counts as arrived
   }
@@ -145,6 +157,7 @@ function onScroll(force = false) {
   const stage = u >= 1 ? to : (u > 0.5 ? to : from);
   // phones: the band has scrolled away by the time Bulk arrives, so the world stays in its last stage below that
   const below = narrow && at > LAST_BAND, wf = below ? stages[LAST_BAND - 1].dataset.product : from, wt = below ? stages[LAST_BAND].dataset.product : to, wu = below ? 1 : u;
+  if (narrow) { const k = RM.matches ? (wu < 0.5 ? 0 : 1) : wu * wu * (3 - 2 * wu); setBand((bands[wf] || 0) + ((bands[wt] || 0) - (bands[wf] || 0)) * k); }
   const key = `${wf}>${wt}@${wu.toFixed(3)}`;
   if (key !== lastKey) { lastKey = key; if (world) world.setTravel(wf, wt, wu, below ? wu : uLeave); }
   const tv = u > 0 && u < 1 ? `${from}>${to}` : '';
@@ -332,16 +345,20 @@ function setLenis(on) {
   } else { cancelAnimationFrame(lenisRaf); lenis.destroy(); lenis = null; }
 }
 setLenis(snapOn() && !RM.matches);
-NARROW.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); measureStages(); });
+NARROW.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); bandNow = -1; setOrientation(); measureStages(); });
+SIDE.addEventListener('change', () => { bandNow = -1; measureStages(); });
 
 // ---------------------------------------------------------- stage 1 --
 const thumbs = Object.fromEntries(C.segments.items.map((a) => [a.id, a.photo || drawThumb(a.venue)]));
 const tabs = $$('.who__item'), panel = $('#panel'), thumb = $('[data-thumb]'), thumbImg = $('[data-thumb-img]');
+function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches ? 'horizontal' : 'vertical'); }
+setOrientation();
 function select(id, { focus = false, animate = true } = {}) {
   const a = C.segments.items.find((x) => x.id === id); if (!a) return;
   const changed = id !== state.audience; state.audience = id;
   tabs.forEach((t) => { const on = t.dataset.aud === id; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
   panel.setAttribute('aria-labelledby', `tab-${id}`);
+  if (NARROW.matches && changed) { const t = tabs.find((x) => x.dataset.aud === id), l = t.parentElement; l.scrollTo({ left: t.offsetLeft - (l.clientWidth - t.offsetWidth) / 2, behavior: RM.matches ? 'auto' : 'smooth' }); } // the picked audience comes fully into view
   const apply = () => {
     $('[data-panel-for]').textContent = `For ${a.name.toLowerCase()}`; $('[data-panel-line]').textContent = a.line;
     $('[data-panel-org]').hidden = !a.org; $('[data-panel-ind]').hidden = a.org; $('[data-panel-thumb]').src = thumbs[id];
@@ -395,15 +412,18 @@ function placeMarkers(w) {
 let fitKey = '';
 function fitStages(force = false) {
   if (!worldReady) return;
-  const key = `${innerWidth}x${innerHeight}/${world.slot.sizeId}/${NARROW.matches}`;
+  // on phones the address bar coming and going changes innerHeight but none of the bands: nothing to redo mid-scroll
+  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}`;
   if (key === fitKey && !force) return; fitKey = key;
   if (world.W !== worldEl.clientWidth || world.H !== worldEl.clientHeight) world.resize(); // the window's resize event comes before the canvas's own
-  const fitted = ['what', 'customize', 'why', 'story', 'close'], centred = { center: true };
+  const fitted = ['what', 'customize', 'why', 'story', 'close'], centred = { center: true }, all = stages.map((s) => s.dataset.product);
   if (NARROW.matches) {
-    fitted.forEach((st) => world.fitStage(st, null));
-    const band = { left: 12, right: world.W - 12, top: 10, bottom: world.H - 24 }, fill = { center: true, grow: 4 };
-    world.fitStage('explorer', band, fill); world.fitStage('inside', band, fill); world.fitsChanged(); return;
+    all.forEach((st) => { world.fitStage(st, null); world.frameStage(st, null); });
+    // each section in its own space: its band, or beside the text the whole canvas. The band's foot has a soft fade, so the picture stays above it.
+    for (const s of stages) { if (!s.closest('.pin')) continue; const st = s.dataset.product, h = SIDE.matches ? world.H : bands[st]; world.frameStage(st, { left: 14, right: world.W - 14, top: 8, bottom: h - (SIDE.matches ? 8 : 18) }); }
+    world.fitsChanged(); return;
   }
+  all.forEach((st) => world.frameStage(st, null));
   const maxY = Math.max(0, html.scrollHeight - innerHeight), rest = (st) => Math.min(tops[stages.findIndex((s) => s.dataset.product === st)], maxY);
   const top = (el, st) => pageTop(el) - rest(st), bottom = (el, st) => top(el, st) + el.offsetHeight, nh = navH();
   const left = (el) => el.getBoundingClientRect().left, right = (el) => el.getBoundingClientRect().right, g = $('.what__low').offsetLeft;
@@ -458,7 +478,7 @@ function selectLayer(i) {
   $$('[data-layer]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.layer === i)));
   const L = C.inside.layers[i];
   sheet.classList.toggle('is-open', !!L);
-  $('[data-sheet-prompt]').hidden = !!L; $('[data-sheet-detail]').hidden = !L; $('[data-inside-prompt]').hidden = !!L;
+  $('[data-sheet-prompt]').hidden = !!L; $('[data-sheet-detail]').hidden = !L; $('[data-inside-prompt]').style.visibility = L ? 'hidden' : ''; // it keeps its line, so the part list does not jump
   if (L) { $('[data-sheet-name]').textContent = L.name; $('[data-sheet-role]').textContent = L.role; }
   if (world && (state.stage === 'inside' || i < 0)) world.selectLayer(i); // a deselect always reaches the product (leaving Inside calls it after the stage has changed)
   if (!L && held) sheetOpener?.focus({ preventScroll: true });
@@ -467,19 +487,17 @@ $$('[data-layer]').forEach((b) => b.addEventListener('click', () => {
   const i = +b.dataset.layer, open = i !== state.layer;
   if (open) sheetOpener = b;
   selectLayer(open ? i : -1);
-  if (open && NARROW.matches) sheetClose.focus({ preventScroll: true }); // the phone sheet is a step aside: focus goes in with it
 }));
 sheetClose.addEventListener('click', () => selectLayer(-1));
 // The parts themselves are the targets: a click on one pops it out as its list button does; on the part that is out, or on
 // empty space, it goes back. The list stays the keyboard's way in, and where focus returns.
-const layerAt = (e) => { if (!worldReady || state.stage !== 'inside' || html.dataset.travel) return -1; const r = worldEl.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return x < 0 || y < 0 || x > r.width || y > r.height ? -1 : world.pickLayer(x, y); };
+const layerAt = (e) => { if (!worldReady || state.stage !== 'inside' || html.dataset.travel) return -1; const r = worldEl.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return x < 0 || y < 0 || x > r.width || y > (bandNow > 0 ? bandNow : r.height) ? -1 : world.pickLayer(x, y); };
 document.addEventListener('click', (e) => {
   if (state.stage !== 'inside' || e.target.closest('a, button, input, select, textarea, label, summary, .sheet, .nav, .menu')) return;
   const i = layerAt(e), open = i >= 0 && i !== state.layer;
   if (i < 0 && state.layer < 0) return;
   if (open) sheetOpener = $(`.layer-btn[data-layer="${i}"]`);
   selectLayer(open ? i : -1);
-  if (open && NARROW.matches) sheetClose.focus({ preventScroll: true });
 });
 if (FINE.matches) { let q = 0, last = null; addEventListener('pointermove', (e) => { last = e; if (state.stage !== 'inside' && !html.classList.contains('over-layer')) return; q ||= requestAnimationFrame(() => { q = 0; html.classList.toggle('over-layer', !last.target.closest?.('a, button, .sheet, .nav') && layerAt(last) >= 0); }); }, { passive: true }); }
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.stage === 'inside' && state.layer >= 0) selectLayer(-1); });
@@ -598,6 +616,7 @@ function setMethod(id) {
   state.method = id;
   $$('.method').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.method === id)));
   legendEl.textContent = m.legend;
+  $('[data-week-mark]').textContent = m.mark; $('[data-week-icon]').innerHTML = ICON[m.icon];
   dayEls.forEach((d, i) => {
     $('[data-day-icon]', d).innerHTML = ICON[m.icon]; $('[data-day-mark]', d).textContent = m.mark;
     d.style.setProperty('--i', i);

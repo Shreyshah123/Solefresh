@@ -117,6 +117,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 
 /* ============================================================== STAGE 1 == */
 .explorer { }
+.explorer__cta { display: none; } /* wide screens have the panel beside the product; phones get the next step right after the intro */
 .explorer__left { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; bottom: 6vh; width: min(25rem, 30vw); display: flex; flex-direction: column; justify-content: space-between; gap: var(--s6); pointer-events: none; }
 .explorer__left > * { pointer-events: auto; }
 .explorer h1 { font-size: clamp(2.5rem, 1.2rem + 3.4vw, 4.5rem); letter-spacing: -.04em; line-height: .98; }
@@ -264,6 +265,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .methods { display: flex; flex-wrap: wrap; gap: .5rem; }
 .method { min-height: 2.5rem; font-size: .88rem; }
 .why__legend { margin: 0; min-height: 1.5em; font: 500 .95rem/1.4 var(--font-display); color: var(--ink); }
+.week__action { display: none; } /* phones say the routine's action once, above the days */
 .week { list-style: none; margin: 0; padding: var(--s4); display: grid; grid-template-columns: repeat(7, 1fr); gap: .4rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); position: relative; }
 .day { display: grid; justify-items: center; gap: .35rem; padding: .5rem .2rem .4rem; border-radius: var(--r-sm); background: var(--bone); text-align: center; opacity: 0; transform: translateY(6px); }
 .day.is-anim { animation: day-in 240ms var(--ease) forwards; animation-delay: calc(var(--i) * 32ms); }
@@ -332,100 +334,156 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .doc__intro { margin-top: var(--s4) !important; font-size: 1.05rem; }
 
 /* ====================================================== phones, tablets == */
-/* Under 900px, and on short landscape screens (keep in step with NARROW in src/main.js). The browser scrolls the
-   page. The product is a band pinned under the nav by position: sticky while the stages that use it (.pin) scroll
-   beneath it; it leaves with the end of .pin, so Bulk, the comparison, the Story and the FAQ have the whole screen. */
+/* Under 900px, and on short screens (keep in step with NARROW in src/main.js). The browser scrolls the page and each
+   section's height is its content's. The product is a band pinned under the nav by position: sticky while the stages that
+   use it (.pin) scroll beneath it; it leaves with the end of .pin, so the form, the comparison, the Story and the FAQ have
+   the whole screen. --band-* is how much of the screen each section gives it: bounded both ways, and held back by the
+   width where a wide scene would only add empty space. The canvas keeps the tallest of them (the hero's) and --band-now
+   shows as much as the section has, so nothing resizes during a scroll. src/world.js frames each section to its band. */
 @media (max-width: 899px), (max-height: 520px) {
-  :root { --nav-h: 3.5rem; --band: 34svh; }
+  :root {
+    --nav-h: 3.5rem;
+    --band-explorer: clamp(13rem, 43svh, 26rem);
+    --band-what: clamp(9.5rem, min(26svh, 48vw), 20rem);
+    --band-how: clamp(12rem, min(34svh, 60vw), 24rem);
+    --band-inside: clamp(13rem, 36svh, 24rem);
+    --band-customize: clamp(12rem, min(30svh, 58vw), 22rem);
+  }
   html { scroll-padding-top: var(--top); }
   .nav { gap: var(--s3); background: var(--bone); } /* the page scrolls freely under it here, so nothing may show through */
   .nav__waitlist { display: none; }
-  .nav__cta .btn { min-height: 2.5rem; padding: 0 .9rem; font-size: .8rem; }
-  h2 { font-size: clamp(1.8rem, 7.5vw, 2.5rem); }
-  .world { position: sticky; inset: auto; top: var(--top); width: 100%; height: var(--band); z-index: 4; background: var(--bone); pointer-events: auto; touch-action: pan-y; }
-  .world::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2.5rem; background: linear-gradient(transparent, var(--bone)); pointer-events: none; }
-  .overlay { top: var(--top); bottom: auto; height: var(--band); z-index: 3; }
-  .overlay__lines, .overlay__set[data-for="what"] { display: none; }
+  .nav__cta .btn { min-height: 2.75rem; padding: 0 1rem; font-size: .84rem; }
+  h2 { font-size: clamp(1.9rem, 7.5vw, 2.5rem); }
+  .world { position: sticky; inset: auto; top: var(--top); width: 100%; height: var(--band-explorer); z-index: 4; background: var(--bone); pointer-events: auto; touch-action: pan-y; clip-path: inset(0 0 calc(100% - var(--band-now, 100%)) 0); }
+  .world::after { content: ""; position: absolute; left: 0; right: 0; top: calc(var(--band-now, 100%) - 1rem); height: 1rem; background: linear-gradient(transparent, var(--bone)); pointer-events: none; }
+  .world__poster { bottom: auto; height: var(--band-now, 100%); }
+  .overlay { display: none; }
   .stage, .stage--full { height: auto; min-height: 0; overflow: visible; }
-  .pin .stage { min-height: calc(100svh - var(--top) - var(--band)); scroll-margin-top: var(--band); }
-  .pin :is(a, button, input, select, textarea) { scroll-margin-top: calc(var(--band) + var(--s3)); }
+  .pin .stage { padding-block: var(--s4) var(--s7); scroll-margin-top: var(--band-explorer); }
+  .pin :is(a, button, input, select, textarea) { scroll-margin-top: calc(var(--band-explorer) + var(--s3)); }
   .stage__in, .stage.is-in .stage__in { opacity: 1; transform: none; transition: none; }
-  /* stage 1 */
-  .explorer { display: flex; flex-direction: column; padding-bottom: var(--s6); }
+  /* stage 1: the product, what it is, the next step. Who it's for comes after that. */
+  .explorer { display: flex; flex-direction: column; }
   .explorer__left { display: contents; }
-  .explorer__intro { order: 1; padding: var(--s4) var(--gutter) 0; }
+  .explorer__intro { order: 1; padding: 0 var(--gutter); }
   .explorer h1 { font-size: clamp(2.2rem, 10vw, 3rem); }
-  .explorer__lede { font-size: 1rem; margin-top: var(--s3); }
-  .who { order: 3; margin-top: var(--s5); }
+  .explorer__lede { font-size: 1rem; margin-top: var(--s3); max-width: 40ch; }
+  .explorer__cta { display: flex; width: min(100%, 24rem); min-height: 3rem; margin-top: var(--s4); font-size: 1rem; }
+  .who { order: 3; margin-top: var(--s6); }
   .who__label { padding: 0 var(--gutter); }
-  .who__list { display: flex; gap: var(--s2); overflow-x: auto; padding: 2px var(--gutter) var(--s2); scroll-snap-type: x proximity; scrollbar-width: none; }
+  .who__list { display: flex; gap: var(--s2); overflow-x: auto; padding: 2px var(--gutter) var(--s2); scroll-padding-inline: var(--gutter); scroll-snap-type: x proximity; scrollbar-width: none; }
   .who__list::-webkit-scrollbar { display: none; }
-  .who__item, .who__item:last-child { flex: none; scroll-snap-align: start; padding: 0 1rem; border: 1px solid var(--hair-strong); border-radius: var(--r-pill); font-size: .9rem; white-space: nowrap; }
+  .who__item, .who__item:last-child { flex: none; scroll-snap-align: start; padding: 0 1rem; border: 1px solid var(--hair-strong); border-radius: var(--r-pill); font-size: .92rem; white-space: nowrap; }
   .who__item::before { display: none; }
   .who__item[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bone); }
   .who__thumb { display: none; }
-  .panel { order: 4; position: static; width: auto; margin: var(--s4) var(--gutter) 0; grid-template-columns: 6.5rem 1fr; column-gap: var(--s4); align-items: start; }
-  .panel__thumb { display: block; grid-row: 1 / span 3; }
-  .panel__line { font-size: 1rem; } .panel__for { font-size: .68rem; }
-  .panel__org, .panel__ind { grid-column: 1 / -1; }
-  .panel .btn { justify-self: stretch; }
+  .panel { order: 4; position: static; width: auto; margin: var(--s3) var(--gutter) 0; padding: 0; gap: var(--s2); border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .panel__thumb { display: none; }
+  .panel__line { font-size: 1.05rem; }
+  .panel__note { margin-bottom: var(--s3); }
+  .panel .btn { justify-self: start; border-color: var(--hair-strong); background: transparent; color: var(--ink); box-shadow: none; }
   /* stage 2: a plain list below the product */
-  .what { display: flex; flex-direction: column; gap: var(--s4); padding-bottom: var(--s6); }
+  .what { display: flex; flex-direction: column; gap: var(--s4); }
   .what__head, .what__low { position: static; max-width: none; margin: 0 var(--gutter); }
-  .what__head { padding-top: var(--s4); }
+  .what__low > * { width: auto; }
   .hs-cards { grid-template-columns: 1fr; gap: 0; }
   .hs-card { padding: var(--s3) 0; border: 0; border-top: 1px solid var(--hair); border-radius: 0; background: none; box-shadow: none; }
   .hs-card:last-child { border-bottom: 1px solid var(--hair); }
-  /* stage 3 */
-  .how { display: flex; flex-direction: column; gap: var(--s4); padding-bottom: var(--s6); }
+  /* stage 3: the step's words right under the picture, the four steps below them */
+  .pin .how { padding-bottom: var(--s8); } /* the longest move on the page happens in this gap */
+  .how { display: flex; flex-direction: column; gap: var(--s3); }
   .how__head, .how__bar { position: static; margin: 0 var(--gutter); }
-  .how__head { padding-top: var(--s4); }
-  .steps { grid-template-columns: 1fr; gap: .5rem; }
-  /* stage 4 */
-  .inside { display: flex; flex-direction: column; gap: var(--s4); padding-bottom: var(--s6); }
+  .how__bar { gap: var(--s3); }
+  .how__caption { font-size: 1.02rem; max-width: none; min-height: 2.8em; }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .step { min-height: 3.5rem; padding: .5rem .7rem; gap: .55rem; font-size: .9rem; }
+  /* stage 4: the parts, and what the chosen one does, in the page */
+  .inside { display: flex; flex-direction: column; gap: var(--s3); }
   .inside__head, .inside__list { position: static; margin: 0 var(--gutter); max-width: none; }
-  .inside__head { padding-top: var(--s4); }
-  .inside__list { display: flex; flex-wrap: wrap; gap: .5rem; }
-  .sheet { position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; top: auto; translate: none; width: auto; transform: translateY(105%); visibility: hidden; transition: transform 240ms var(--ease), visibility 0s 240ms; pointer-events: none; }
-  .sheet.is-open { transform: none; visibility: visible; transition: transform 240ms var(--ease), visibility 0s; pointer-events: auto; }
-  .sheet__body { border-radius: var(--r-md) var(--r-md) 0 0; padding-bottom: calc(var(--s5) + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 30px -10px hsl(40 12% 30% / .35); }
-  .sheet__prompt { display: none; } .inside__prompt { display: block; }
-  .sheet__close { display: inline-flex; align-items: center; justify-self: end; min-height: 2.75rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); background: transparent; font: 600 .86rem/1 var(--font-display); color: var(--ink); cursor: pointer; }
-  /* customize */
-  .customize { display: flex; flex-direction: column; gap: var(--s5); padding-bottom: var(--s6); }
+  .inside__note { margin-top: var(--s2); }
+  .inside__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .layer-btn { justify-content: center; justify-self: stretch; min-height: 2.75rem; padding: 0 .5rem; font-size: .9rem; }
+  .sheet { position: static; translate: none; width: auto; margin: 0 var(--gutter); }
+  .sheet__body { grid-template-columns: minmax(0, 1fr) auto; align-items: start; min-height: 6.75rem; padding: var(--s4); box-shadow: none; }
+  .sheet__close { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .9rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); background: transparent; font: 600 .86rem/1 var(--font-display); color: var(--ink); cursor: pointer; }
+  .sheet:not(.is-open) .sheet__close { display: none; }
+  /* customize: the choices as one group, under the preview */
+  .customize { display: flex; flex-direction: column; gap: var(--s4); }
   .customize__head, .customize__note { position: static; max-width: none; margin: 0 var(--gutter); }
-  .customize__head { padding-top: var(--s4); }
-  .customize__drag { display: none; } /* the band itself is the handle */
-  .customize__side { position: static; translate: none; width: auto; margin: 0 var(--gutter); }
+  .customize { position: relative; }
+  .customize__drag { position: absolute; left: var(--gutter); right: var(--gutter); top: var(--s2); bottom: auto; height: 3rem; pointer-events: none; } /* the band itself is the finger's handle; this stays the keyboard's */
+  .customize__drag:focus-visible { outline-offset: 2px; }
+  .customize__side { position: static; translate: none; width: auto; margin: 0 var(--gutter); padding-top: var(--s4); border-top: 1px solid var(--hair); }
+  .customize__pick { font-size: .98rem; }
   .swatches { grid-template-columns: repeat(4, 2.75rem); gap: .6rem; }
   .swatch { width: 2.75rem; height: 2.75rem; } .swatch__chip { width: 2.3rem; height: 2.3rem; }
-  /* the pilot form */
-  .bulk { display: block; padding: var(--s5) var(--gutter) var(--s7); }
-  .bulk__card { grid-template-columns: 1fr; gap: var(--s5); padding: var(--s5); }
-  .form { grid-template-columns: 1fr; }
+  .size { justify-content: center; min-width: 3.25rem; min-height: 2.75rem; }
+  /* the pilot form: no card round it, so the fields get the width */
+  .bulk { display: block; padding: var(--s6) 0 var(--s7); }
+  .bulk__card { width: auto; grid-template-columns: 1fr; gap: var(--s5); padding: 0 var(--gutter); border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .bulk__lines { margin-top: var(--s4); gap: var(--s2); }
+  .form { grid-template-columns: 1fr; gap: var(--s3); }
   .field--half { grid-column: 1 / -1; }
-  /* comparison and story */
-  .why, .story { display: block; justify-items: normal; padding: var(--s5) var(--gutter) var(--s6); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
+  .field__err:empty { display: none; } /* the space comes when there is a message */
+  .field label, .field legend { font-size: .86rem; }
+  .radio { min-height: 2.75rem; }
+  .form__actions .btn { width: min(100%, 24rem); min-height: 3rem; font-size: 1rem; }
+  /* the comparison: the routine's action once, then the week */
+  .why, .story { display: block; justify-items: normal; padding: var(--s6) var(--gutter); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
   .why__panel, .story__panel { width: auto; }
-  .week { padding: var(--s3); gap: .25rem; }
-  .day__icon { width: 24px; height: 24px; }
-  .day__mark { font-size: .58rem; min-height: 2.4em; }
-  .timeline { grid-template-columns: 1fr; gap: .25rem; }
-  .timeline::before { left: 9px; right: auto; top: 10px; bottom: 10px; width: 2px; height: auto; }
-  .milestone__btn { grid-template-columns: 20px 1fr auto; justify-items: start; align-items: center; gap: .75rem; padding: .35rem 0; text-align: left; font-size: .92rem; }
+  .method { min-height: 2.75rem; }
+  .why__panel { gap: var(--s3); }
+  .week__action { display: flex; align-items: center; gap: var(--s3); margin: 0; font: 600 1.05rem/1.2 var(--font-display); color: var(--ink); }
+  .week__icon { flex: none; width: 2rem; height: 2rem; }
+  .week__icon svg { width: 100%; height: 100%; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .week { padding: var(--s2); gap: .25rem; }
+  .day { padding: .55rem 0; gap: 0; }
+  .day__icon { display: none; }
+  .day__mark { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* said once above; still read out with each day */
+  .day__name { font: 600 .82rem/1 var(--font-display); }
+  /* story */
+  .timeline { grid-template-columns: 1fr; gap: 0; }
+  .timeline::before { left: 9px; right: auto; top: 12px; bottom: 12px; width: 2px; height: auto; }
+  .milestone__btn { grid-template-columns: 20px 1fr auto; justify-items: start; align-items: center; gap: .75rem; min-height: 2.75rem; padding: 0; text-align: left; font-size: .94rem; }
+  .milestone__now { font-size: .66rem; }
+  .milestone__text { min-height: 0; padding: var(--s3) var(--s4); }
   /* close */
-  .close { padding-top: var(--s5); }
-  .close__wrap { grid-template-rows: auto auto; }
+  .close { padding-top: var(--s6); }
+  .close__wrap { grid-template-rows: auto auto; gap: var(--s5); }
   .close__wrap > .paths { grid-row: 2; }
   .close h2 { font-size: clamp(2.2rem, 10vw, 3rem); }
-  .paths { grid-template-columns: minmax(0, 1fr); }
-  .footer { margin-top: var(--s7); }
+  .paths { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+  .path { padding: var(--s4); }
+  .path .btn, .form__row .btn { width: 100%; }
+  .footer { margin-top: var(--s6); gap: var(--s2) var(--s5); }
   .footer > :last-child { margin-left: 0; }
+  .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
+}
+/* tablets in portrait: the same order, with the room used */
+@media (min-width: 600px) and (max-width: 899px) and (min-height: 521px) {
+  .hs-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
+  .hs-card, .hs-card:last-child { padding: var(--s3) 0; border-bottom: 0; }
+  .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inside__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .customize { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .customize__head, .customize__note { grid-column: 1 / -1; }
+  .customize__side--color { margin-right: 0; } .customize__side--size { margin-left: 0; }
+  .paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --nav-h: 3.25rem; --band-explorer: 0px; }
+  .pin { display: grid; grid-template-columns: minmax(0, 42vw) minmax(0, 1fr); }
+  .world { grid-column: 1; grid-row: 1 / span 5; align-self: start; height: calc(100svh - var(--top)); clip-path: none; }
+  .world::after { display: none; }
+  .world__poster { bottom: 0; height: 100%; }
+  .pin .stage { grid-column: 2; min-width: 0; padding-block: var(--s4) var(--s6); }
+  .explorer__cta { width: auto; }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* the header's call to action shortens on the narrowest phones (the full label is in the menu) */
 @media (max-width: 479px) { .cta-long { display: none; } .cta-short { display: inline; } }
-@media (max-width: 380px) { .nav__logo { font-size: 1.1rem; } .nav__cta .btn { padding: 0 .75rem; } }
-@media (max-width: 359px) { .swatches { grid-template-columns: repeat(3, 2.75rem); } }
+@media (max-width: 380px) { .nav__logo { font-size: 1.1rem; } .nav__cta .btn { padding: 0 .85rem; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }

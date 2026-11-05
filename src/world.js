@@ -51,7 +51,8 @@ const WHY = { yaw: 0.35, pitch: 0.2, px: -1.1, py: 0.12, pz: 0.3, scale: 1.15 };
 // pairY, pairZ), rack, unit, floor (venue floor), pres (the product at its true size and place beside the shoes:
 // phones' pull toward centre is off; it is 1 before any shoe shows around it), fitK, fitX, fitY (the stage's fit to the
 // space its text leaves at this window size: set by fitStage, see FIT_SPAN), ghost (the shell goes see-through so Stage 2's leader lines land on the real parts inside),
-// cordS, cordL (the pull cord at rest: swing and lay about the heel window), roll, face (only the upright poses: see upright()).
+// cordS, cordL (the pull cord at rest: swing and lay about the heel window), roll, face (only the upright poses: see upright()),
+// vk, vx, vy (phones: how the whole picture is zoomed and panned for this stage: set by frameStage, see there).
 export const STATES = {
   explorer:  { ...HERO, explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 1, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0 },
   what:      { ...WHAT, explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 1, cordS: CORD.relaxed, cordL: 0 },
@@ -63,7 +64,7 @@ export const STATES = {
   story:     { ...WHY, yaw: 1.15, pitch: 0.12, explode: 0, wire: 1, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.relaxed, cordL: 0 },
   close:     { yaw: 0.3,  pitch: 0.42,  px: -0.04,         py: 0.2,           pz: 0,   scale: 0.95,              explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.droop, cordL: CORD.flat },
 };
-for (const s of Object.values(STATES)) { s.roll ??= 0; s.face ??= 0; }
+for (const s of Object.values(STATES)) { s.roll ??= 0; s.face ??= 0; s.vk = 1; s.vx = 0; s.vy = 0; }
 export const STAGE_ORDER = Object.keys(STATES);
 const KEYS = Object.keys(STATES.explorer);
 // When a stage's fit eases in or out during a travel: only while the product is clear of the shoes (it must not change
@@ -154,8 +155,12 @@ const SHAPES = {
     cordL: [[0.5, CORD.flat], [0.8, 0]],
   },
 };
-export function evalState(from, to, u, out = {}) {
-  const A = STATES[from] || STATES.explorer, B = STATES[to] || A, shape = SHAPES[`${from}>${to}`] || {};
+// Phones: sections are as tall as their content, so a travel has far less scroll to play in than on a wide screen. This one
+// does the most (out of the shoe, upright, open), so there it spreads its turn and its growth over more of the travel.
+const INSIDE_PHONE = (() => { const o = {}; for (const k of ['pitch', 'yaw', 'px', 'py', 'pz', 'roll', 'face', 'cordL']) o[k] = [[0.3, SHAPES['how>inside'][k][0][1]], [0.88, INSIDE[k]]]; return o; })();
+const PHONE_SHAPES = { 'how>inside': { ...INSIDE_PHONE, scale: [[0.3, SEAT.scale], [0.42, SEAT.scale * TRAVEL_SIZE], [0.88, INSIDE.scale]], explode: [[0.8, 0], [1, 1]] } };
+export function evalState(from, to, u, out = {}, phone = false) {
+  const A = STATES[from] || STATES.explorer, B = STATES[to] || A, key = `${from}>${to}`, shape = phone && PHONE_SHAPES[key] ? { ...SHAPES[key], ...PHONE_SHAPES[key] } : SHAPES[key] || {};
   const e = easeInOut(u);
   for (const k of KEYS) out[k] = shape[k] ? kf(shape[k], u) : lerp(A[k], B[k], e);
   const span = FIT_SPAN[`${from}>${to}`], fe = span ? ease.sm(clamp((u - span[0]) / (span[1] - span[0]))) : e;
@@ -166,7 +171,7 @@ export function evalState(from, to, u, out = {}) {
 const VIEW = { pos: new THREE.Vector3(0, 1.45, 4.9), tgt: new THREE.Vector3(0, 0.18, 0) };
 // Footbed tints (worn warm, fresh cool) and the light inside the shoe.
 const INSOLE = { base: new THREE.Color(SHOE.insoleColor), warm: new THREE.Color(0xcaa983), cool: new THREE.Color(0xb9c6ec) };
-const _X = new THREE.Vector3(1, 0, 0), _qf = new THREE.Quaternion(), _lo = new THREE.Vector3(), _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2();
+const _bb = new THREE.Box3(), _X = new THREE.Vector3(1, 0, 0), _qf = new THREE.Quaternion(), _lo = new THREE.Vector3(), _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2();
 const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _qg = new THREE.Quaternion(), _ea = new THREE.Euler(), _eb = new THREE.Euler(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _off = new THREE.Vector3(), _pp = new THREE.Vector3();
 
 export class World {
@@ -214,6 +219,7 @@ export class World {
     this.fx = new FX(scene);
     this.rack = new THREE.Group(); scene.add(this.rack); this.units = [];
 
+    this.wider = {};      // phones: the frames for a popped part and a turned product (see frameStage)
     this.S = { ...STATES.explorer }; this.travel = { from: 'explorer', to: 'explorer', u: 0 };
     this.st3 = makeStage3();
     this.s3 = this.#freshS3(); this._P3 = { ...this.st3.REST, fxAlpha: 1 }; this._loopP = { ...this.st3.REST };
@@ -314,10 +320,11 @@ export class World {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    this.narrow = this.isNarrow(); this.slot.popDown = this.narrow ? 0.014 : 0;
+    this.narrow = this.isNarrow();
     this.fit = w / h < 1 ? Math.pow(1 / (w / h), 0.75) : (h < 420 ? 0.76 : 1); // short bands (phones) move in
     this.camera.updateProjectionMatrix();
-    this.fx.setScale((h * this.renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))), this.renderer.getPixelRatio());
+    this.fxScale = (h * this.renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
+    this.fx.setScale(this.fxScale, this.renderer.getPixelRatio()); this.viewNow = '';
     this.applyState(); this.kick();
   }
 
@@ -346,10 +353,10 @@ export class World {
     const uu = this.s3.frozen && this.s3.frozen.leaving ? uLeave : u;
     if (this.reduced()) {
       // Crossfade fallback: the product snaps to each resting pose; the layer dips between them.
-      evalState(from, to, u < 0.5 ? 0 : 1, this.S);
+      evalState(from, to, u < 0.5 ? 0 : 1, this.S, this.narrow);
       this.renderer.domElement.style.opacity = u > 0 && u < 1 ? String(1 - 0.9 * Math.sin(Math.PI * u)) : ''; // at rest the stylesheet decides (Bulk softens it)
     } else {
-      evalState(from, to, uu, this.S);
+      evalState(from, to, uu, this.S, this.narrow);
       this.renderer.domElement.style.opacity = '';
     }
     this.applyState(); this.kick();
@@ -570,6 +577,19 @@ export class World {
       if (u.userData.board) u.scale.set(Math.max(0.001, r * S.unit), S.unit, S.unit); else u.scale.setScalar(Math.max(0.001, r * S.unit));
     }
     this.heroWeight = S.floor;
+    this.#view();
+  }
+  /** The stage's framing: a zoom and pan of the whole picture, so everything in it keeps its true proportions. */
+  #view() {
+    const S = this.S, c = this.camera, slot = this.slot;
+    // a part out of the stack, or the product turned, eases the view out to the frame measured for it
+    const out = Math.min(1, Math.max(...slot.parts.map((L) => L.pop.p), 0)), turned = Math.min(1, Math.abs(Math.sin(slot.drag.yaw)) * 1.8), f = out > 0 ? this.wider.inside : turned > 0 ? this.wider.customize : null, w = f ? (out > 0 ? easeInOut(out) : turned) : 0;
+    const k = lerp(S.vk, f?.k ?? S.vk, w), x = lerp(S.vx, f?.x ?? S.vx, w), y = lerp(S.vy, f?.y ?? S.vy, w), key = `${k.toFixed(4)},${x.toFixed(2)},${y.toFixed(2)}`;
+    if (key === this.viewNow) return; this.viewNow = key;
+    c.zoom = k;
+    if (Math.abs(x) > 0.01 || Math.abs(y) > 0.01) c.setViewOffset(this.W, this.H, -x, -y, this.W, this.H); else c.clearViewOffset();
+    c.updateProjectionMatrix();
+    this.fx.setScale(this.fxScale * k, this.renderer.getPixelRatio());
   }
   kick() { if (this.running || !this.visible || document.hidden) return; this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
   frame(now) {
@@ -612,6 +632,7 @@ export class World {
     if ((S3.tail && !S3.frozen) || S3.fades.length || (S3.still && S3.still.i === 0 && now - S3.still.start < 1100)) moving = true; // effects still finishing
     if (dirty) this.applyState();
     moving = this.slot.update(dt, this.reduced()) || moving;
+    this.#view();
     if (this.slot.drag.held) this.applyState();
     this.#drawFx(now);
     // venue floors
@@ -684,10 +705,44 @@ export class World {
     }
     this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0);
   }
+  /**
+   * Phones: frame a stage in the part of the canvas it has (px), from what it really puts on screen: the cord, the shoes and
+   * every Stage 3 step as it plays. The whole picture is zoomed and panned so that just fits. A zoom cannot change anything's
+   * size relative to anything else, so the product stays true to the shoes, and the values ease through the travels like any
+   * other key, so no section's scale jumps. Inside and Customize also measure what a click or a drag can do (each part
+   * popped out, the product turned all the way round): that is a second, wider frame the view eases to only while it happens,
+   * so at rest the product fills its space. null: no framing, as on wide screens.
+   */
+  frameStage(stage, box) {
+    const T = STATES[stage]; T.vk = 1; T.vx = 0; T.vy = 0; delete this.wider[stage];
+    if (!box || !this.slot.ready) return;
+    const S = this.S, s3 = this.s3, slot = this.slot, turn = slot.turn, rx = turn.rotation.x, ry = turn.rotation.y, st = this.st3;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    const at = (v) => { const q = this.project(v); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); };
+    const product = () => { this.applyState(); slot.apply(); slot.corners(at); };
+    this.s3 = this.#freshS3(); this.S = { ...T, wire: 0 }; this.#aim(); turn.rotation.set(0, 0, 0);
+    product();
+    if (stage === 'how') {
+      for (const o of [this.shoe, this.shoe2]) {
+        _bb.setFromObject(o);
+        for (let i = 0; i < 8; i++) at(_lo.set(i & 1 ? _bb.max.x : _bb.min.x, i & 2 ? _bb.max.y : _bb.min.y, i & 4 ? _bb.max.z : _bb.min.z));
+      }
+      for (let i = 0; i < st.steps.length; i++) { const from = st.startOf(i, st.REST); for (let t = 0; t <= 1.001; t += 0.1) { st.evalStep(i, t, from, this.s3.P); product(); } }
+    }
+    const frame = () => {
+      const k = clamp(Math.min((box.right - box.left) / (x1 - x0), (box.bottom - box.top) / (y1 - y0)), 0.3, 5), cx = this.W / 2, cy = this.H / 2;
+      return { k, x: (box.left + box.right) / 2 - (cx + k * ((x0 + x1) / 2 - cx)), y: (box.top + box.bottom) / 2 - (cy + k * ((y0 + y1) / 2 - cy)) };
+    };
+    const rest = frame(); T.vk = rest.k; T.vx = rest.x; T.vy = rest.y;
+    if (stage === 'inside') for (const L of slot.parts) { for (const p of [0.5, 0.8, 1, 1.09]) { L.pop.p = p; slot.apply(); slot.corners(at); } L.pop.p = 0; slot.apply(); }
+    if (stage === 'customize') for (let a = 0; a < 8; a++) { turn.rotation.y = (a / 8) * Math.PI * 2; slot.apply(); slot.corners(at); }
+    if (stage === 'inside' || stage === 'customize') this.wider[stage] = frame();
+    this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0); this.viewNow = '';
+  }
   /** The fits have changed: the current state follows, wherever the page is. */
   fitsChanged() {
-    const t = this.travel, o = evalState(t.from, t.to, this.reduced() ? (t.u < 0.5 ? 0 : 1) : t.u, {});
-    if (!this.jump) { this.S.fitK = o.fitK; this.S.fitX = o.fitX; this.S.fitY = o.fitY; }
+    const t = this.travel, o = evalState(t.from, t.to, this.reduced() ? (t.u < 0.5 ? 0 : 1) : t.u, {}, this.narrow);
+    if (!this.jump) for (const k of ['fitK', 'fitX', 'fitY', 'vk', 'vx', 'vy']) this.S[k] = o[k];
     this.applyState(); this.slot.apply(); this.kick();
   }
 

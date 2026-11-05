@@ -56,7 +56,7 @@ const html = `<!doctype html>
 </div>
 
 <!-- Projected onto the product: the Stage 2 dots and leader lines (the cards themselves are plain HTML in
-     the stage) and the Stage 4 layer markers. -->
+     the stage). -->
 <div class="overlay" data-overlay>
   <svg class="overlay__lines" data-lines aria-hidden="true">${C.what.hotspots.map((h) => `<line data-line="${h.id}" x1="0" y1="0" x2="0" y2="0"></line>`).join('')}</svg>
   <div class="overlay__set" data-for="what" aria-hidden="true" hidden>
@@ -72,8 +72,9 @@ const html = `<!doctype html>
 
 <main>
 <!-- .pin holds the stages that use the product. On wide screens the world is one fixed layer behind the whole
-     page and makes exactly one scroll-linked move per transition. Under 900px it is a band pinned under the nav
-     while these stages scroll beneath it, and it scrolls away with the end of .pin, before the Bulk form. -->
+     page and makes exactly one scroll-linked move per transition. Under 900px it is a band pinned under the nav,
+     as tall as each section needs, while these stages scroll beneath it, and it scrolls away with the end of .pin,
+     before the Bulk form. On short landscape screens it sits beside them instead. -->
 <div class="pin">
 <div class="world" data-world aria-hidden="true">
   <picture class="world__poster" data-poster>
@@ -87,6 +88,7 @@ const html = `<!doctype html>
     <div class="explorer__intro stage__in">
       <h1 id="h-hero">${esc(C.brand.tagline).replace('Every Day', 'Every&nbsp;Day')}</h1>
       <p class="explorer__lede">${esc(C.brand.support)}</p>
+      <a class="btn btn--accent explorer__cta" href="#${PILOT}" data-jump="bulk" data-bulk>${esc(C.nav.bulk)}</a>
     </div>
     <div class="who stage__in">
       <p class="who__label" id="who-label">${esc(seg.label)}</p>
@@ -218,6 +220,7 @@ const html = `<!doctype html>
       ${C.why.methods.map((m) => `<button type="button" class="method" data-method="${m.id}" aria-pressed="${m.id === 'solefresh'}">${esc(m.label)}</button>`).join('\n      ')}
     </div>
     <p class="why__legend" data-legend aria-live="polite">${esc(startMethod.legend)}</p>
+    <p class="week__action" aria-hidden="true"><span class="week__icon" data-week-icon></span><span data-week-mark>${esc(startMethod.mark)}</span></p>
     <ol class="week" data-week aria-label="One week">
       ${C.why.days.map((d, i) => `<li class="day" style="--i:${i}"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>${esc(startMethod.mark)}</span><span class="day__name">${esc(d)}</span></li>`).join('\n      ')}
     </ol>

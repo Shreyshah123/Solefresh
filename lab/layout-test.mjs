@@ -42,22 +42,18 @@ for (const [W, H] of sizes) {
     check(`${tag}: lines do not cross`, !cross(r.lines[0], r.lines[1]) && !cross(r.lines[1], r.lines[2]) && !cross(r.lines[0], r.lines[2]));
     check(`${tag}: no sideways overflow`, r.overflow <= 0, String(r.overflow));
     // the stages with text beside the product
-    const clearOf = { explorer: ['.explorer__intro', '.who', '.panel', '.explorer__view'], inside: ['.inside__head', '.inside__list', '.sheet'], customize: ['.customize__head', '.customize__side--color', '.customize__side--size', '.customize__note'], why: ['.why__panel'], story: ['.story__panel'], close: ['.close h2', '.paths'] };
+    const clearOf = { explorer: ['.explorer__intro', '.who', '.panel'], inside: ['.inside__head', '.inside__list', '.sheet'], customize: ['.customize__head', '.customize__side--color', '.customize__side--size', '.customize__note'], why: ['.why__panel'], story: ['.story__panel'], close: ['.close h2', '.paths'] };
     for (const [st, sel] of Object.entries(clearOf)) {
       await p.evaluate((st) => { document.querySelector(`[data-jump="${st}"]`).click(); }, st); await p.waitForTimeout(520);
       const q = await p.evaluate(([sel, st]) => {
         const w = window.__sf.world, rect = (el) => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; };
         let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; w.slot.corners((v) => { const c = w.project(v); x0 = Math.min(x0, c.x); x1 = Math.max(x1, c.x); y0 = Math.min(y0, c.y); y1 = Math.max(y1, c.y); });
         const nav = document.querySelector('.nav').getBoundingClientRect().bottom;
-        return { box: { left: x0, right: x1, top: y0, bottom: y1 }, nav, W: innerWidth, H: innerHeight, others: sel.map((s) => [s, rect(document.querySelector(s))]), chips: st === 'inside' ? [...document.querySelectorAll('.lm')].map((e) => [e.textContent, rect(e.querySelector('.lm__name'))]) : [], k: w.S.fitK };
+        return { box: { left: x0, right: x1, top: y0, bottom: y1 }, nav, W: innerWidth, H: innerHeight, others: sel.map((s) => [s, rect(document.querySelector(s))]), k: w.S.fitK };
       }, [sel, st]);
       const hits = q.others.filter(([, r]) => hit(r, q.box)).map(([s]) => s);
       check(`${tag} ${st}: product clear of its text`, !hits.length, `${hits.join(' ')} fit ${q.k.toFixed(2)} box ${Object.values(q.box).map(Math.round)}`);
       check(`${tag} ${st}: product on screen`, q.box.top >= q.nav - 1 && q.box.left >= -1 && q.box.right <= q.W + 1 && q.box.bottom <= q.H + 1, Object.values(q.box).map(Math.round).join(' '));
-      if (st === 'inside') {
-        const bad = []; q.chips.forEach(([n, c], i) => { for (const [s, r] of q.others) if (hit(c, r)) bad.push(`${n}/${s}`); q.chips.forEach(([m, d], j) => { if (j > i && hit(c, d)) bad.push(`${n}/${m}`); }); if (c.right > q.W) bad.push(`${n} off screen`); });
-        check(`${tag} inside: marker labels clear of the text and each other`, !bad.length, bad.join(' '));
-      }
     }
   }
   if (p.errs.length) { check(`${W}x${H}: page errors`, false, p.errs.join(' ')); }
@@ -98,7 +94,7 @@ console.log('Phones');
   const r = await p.evaluate(() => { const band = document.querySelector('[data-world]').getBoundingClientRect(), list = document.querySelector('.hs-cards').getBoundingClientRect(); return { below: list.top >= band.bottom, text: [...document.querySelectorAll('.hs-card')].map((c) => c.textContent.length > 30), dots: getComputedStyle(document.querySelector('.overlay__set[data-for="what"]')).display, stacked: [...document.querySelectorAll('.hs-card')].every((c, i, a) => !i || c.getBoundingClientRect().top >= a[i - 1].getBoundingClientRect().bottom - 1) }; });
   check('390: the three items are a plain list below the band', r.below && r.stacked && r.text.every(Boolean) && r.dots === 'none', JSON.stringify(r));
   await p.evaluate(() => document.querySelector('.menu__link[data-jump="inside"]').click()); await p.waitForTimeout(600);
-  const names = await p.evaluate(() => [...document.querySelectorAll('.layer-btn')].map((b) => b.textContent.trim()));
+  const names = await p.evaluate(() => [...document.querySelectorAll('.inside__list .layer-btn')].map((b) => b.textContent.trim()));
   check('390: every part in the list is a named button', JSON.stringify(names) === JSON.stringify(await p.evaluate(() => window.__sf.C.inside.layers.map((l) => l.name))), names.join(', '));
   const chip = '.layer-btn[data-layer="2"]';
   await p.tap(chip); await p.waitForTimeout(350);

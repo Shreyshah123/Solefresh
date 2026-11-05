@@ -13,3 +13,6 @@ lab/s1-*/
 lab/s2-*/
 # the original 3D model files: the site only needs the compressed ones in assets/product/, and this repo is public
 assets/product/source/
+
+.vercel
+.env*
