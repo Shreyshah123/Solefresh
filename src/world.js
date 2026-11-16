@@ -15,6 +15,7 @@ import { drawFloor } from './venues.js';
 import { FX } from './fx.js';
 import { makeStage3, kf, ease, KEYS3, PRODUCT_KEYS, CORD } from './stage3.js';
 
+const ENV_URL = 'assets/env/room.bin', ENV_SIZE = 64;   // the baked light and the cube size it is baked at (every surface here is rough: it only ever reads the small, blurred levels)
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, u) => a + (b - a) * u;
 const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
@@ -29,7 +30,7 @@ const OPEN_A = 0.95;          // shoe opacity in Stage 3 (stage3.js sees through
 const EXIT_U = 0.3;           // share of a travel away from Stage 3 in which the product leaves the shoe
 const SWAP_MS = 250;          // the quick swap that sets up a skipped step (product shrinks out in 100 ms, regrows in 150 ms)
 const FADE_MS = 150;          // effects of an interrupted step fade out, never pop
-const LOOP_IDLE_S = 30;       // Step 3's loop: seconds with no input at all before it calms,
+const LOOP_IDLE_S = 10;       // Step 3's loop: seconds with no input at all before it calms (the tier can shorten it: see src/tier.js),
 const LOOP_CALM_S = 8;        // how long it takes to calm (motes thin out, the glow steadies) before the frame loop rests,
 const LOOP_WAKE_S = 0.8;      // and how long any input takes to bring it back to full life
 const NARROW_UP = 0.25;       // phone band (about 290 px tall): share of any rise above the hover point that is kept, so jumps and pops stay inside it
@@ -176,18 +177,23 @@ const _bb = new THREE.Box3(), _X = new THREE.Vector3(1, 0, 0), _qf = new THREE.Q
 const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _qg = new THREE.Quaternion(), _ea = new THREE.Euler(), _eb = new THREE.Euler(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _off = new THREE.Vector3(), _pp = new THREE.Vector3();
 
 export class World {
-  constructor(host, { reduced = () => false, narrow = () => false } = {}) {
+  /** quality: one of the tiers in src/tier.js. onSlow({ median, slowShare }): called when a minute's worth of animation frames came in slow. */
+  constructor(host, { reduced = () => false, narrow = () => false, quality = null, onSlow = null } = {}) {
     this.host = host; this.reduced = reduced; this.isNarrow = narrow;
-    const r = this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.q = quality || { dprCap: 1.5, maxPx: 3.2e6, aa: true, rack: 8, loopIdle: LOOP_IDLE_S, warm: ['bulk', 'how', 'inside'] };
+    this.onSlow = onSlow; this.samples = []; this.streak = 0; this.lastRaw = 0;
+    // Anti-aliasing multiplies the fill cost and cannot be changed after the context exists. At 1.5x pixel density and up the
+    // pixels are already finer than the eye resolves an edge at, so it is only asked for below that, and never on the low tier.
+    const r = this.renderer = new THREE.WebGLRenderer({ antialias: this.q.aa && (devicePixelRatio || 1) < 1.5, alpha: true, powerPreference: 'high-performance' });
+    r.debug.checkShaderErrors = false;   // a production page has no use for the shader logs, and asking for them waits on every link
     r.setClearColor(0x000000, 0); r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1.0; // Khronos PBR Neutral: made to keep a product's base colours true, which a colour picker needs
     r.domElement.className = 'world__gl'; r.domElement.setAttribute('aria-hidden', 'true');
     host.appendChild(r.domElement);
 
     const scene = this.scene = new THREE.Scene();
-    this.#environment();
     r.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
-    r.domElement.addEventListener('webglcontextrestored', () => { this.#environment(); this.kick(); });
+    r.domElement.addEventListener('webglcontextrestored', () => { this.#environment(); });
     scene.environmentIntensity = 0.85;
     scene.add(new THREE.HemisphereLight(0xffffff, 0xe4dfd5, 0.4));
     const key = new THREE.DirectionalLight(0xffffff, 1.35); key.position.set(2.5, 6, 4.5); scene.add(key);      // soft key, high and to the right
@@ -228,8 +234,9 @@ export class World {
     this.onStep = null;   // (stepIndex, progress 0..1, done) progress callback for the UI
     this.jump = null; this.frameCbs = [];
     this.visible = true; this.running = false; this.last = 0; this.clock = 0;
+    this.live = false;    // no frame is drawn until load() has compiled everything off the main thread: a frame before that would compile it on it
     // any input counts as the visitor being about (Step 3's loop calms after a long spell without, and wakes on the next)
-    this.lastInput = 0; this.loopIdle = LOOP_IDLE_S; this.loopCalm = LOOP_CALM_S;
+    this.lastInput = 0; this.loopIdle = this.q.loopIdle ?? LOOP_IDLE_S; this.loopCalm = LOOP_CALM_S;
     const seen = () => { this.lastInput = performance.now(); if (this.s3.loop && !this.running) this.kick(); };
     for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, seen, { passive: true, capture: true });
     new IntersectionObserver(([e]) => { this.visible = e.isIntersecting; this.kick(); }, { threshold: 0 }).observe(host);
@@ -238,16 +245,40 @@ export class World {
     this.resize();
   }
 
-  /** The GPU can drop the canvas (sleep, driver reset, a tab evicted on a phone). The image-based light does not survive that, so it is made again. */
-  #environment() { const pm = new THREE.PMREMGenerator(this.renderer); this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); }
+  /**
+   * The image-based light. Making it in the browser (PMREMGenerator on a RoomEnvironment) compiles a heavy blur shader and
+   * blocks the page for most of a second on Windows, on every load. So it is made once, by tools/bake-env.mjs, and kept in
+   * assets/env/room.bin: the same pre-filtered texture, read back and stored gzipped as half floats (8 bytes of width and
+   * height, then RGBA). Here it is only downloaded, unpacked and uploaded. If the file is missing the light is made the slow way, as before.
+   * The GPU can drop the canvas (sleep, driver reset, a tab evicted on a phone): this runs again when it comes back.
+   */
+  async #environment() {
+    try {
+      if (!this._env) { const res = await fetch(ENV_URL); if (!res.ok) throw new Error(`environment ${res.status}`); this._env = await new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(); }   // gzipped in the file itself: hosts do not compress a .bin on their own
+      const [w, h] = new Uint32Array(this._env, 0, 2), tex = new THREE.DataTexture(new Uint16Array(this._env, 8, w * h * 4), w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+      tex.mapping = THREE.CubeUVReflectionMapping; tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.LinearSRGBColorSpace; tex.needsUpdate = true;
+      this.scene.environment?.dispose?.(); this.scene.environment = tex;
+    } catch (err) { console.warn('baked environment unavailable, making it here.', err); const env = this.bakeEnvironment(256, false); this.scene.environment = env.texture; }
+    this.kick();
+  }
+  /** The light as PMREM makes it. keep: false returns the live texture (the fallback); true reads it back for tools/bake-env.mjs. */
+  bakeEnvironment(size = ENV_SIZE, read = true) {
+    const pm = new THREE.PMREMGenerator(this.renderer), rt = pm.fromScene(new RoomEnvironment(), 0.04, 0.1, 100, { size }); pm.dispose();
+    if (!read) return rt;
+    const px = new Uint16Array(rt.width * rt.height * 4); this.renderer.readRenderTargetPixels(rt, 0, 0, rt.width, rt.height, px); rt.dispose();
+    return { w: rt.width, h: rt.height, px };
+  }
 
   async load() {
-    await this.slot.load('M');
+    const breath = () => new Promise((done) => setTimeout(done, 0));
+    const model = this.slot.load('M');          // the two downloads run together
+    model.catch(() => {});                      // a failed download is reported where it is awaited, below
+    await Promise.all([model, this.#environment()]);   // the light is a download too now (see #environment), not a second of shader work
     this.#measure();
-    this.#buildRack();
-    await this.#precompile();
+    await breath(); this.#buildRack();
+    await breath(); await this.#precompile();
     this.onStep && this.onStep(-1, 0, true); // a step pressed while the model was on its way did not play
-    this.applyState(); this.kick();
+    this.live = true; this.applyState(); this.kick();
   }
   /** Stage 3 is built around the product's real measurements in the shoe, and where the travel up to Stage 2 has it at u 0.70 (the climb-out ends there). */
   #measure() {
@@ -262,16 +293,16 @@ export class World {
     await this.slot.useSize(id);
     const s = this.s3, inHow = this.travel.from === 'how' && this.travel.to === 'how', step = inHow && s.touched ? (s.tl?.step ?? (s.loop ? 2 : -1)) : -1;
     if (s.touched && step < 0) this.onStep && this.onStep(-1, 0, true);
-    this.#measure(); this.#fillRack(); this.slot.prepareWires();
+    this.#measure(); this.#fillRack();
     if (step >= 0) this.playStep(step); // arrived during a step: Stage 3 is rebuilt round the new size, and the step carries on in it
     this.applyState(); this.kick();
   }
 
   // Compile every material once up front, so nothing stalls the first frame it appears in.
   async #precompile() {
-    const S0 = { ...this.S };
-    Object.assign(this.S, STATES.bulk, { wire: 0.5, explode: 0.5, pair: 1 }); this.applyState();
-    this.slot.setWire(0.5); this.slot.apply();
+    const breath = () => new Promise((done) => setTimeout(done, 0));   // each heavy step is its own task, so a scroll or a click gets in between them
+    Object.assign(this.S, STATES.bulk, { explode: 0.5, pair: 1 }); this.applyState();
+    this.slot.apply();
     this.shoe2.userData.setOpacity(0.5);
     this.floors.forEach((f) => { f.visible = true; f.material.map = f.material.map || this.texture('bowling'); });
     this.fx.warm();
@@ -280,20 +311,22 @@ export class World {
     // Compiling is not drawing: the driver finishes pipeline work on the first
     // draw of each state. Draw the heavy states once now, while the canvas is
     // still hidden behind the poster, so no transition pays for it later.
-    for (const st of ['bulk', 'how', 'inside', 'story']) {
+    for (const st of this.q.warm) {
+      await breath();
       Object.assign(this.S, STATES[st], st === 'how' ? { pair: 1 } : {}); this.applyState();
       if (st === 'how') { this.glow.intensity = 0.9; this.shoe.userData.setOpacity(0.5, 0.95); this.fx.warm(); this.halo.visible = true; this.halo.material.opacity = 0.15; }
       this.slot.update(0.016, false); this.renderer.render(this.scene, this.camera);
     }
     this.glow.intensity = 0; this.fx.clear();
-    Object.assign(this.S, S0); this.slot.setWire(S0.wire); this.applyState();
+    // back to wherever the page is NOW (the visitor may have scrolled while this ran), not to where it was when this began
+    const t = this.travel; evalState(t.from, t.to, this.reduced() ? (t.u < 0.5 ? 0 : 1) : t.u, this.S, this.narrow); this.applyState();
   }
 
   // Rack clones share geometry and materials with the real shoe and product
   // (so the chosen colour carries over). Three shelves of three.
   #buildRack() {
     const spots = [], SX = 2.15, SY = 1.05;
-    for (const dy of [1, 0, -1]) for (const dx of [-1, 0, 1]) if (dx || dy) spots.push([dx, dy]);
+    for (const dy of [1, 0, -1]) for (const dx of [-1, 0, 1]) if ((dx || dy) && (this.q.rack >= 8 || Math.abs(dx) + Math.abs(dy) === 1)) spots.push([dx, dy]);   // the low tier draws four neighbours, not eight
     const boardMat = new THREE.MeshStandardMaterial({ color: 0xd3cfc7, roughness: 0.9 });
     for (const dy of [1, 0, -1]) {
       const board = new THREE.Mesh(new THREE.BoxGeometry(SX * 3 + 0.3, 0.05, 1.3), boardMat);
@@ -318,7 +351,9 @@ export class World {
   resize() {
     const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
     this.W = w; this.H = h;
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+    // A pixel budget, not just a density cap: the canvas covers the whole window, so on a large high-density screen 1.5x is
+    // 4.6 megapixels a frame. The tier says how many it may draw; the density follows from the window's size.
+    this.renderer.setPixelRatio(Math.max(0.75, Math.min(devicePixelRatio || 1, this.q.dprCap, Math.sqrt(this.q.maxPx / (w * h)))));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.narrow = this.isNarrow();
@@ -592,13 +627,28 @@ export class World {
     c.updateProjectionMatrix();
     this.fx.setScale(this.fxScale * k, this.renderer.getPixelRatio());
   }
-  kick() { if (this.running || !this.visible || document.hidden) return; this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
+  /** Step to another tier while running (density, rack and idle time follow; anti-aliasing is fixed when the context is made). */
+  setQuality(q) { this.q = { ...q, aa: this.q.aa }; this.loopIdle = q.loopIdle ?? this.loopIdle; this.samples.length = 0; this.resize(); }
+  /**
+   * Frame times, taken only while something is animating (a frame after a rest says nothing). Sixty of them make a verdict:
+   * a median over 22ms, or more than a fifth over 33ms, is a device that cannot keep up at this tier.
+   */
+  #sample(ms) {
+    if (!this.onSlow || ms > 400) return;                       // a tab that slept, a debugger: not a frame time
+    this.samples.push(ms); if (this.samples.length < 60) return;
+    const a = this.samples.sort((x, y) => x - y), median = a[30], slowShare = a.filter((v) => v > 33).length / a.length; this.samples = [];
+    if (median > 22 || slowShare > 0.2) this.onSlow({ median, slowShare });
+  }
+  /** Give the context back (the page is falling back to still pictures). */
+  dispose() { this.running = false; this.visible = false; this.frameCbs.length = 0; try { this.renderer.dispose(); this.renderer.forceContextLoss(); } catch {} this.renderer.domElement.remove(); }
+  kick() { if (this.running || !this.live || !this.visible || document.hidden) return; this.running = true; this.streak = 0; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
   frame(now) {
     // a frame that throws must not leave the loop marked as running, or nothing would ever draw again
     try { this.#frame(now); } catch (err) { this.running = false; throw err; }
   }
   #frame(now) {
     if (!this.visible || document.hidden) { this.running = false; return; }
+    if (++this.streak > 3) this.#sample(now - this.last);       // the first frames after a rest carry the wake-up, not the pace
     const dt = Math.min(0.05, Math.max(0.0005, (now - this.last) / 1000)); this.last = now; this.clock += dt; // never 0: a 0 dt turns ratios into NaN
     let moving = false, dirty = false;
     const s3 = this.s3, st = this.st3;

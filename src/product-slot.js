@@ -292,7 +292,12 @@ export class ProductSlot extends THREE.Group {
   pick(raycaster) {
     let best = -1, near = Infinity;
     this.updateWorldMatrix(true, true);
-    this.parts.forEach((L, i) => { const hit = L.mat.opacity > 0.01 && raycaster.intersectObject(L.mesh, false)[0]; if (hit && hit.distance < near) { near = hit.distance; best = i; } });
+    this.parts.forEach((L, i) => {
+      if (L.mat.opacity <= 0.01) return;
+      const g = L.mesh.geometry; if (!g.boundingBox) g.computeBoundingBox();
+      if (!raycaster.ray.intersectsBox(_box.copy(g.boundingBox).applyMatrix4(L.mesh.matrixWorld))) return;   // a miss on the part's box is a miss on the part
+      const hit = raycaster.intersectObject(L.mesh, false)[0]; if (hit && hit.distance < near) { near = hit.distance; best = i; }
+    });
     return best;
   }
   /**
@@ -378,4 +383,4 @@ export class ProductSlot extends THREE.Group {
     for (const w of this.wires) { w.material.opacity = s.wire * 0.5; w.visible = s.wire > 0.01; }
   }
 }
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _view = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion(), _qf = new THREE.Quaternion(), _qp = new THREE.Quaternion();
+const _box = new THREE.Box3(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _view = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion(), _qf = new THREE.Quaternion(), _qp = new THREE.Quaternion();

@@ -11,6 +11,7 @@ import C from '../content.json';
 import MODEL from './model-data.json';
 import { drawThumb } from './venues.js';
 import Lenis from 'lenis';
+import { TIERS, pickTier, refineTier, tierBelow, rememberTier } from './tier.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -393,7 +394,8 @@ SNAPQ.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() &
 addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native scroll (a key in a field, the scrollbar): Lenis keeps its own position in step
 
 // ---------------------------------------------------------- stage 1 --
-const thumbs = Object.fromEntries(C.segments.items.map((a) => [a.id, a.photo || drawThumb(a.venue)]));
+// A venue thumbnail is drawn the first time it is asked for (a hover), not at load: drawing all five cost about 300ms of the first second.
+const thumbCache = {}, thumbOf = (id) => (thumbCache[id] ||= ((a) => a.photo || drawThumb(a.venue))(C.segments.items.find((x) => x.id === id)));
 const tabs = $$('.who__item'), panel = $('#panel'), thumb = $('[data-thumb]'), thumbImg = $('[data-thumb-img]');
 function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches ? 'horizontal' : 'vertical'); }
 setOrientation();
@@ -405,7 +407,7 @@ function select(id, { focus = false, animate = true } = {}) {
   if (NARROW.matches && changed) { const t = tabs.find((x) => x.dataset.aud === id), l = t.parentElement; l.scrollTo({ left: t.offsetLeft - (l.clientWidth - t.offsetWidth) / 2, behavior: RM.matches ? 'auto' : 'smooth' }); } // the picked audience comes fully into view
   const apply = () => {
     $('[data-panel-for]').textContent = `For ${a.name.toLowerCase()}`; $('[data-panel-line]').textContent = a.line;
-    $('[data-panel-org]').hidden = !a.org; $('[data-panel-ind]').hidden = a.org; $('[data-panel-thumb]').src = thumbs[id];
+    $('[data-panel-org]').hidden = !a.org; $('[data-panel-ind]').hidden = a.org;
     panel.classList.remove('is-swapping');
   };
   if (changed && animate && !RM.matches) { panel.classList.add('is-swapping'); setTimeout(apply, 120); } else apply();
@@ -420,7 +422,7 @@ tabs.forEach((t, i) => {
     else if (k === 'Home') j = 0; else if (k === 'End') j = tabs.length - 1;
     if (j < 0) return; e.preventDefault(); audiencePicked = true; select(tabs[j].dataset.aud, { focus: true });
   });
-  const show = () => { if (!FINE.matches && !t.matches(':focus-visible')) return; thumbImg.src = thumbs[t.dataset.aud]; thumb.style.setProperty('--y', `${t.offsetTop - t.parentElement.offsetTop + t.offsetHeight / 2 - 60}px`); thumb.classList.add('is-on'); };
+  const show = () => { if (!FINE.matches && !t.matches(':focus-visible')) return; thumbImg.src = thumbOf(t.dataset.aud); thumb.style.setProperty('--y', `${t.offsetTop - t.parentElement.offsetTop + t.offsetHeight / 2 - 60}px`); thumb.classList.add('is-on'); };
   const hide = () => thumb.classList.remove('is-on');
   t.addEventListener('pointerenter', show); t.addEventListener('pointerleave', hide); t.addEventListener('focus', show); t.addEventListener('blur', hide);
 });
@@ -685,14 +687,30 @@ const faqItems = $$('.faq__item');
 faqItems.forEach((d) => d.addEventListener('toggle', () => { if (d.open) faqItems.forEach((o) => { if (o !== d) o.open = false; }); measureStages(); })); // an open answer can make its stage taller: the rest points follow
 
 // ---------------------------------------------------------- 3D --
-function canWebGL() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } }
-html.dataset.stage = state.stage;
+// The 3D starts on the tier src/tier.js guesses for this device, and steps down if the frames it gets say so. The last step
+// is no 3D at all: the still pictures, which follow every control (showPoster).
+let tier = pickTier();
+function toPosters(why) {
+  if (why) console.warn(why);
+  html.classList.remove('gl-live'); html.classList.add('gl-off');
+  if (world) { world.dispose(); world = null; } worldReady = false; window.__sf.world = null;
+  showPoster(); updateOverlayVisibility();
+}
+function onSlow(times) {
+  const next = tierBelow(tier, times); if (!next) return;
+  tier = next; rememberTier(tier); html.dataset.tier = tier;
+  if (tier === 'poster') toPosters('3D too slow on this device: showing stills.'); else if (world) { world.setQuality(TIERS[tier]); fitStages(true); }
+}
+html.dataset.stage = state.stage; html.dataset.tier = tier;
 addEventListener('load', () => setTimeout(() => $('.warm')?.remove(), 2500)); // paint warm-up has done its job
 select(state.audience, { animate: false });
 measureStages(); landFirst(); setStep(0, { play: false }); selectLayer(-1); setColor(state.color); setSizeId(state.size);
-if (canWebGL()) {
+if (tier !== 'poster') {
   import('./world.js').then(async ({ World }) => {
-    world = new World(worldEl, { reduced: () => RM.matches, narrow: () => NARROW.matches });
+    world = new World(worldEl, { reduced: () => RM.matches, narrow: () => NARROW.matches, quality: TIERS[tier], onSlow });
+    // now that there is a context, the graphics chip can be read from it (see src/tier.js)
+    const refined = refineTier(tier, world.renderer.getContext());
+    if (refined !== tier) { tier = refined; html.dataset.tier = tier; if (tier === 'poster') { toPosters('WebGL is drawn in software here: showing stills.'); return; } world.setQuality(TIERS[tier]); }
     world.setVenue(C.segments.items.find((a) => a.id === state.audience).venue, { animate: false });
     world.onFrame(placeMarkers);
     world.onStep = onStepProgress;
@@ -705,14 +723,13 @@ if (canWebGL()) {
     html.classList.add('gl-live');
     { const a = $('[data-drag]'); a.tabIndex = 0; a.removeAttribute('aria-hidden'); a.setAttribute('role', 'group'); a.setAttribute('aria-label', cz.dragHint.keys); } // a keyboard stop only where there is a product to turn
     window.__sf.world = world;
-  }).catch((err) => {
-    console.warn('3D unavailable, poster fallback in use.', err);
-    html.classList.add('gl-off'); if (world) world.frameCbs.length = 0; $('canvas', worldEl)?.remove(); world = null; worldReady = false; showPoster(); updateOverlayVisibility();
-  });
+    // the other two sizes: fetched (not parsed) once the page is idle, so a size pick does not wait on the network
+    if (tier !== 'low' && !navigator.connection?.saveData) (window.requestIdleCallback || setTimeout)(() => { for (const id of Object.keys(MODEL.sizes)) if (id !== world?.slot.sizeId) fetch(MODEL.sizes[id].url, { priority: 'low' }).catch(() => {}); }, { timeout: 6000 });
+  }).catch((err) => { toPosters(); console.warn('3D unavailable, poster fallback in use.', err); });
 } else html.classList.add('gl-off');
 
 // Verification hooks. Inert unless called.
-window.__sf = { state, select, setStep, selectLayer, setColor, setSizeId, setMethod, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+window.__sf = { get tier() { return tier; }, state, select, setStep, selectLayer, setColor, setSizeId, setMethod, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
 // Entrance fades exist only once this script has run to its end (styles.css keys them on .sf-ready): if it fails to
 // load, or throws on the way, every stage simply stays visible. Whatever is on screen now is marked in first, so it does not blink.
 stages.forEach((s) => { const r = s.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) s.classList.add('is-in'); });
