@@ -13,7 +13,7 @@ const outside = (id) => { const [l, w, h] = MODEL.sizes[id].outsideMm.map(Math.r
 // brand.contactEmail: a real address becomes a link in the footer and the privacy page. Left empty, no address is shown anywhere.
 const hasContact = (C.brand.contactEmail || '').includes('@');
 const contact = hasContact ? `<a href="mailto:${attr(C.brand.contactEmail)}">${esc(C.brand.contactEmail)}</a>` : '';
-const PILOT = C.nav.links.find((l) => l.id === 'bulk').anchor;
+const PILOT = C.bulk.anchor, H = C.hero;
 const WHY = C.why, startAlt = WHY.alternatives.find((m) => m.id === WHY.start) || WHY.alternatives[0];
 const cell = (m, r) => esc(m[r.id] ?? WHY.unmeasured);   // a row nobody has measured says so, for every option alike
 
@@ -22,8 +22,8 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>${esc(C.brand.name)}: reusable shoe care for shared and high-use footwear</title>
-<meta name="description" content="${attr(C.brand.name)} is a reusable shoe-care product in development, designed to manage odor and moisture for bowling centers, skating rinks, schools, teams, and athletes. Join the facility pilot or the waitlist.">
+<title>${esc(C.brand.name)}: one reusable shoe insert for shared footwear</title>
+<meta name="description" content="${attr(C.brand.name)} is a reusable shoe insert in development: one 3D-printed housing designed to hold a moisture pouch, an odor pouch and scent beads. For bowling centers, skating rinks, schools and teams. Ask about a facility pilot or join the waitlist.">
 <meta name="theme-color" content="#F1EFEA">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -92,9 +92,12 @@ const html = `<!doctype html>
 <section class="stage explorer stage--full" id="explorer" data-product="explorer" aria-labelledby="h-hero">
   <div class="explorer__left">
     <div class="explorer__intro stage__in">
-      <h1 id="h-hero">${esc(C.brand.tagline).replace('Every Day', 'Every&nbsp;Day')}</h1>
-      <p class="explorer__lede">${esc(C.brand.support)}</p>
+      <p class="explorer__chip">${esc(H.chip)}</p>
+      <h1 id="h-hero">${esc(H.heading)}</h1>
+      <p class="explorer__lede">${esc(H.lede)}</p>
+      <p class="vh">${esc(H.pictured)}</p>
       <a class="btn btn--accent explorer__cta" href="#${PILOT}" data-jump="bulk" data-bulk>${esc(C.nav.bulk)}</a>
+      <a class="explorer__alt" href="#close" data-jump="close">${esc(H.individuals)} <span aria-hidden="true">&rarr;</span></a>
     </div>
     <div class="who stage__in">
       <p class="who__label" id="who-label">${esc(seg.label)}</p>
@@ -104,7 +107,7 @@ const html = `<!doctype html>
       <figure class="who__thumb" aria-hidden="true" data-thumb><img alt="" width="360" height="240" data-thumb-img></figure>
     </div>
   </div>
-  <aside class="panel stage__in" id="panel" role="tabpanel" aria-labelledby="tab-${seg.items[0].id}" aria-live="polite">
+  <aside class="panel stage__in" id="panel" role="tabpanel" aria-labelledby="tab-${seg.items[0].id}">
     <figure class="panel__thumb" aria-hidden="true"><img alt="" width="360" height="240" data-panel-thumb></figure>
     <p class="panel__for" data-panel-for>For ${esc(seg.items[0].name.toLowerCase())}</p>
     <p class="panel__line" data-panel-line>${esc(seg.items[0].line)}</p>
@@ -130,7 +133,7 @@ const html = `<!doctype html>
     <ul class="hs-cards" role="list" data-hs-cards>
       ${C.what.hotspots.map((h) => `<li class="hs-card" data-hs-card="${h.id}"><h3 class="hs-card__label">${esc(h.label)}</h3><p class="hs-card__text">${esc(h.text)}</p></li>`).join('\n      ')}
     </ul>
-    <p class="what__note"><b>${esc(C.what.note.lead)}</b> ${esc(C.what.note.text)}</p>
+    <p class="what__note"><b>${esc(C.what.note.lead)}</b> ${esc(C.what.note.text)} <a class="what__more" href="#inside" data-jump="inside">${esc(C.what.more)} <span aria-hidden="true">&rarr;</span></a></p>
   </div>
 </section>
 
@@ -138,9 +141,9 @@ const html = `<!doctype html>
 <section class="stage how stage--full" id="how" data-product="how" aria-labelledby="h-how">
   <div class="how__head stage__in"><h2 id="h-how">${esc(C.how.heading)}</h2></div>
   <div class="how__bar stage__in">
-    <p class="how__caption" data-step-caption aria-live="polite">${esc(C.how.steps[0].caption)}</p>
+    <p class="how__caption" id="step-panel" role="tabpanel" aria-labelledby="step-0" data-step-caption aria-live="polite">${esc(C.how.steps[0].caption)}</p>
     <div class="steps" role="tablist" aria-label="Steps">
-      ${C.how.steps.map((s, i) => `<button type="button" class="step" role="tab" id="step-${i}" data-step="${i}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}"><span class="step__n" aria-hidden="true">${i + 1}</span><span class="step__t">${esc(s.title)}</span><span class="step__bar" aria-hidden="true"><i></i></span></button>`).join('\n      ')}
+      ${C.how.steps.map((s, i) => `<button type="button" class="step" role="tab" id="step-${i}" data-step="${i}" aria-controls="step-panel" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}"><span class="step__n" aria-hidden="true">${i + 1}</span><span class="step__t">${esc(s.title)}</span><span class="step__bar" aria-hidden="true"><i></i></span></button>`).join('\n      ')}
     </div>
   </div>
 </section>
@@ -181,6 +184,7 @@ const html = `<!doctype html>
     <p class="customize__lede">${esc(cz.lede)} <span class="fine-only">${esc(cz.dragHint.fine)}</span><span class="touch-only">${esc(cz.dragHint.touch)}</span></p>
   </div>
   <div class="customize__drag" data-drag aria-hidden="true"></div>
+  <div class="customize__turn stage__in" data-turn hidden><button type="button" class="turn" data-turn-by="-1" aria-label="${attr(cz.turnLeft)}"><span aria-hidden="true">&larr;</span></button><button type="button" class="turn" data-turn-by="1" aria-label="${attr(cz.turnRight)}"><span aria-hidden="true">&rarr;</span></button></div>
   <div class="customize__side customize__side--color stage__in">
     <p class="eyebrow" id="color-label">${esc(cz.colorLabel)}</p>
     <div class="swatches" role="group" aria-labelledby="color-label">
@@ -191,7 +195,7 @@ const html = `<!doctype html>
   <div class="customize__side customize__side--size stage__in">
     <p class="eyebrow" id="size-label">${esc(cz.sizeLabel)}</p>
     <div class="sizes" role="group" aria-labelledby="size-label">
-      ${cz.sizes.map((sz) => `<button type="button" class="size" data-size="${sz.id}" aria-pressed="${sz.id === cz.defaults.size}">${esc(sz.label)}</button>`).join('\n      ')}
+      ${cz.sizes.map((sz) => `<button type="button" class="size" data-size="${sz.id}" aria-pressed="${sz.id === cz.defaults.size}" aria-label="${attr(sz.name || sz.label)}">${esc(sz.label)}</button>`).join('\n      ')}
     </div>
     <p class="customize__pick" data-size-label aria-live="polite">${esc(outside(cz.defaults.size))}</p>
     <p class="customize__fit">${esc(cz.fit)}</p>
@@ -283,7 +287,7 @@ const html = `<!doctype html>
         <p class="path__text">${esc(C.close.ind.text)}</p>
         <form class="form form--inline" method="post" action="/api/waitlist" data-form="waitlist" novalidate>
           <div class="hp" aria-hidden="true"><label>Leave empty <input type="text" name="hp_check" tabindex="-1" autocomplete="off"></label></div>
-          <label class="vh" for="w-email">Email</label>
+          <label class="path__field" for="w-email">${esc(C.close.ind.emailLabel)}</label>
           <div class="form__row"><input id="w-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required aria-describedby="err-w-email"><button class="btn btn--accent" type="submit">${esc(C.close.ind.button)}</button></div>
           <p class="field__err" id="err-w-email" data-err="email"></p>
           <p class="form__status" role="status" aria-live="polite"></p>

@@ -492,7 +492,7 @@ const steps = $$('.step');
 function setStep(i, { focus = false, play = true } = {}) {
   state.step = i;
   steps.forEach((b, k) => { b.setAttribute('aria-selected', String(k === i)); b.tabIndex = k === i ? 0 : -1; if (k === i && focus) b.focus(); });
-  $('[data-step-caption]').textContent = C.how.steps[i].caption;
+  const cap = $('[data-step-caption]'); cap.textContent = C.how.steps[i].caption; cap.setAttribute('aria-labelledby', `step-${i}`);
   if (play && world && state.stage === 'how') world.playStep(i);
 }
 function onStepProgress(i, p, done) {
@@ -667,6 +667,9 @@ sizeButtons.forEach((b) => b.addEventListener('click', () => setSizeId(b.dataset
   area.addEventListener('keydown', (e) => { if (!world || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return; e.preventDefault(); world.dragBy(e.key === 'ArrowLeft' ? -36 : 36, 0); });
   area.addEventListener('keyup', (e) => { if (world && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) world.releaseDrag(); });
   area.addEventListener('blur', () => world && world.releaseDrag());
+  // the keyboard's and the screen reader's way to turn it: a quarter turn a press, easing back when focus leaves
+  let turned = 0;
+  $$('[data-turn-by]').forEach((b) => { b.addEventListener('click', () => { if (!world) return; turned += +b.dataset.turnBy; world.dragBy(+b.dataset.turnBy * 196, 0); }); b.addEventListener('blur', (e) => { if (!e.relatedTarget?.closest?.('[data-turn]') && world) { turned = 0; world.releaseDrag(); } }); });
 }
 
 // ---------------------------------------------------------- forms --
@@ -782,7 +785,7 @@ if (tier !== 'poster') {
     fitStages(true); landFirst();
     lastKey = ''; onScroll(true); updateOverlayVisibility(); insideArrive();
     html.classList.add('gl-live');
-    { const a = $('[data-drag]'); a.tabIndex = 0; a.removeAttribute('aria-hidden'); a.setAttribute('role', 'group'); a.setAttribute('aria-label', cz.dragHint.keys); } // a keyboard stop only where there is a product to turn
+    $('[data-turn]').hidden = false;   // the turn buttons exist only where there is a product to turn
     window.__sf.world = world;
     // the other two sizes: fetched (not parsed) once the page is idle, so a size pick does not wait on the network
     if (tier !== 'low' && !navigator.connection?.saveData) (window.requestIdleCallback || setTimeout)(() => { for (const id of Object.keys(MODEL.sizes)) if (id !== world?.slot.sizeId) fetch(MODEL.sizes[id].url, { priority: 'low' }).catch(() => {}); }, { timeout: 6000 });
