@@ -9,8 +9,9 @@ const attr = esc;
 const navLinks = (cls) => C.nav.links.map((l) => `<a class="${cls}" href="#${l.anchor || l.id}" data-jump="${l.id}">${esc(l.label)}</a>`).join('\n      ');
 const seg = C.segments, cz = C.customize;
 const outside = (id) => { const [l, w, h] = MODEL.sizes[id].outsideMm.map(Math.round); return cz.sizeOutside.replace('{l}', l).replace('{w}', w).replace('{h}', h); };
-// [YOUR EMAIL] until brand.contactEmail is set; a real address becomes a link
-const contact = C.brand.contactEmail.includes('@') ? `<a href="mailto:${attr(C.brand.contactEmail)}">${esc(C.brand.contactEmail)}</a>` : esc(C.brand.contactEmail);
+// brand.contactEmail: a real address becomes a link in the footer and the privacy page. Left empty, no address is shown anywhere.
+const hasContact = (C.brand.contactEmail || '').includes('@');
+const contact = hasContact ? `<a href="mailto:${attr(C.brand.contactEmail)}">${esc(C.brand.contactEmail)}</a>` : '';
 const PILOT = C.nav.links.find((l) => l.id === 'bulk').anchor;
 const startMethod = C.why.methods.find((m) => m.id === 'solefresh');
 
@@ -197,15 +198,15 @@ const html = `<!doctype html>
     </div>
     <form class="form" method="post" action="/api/bulk" data-form="bulk" novalidate>
       <div class="hp" aria-hidden="true"><label>Leave empty <input type="text" name="hp_check" tabindex="-1" autocomplete="off"></label></div>
-      <div class="field"><label for="b-org">Organization name</label><input id="b-org" name="organization" type="text" autocomplete="organization" required aria-describedby="err-b-org"><p class="field__err" id="err-b-org" data-err="organization"></p></div>
-      <div class="field"><label for="b-type">Organization type</label><select id="b-type" name="type" required aria-describedby="err-b-type"><option value="">Choose one</option>${C.bulk.form.orgTypes.map((t) => `<option>${esc(t)}</option>`).join('')}</select><p class="field__err" id="err-b-type" data-err="type"></p></div>
+      <div class="field field--half"><label for="b-org">Organization name</label><input id="b-org" name="organization" type="text" autocomplete="organization" required aria-describedby="err-b-org"><p class="field__err" id="err-b-org" data-err="organization"></p></div>
+      <div class="field field--half"><label for="b-type">Organization type</label><select id="b-type" name="type" required aria-describedby="err-b-type"><option value="">Choose one</option>${C.bulk.form.orgTypes.map((t) => `<option>${esc(t)}</option>`).join('')}</select><p class="field__err" id="err-b-type" data-err="type"></p></div>
       <fieldset class="field field--radios" aria-describedby="err-b-pairs"><legend>Approximate pairs of shoes managed <span class="opt">optional</span></legend><div class="radios">${C.bulk.form.pairs.map((p) => `<label class="radio"><input type="radio" name="pairs" value="${attr(p)}"><span>${esc(p)}</span></label>`).join('')}</div><p class="field__err" id="err-b-pairs" data-err="pairs"></p></fieldset>
-      <div class="field"><label for="b-name">Your name</label><input id="b-name" name="name" type="text" autocomplete="name" required aria-describedby="err-b-name"><p class="field__err" id="err-b-name" data-err="name"></p></div>
-      <div class="field field--half"><label for="b-email">Email</label><input id="b-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="err-b-email"><p class="field__err" id="err-b-email" data-err="email"></p></div>
-      <div class="field field--half"><label for="b-phone">Phone <span class="opt">optional</span></label><input id="b-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" aria-describedby="err-b-phone"><p class="field__err" id="err-b-phone" data-err="phone"></p></div>
-      <div class="field"><label for="b-msg">Message <span class="opt">optional</span></label><textarea id="b-msg" name="message" rows="3" aria-describedby="err-b-msg"></textarea><p class="field__err" id="err-b-msg" data-err="message"></p></div>
-      <div class="form__actions"><button class="btn btn--accent" type="submit">${esc(C.bulk.form.button)}</button><p class="form__status" role="status" aria-live="polite"></p></div>
-      <p class="form__note">${esc(C.forms.note)}</p>
+      <div class="field field--third"><label for="b-name">Your name</label><input id="b-name" name="name" type="text" autocomplete="name" required aria-describedby="err-b-name"><p class="field__err" id="err-b-name" data-err="name"></p></div>
+      <div class="field field--third"><label for="b-email">Email</label><input id="b-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="err-b-email"><p class="field__err" id="err-b-email" data-err="email"></p></div>
+      <div class="field field--third"><label for="b-phone">Phone <span class="opt">optional</span></label><input id="b-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" aria-describedby="err-b-phone"><p class="field__err" id="err-b-phone" data-err="phone"></p></div>
+      <div class="field"><label for="b-msg">Message <span class="opt">optional</span></label><textarea id="b-msg" name="message" rows="2" aria-describedby="err-b-msg"></textarea><p class="field__err" id="err-b-msg" data-err="message"></p></div>
+      <p class="form__status" role="status" aria-live="polite" tabindex="-1"></p>
+      <div class="form__actions"><button class="btn btn--accent" type="submit">${esc(C.bulk.form.button)}</button><p class="form__note">${esc(C.forms.note)}</p></div>
       <div class="form__done" data-done tabindex="-1" hidden><p>${esc(C.bulk.form.done)}</p></div>
     </form>
   </div>
@@ -228,7 +229,7 @@ const html = `<!doctype html>
   </div>
 </section>
 
-<!-- =============================================== STAGE 8: STORY + FAQ == -->
+<!-- ======================================================== STAGE 8: STORY == -->
 <section class="stage story" id="story" data-product="story" aria-labelledby="h-story">
   <div class="story__panel stage__in">
     <h2 id="h-story">${esc(C.story.heading)}</h2>
@@ -237,14 +238,20 @@ const html = `<!doctype html>
       ${C.story.milestones.map((m) => `<li class="milestone${m.current ? ' is-current' : ''}"><button type="button" class="milestone__btn" data-ms="${m.id}" aria-pressed="${!!m.current}" ${m.current ? `aria-describedby="ms-current"` : ''}><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">${esc(m.title)}</span>${m.current ? `<span class="milestone__now" id="ms-current">${esc(C.story.currentLabel)}</span>` : ''}</button></li>`).join('\n      ')}
     </ol>
     <p class="milestone__text" data-ms-text aria-live="polite">${esc(C.story.milestones.find((m) => m.current).text)}</p>
-    <div class="faq" id="faq">
-      <h3>${esc(C.story.faqHeading)}</h3>
+  </div>
+</section>
+
+<!-- ========================================================== STAGE 9: FAQ == -->
+<section class="stage faqs" id="faq" data-product="faq" aria-labelledby="h-faq">
+  <div class="faq__panel stage__in">
+    <h2 id="h-faq">${esc(C.story.faqHeading)}</h2>
+    <div class="faq">
       ${C.story.faq.map((f) => `<details class="faq__item" name="faq"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('\n      ')}
     </div>
   </div>
 </section>
 
-<!-- ======================================================== STAGE 9: CLOSE == -->
+<!-- ======================================================= STAGE 10: CLOSE == -->
 <section class="stage close" id="close" data-product="close" aria-labelledby="h-close">
   <div class="close__wrap stage__in">
     <h2 id="h-close">${esc(C.close.heading)}</h2>
@@ -269,10 +276,10 @@ const html = `<!doctype html>
       </div>
     </div>
   </div>
-  <footer class="footer">
+  <footer class="footer" role="contentinfo">
     <span class="footer__logo">Sole<span>Fresh</span></span>
-    <span>${esc(C.brand.program)}</span>
-    <span class="footer__contact" data-contact>${contact}</span>
+    <span>${esc(C.brand.program)}</span>${hasContact ? `
+    <span class="footer__contact" data-contact>${contact}</span>` : ''}
     <a class="footer__link" href="privacy.html">${esc(C.footer.privacy)}</a>
     <span>&copy; <span data-year></span> ${esc(C.brand.copyright)}</span>
   </footer>
@@ -283,10 +290,14 @@ const html = `<!doctype html>
 </body>
 </html>
 `;
+// Editorial markers are for the people writing the copy. If one reaches the page, the build stops here.
+const MARKERS = [/\[NEEDS DATA[^\]]*\]/i, /\[YOUR [A-Z ]+\]/, /\bTODO\b/, /\bPLACEHOLDER:(?!LOGO)/];
+function guard(name, out) { for (const m of MARKERS) { const hit = out.match(m); if (hit) { console.error(`\n${name}: found "${hit[0]}" in the page. Editorial markers must not be rendered: fix content.json (or tools/render.mjs) and run again.\n`); process.exit(1); } } }
+guard('index.html', html);
 fs.writeFileSync(new URL('../index.html', import.meta.url), html);
 
 // The privacy page: short, plain, and honest about what is still to fill in.
-const P = C.privacy, withEmail = (s) => esc(s).replace('{email}', contact).replace('{googlePrivacy}', '<a href="https://policies.google.com/privacy">Google’s privacy policy</a>');
+const P = C.privacy, withEmail = (s) => esc(typeof s === 'string' ? s : hasContact ? s.withEmail : s.noEmail).replace('{email}', contact).replace('{googlePrivacy}', '<a href="https://policies.google.com/privacy">Google’s privacy policy</a>');
 const privacy = `<!doctype html>
 <html lang="en">
 <head>
@@ -304,7 +315,7 @@ const privacy = `<!doctype html>
 <body class="doc-page">
 <header class="nav">
   <a class="nav__logo" href="./" aria-label="${attr(C.brand.name)} home">Sole<span>Fresh</span></a>
-  <a class="doc__back" href="./">${esc(P.back)}</a>
+  <a class="doc__back" href="./#close" data-back>${esc(P.back)}</a>
 </header>
 <main class="doc">
   <h1>${esc(P.title)}</h1>
@@ -314,8 +325,10 @@ const privacy = `<!doctype html>
     <p>${withEmail(s.text)}</p>
   </section>`).join('\n  ')}
 </main>
+<script>document.querySelector('[data-back]').addEventListener('click', (e) => { try { if (history.length > 1 && new URL(document.referrer).origin === location.origin) { e.preventDefault(); history.back(); } } catch {} });</script>
 </body>
 </html>
 `;
+guard('privacy.html', privacy);
 fs.writeFileSync(new URL('../privacy.html', import.meta.url), privacy);
 console.log('rendered index.html, privacy.html');

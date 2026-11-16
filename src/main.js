@@ -1,9 +1,9 @@
 // SoleFresh landing page.
-// Section-first. On wide screens, from Stage 1 through the pilot stage, the page
-// comes to rest on a stage: wheel, trackpad, keys and touch each move one stage per
-// gesture, and the settle is a timed Lenis scroll of SNAP_MS. Past the pilot stage
-// (Why, Story, FAQ, Close, footer) scrolling is the browser's own, and so it is
-// everywhere under 900px and on short landscape screens. The ONE
+// Section-first. With a mouse or trackpad, at any window size, and on touch tablets,
+// the page comes to rest on a stage from the first stage to the footer: wheel,
+// trackpad, keys and touch each move one rest point per gesture, and the settle is
+// a timed Lenis scroll (SNAP_MS for a whole stage). Only phones (a coarse pointer
+// under 768px wide, or a short landscape phone) keep the browser's own scrolling. The ONE
 // scroll-linked motion is the product's travel between neighbouring stage
 // states, computed over a short window before each stage. Everything else plays
 // on a clock or on click/hover/tap and finishes.
@@ -16,18 +16,22 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const FINE = matchMedia('(hover: hover) and (pointer: fine)');
-const NARROW = matchMedia('(max-width: 899px), (max-height: 520px)'); // keep in step with styles.css: the phone layout
-const SIDE = matchMedia('(max-height: 520px) and (orientation: landscape)'); // and within it, short landscape: the product beside the text, not above it
+const NARROW = matchMedia('(max-width: 899px), (max-height: 560px)'); // keep in step with styles.css: the stacked layout (phones, tablets in portrait, narrow or very short windows)
+const SIDE = matchMedia('(max-height: 560px) and (orientation: landscape) and (min-width: 600px)'); // and within it, short landscape: the product beside the text, not above it
+// Who gets the snap: any fine pointer (mouse, trackpad) at any window size, and touch tablets (768px wide or more and not a
+// phone on its side). The layout (NARROW) and the snap are separate questions: a narrow desktop window is stacked AND snaps.
+const SNAPQ = matchMedia('(pointer: fine), (min-width: 768px) and (min-height: 500px)');
 const html = document.documentElement;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, color: C.customize.defaults.color, size: C.customize.defaults.size, method: 'solefresh', milestone: 'refining' };
-let world = null, worldReady = false;
+let world = null, worldReady = false, audiencePicked = false;   // audiencePicked: the visitor chose an audience themselves (the default is not a choice)
 const worldEl = $('[data-world]'), navEl = $('.nav');
 
 // ------------------------------------------------------------------- nav --
 const menuBtn = $('.nav__menu'), menu = $('#menu');
-function setMenu(open) { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', String(open)); }
+function setMenu(open) { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', String(open)); const m = $('main'); if (m) m.inert = open; }   // what is behind an open menu cannot be reached
+addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('.menu, .nav__menu')) setMenu(false); }, true);
 menuBtn.addEventListener('click', () => setMenu(menu.hidden));
 matchMedia('(min-width: 1241px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); }); // the burger is gone up there: keep in step with styles.css
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { setMenu(false); menuBtn.focus(); } });
@@ -74,7 +78,7 @@ document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-jump]'); if (!a) return;
   const target = document.getElementById(a.getAttribute('href').slice(1)); if (!target) return;
   e.preventDefault(); setMenu(false);
-  if (a.hasAttribute('data-bulk')) try { const seg = C.segments.items.find((x) => x.id === state.audience); sessionStorage.setItem('sf-org-type', seg?.orgType || ''); } catch {}
+  if (a.hasAttribute('data-bulk') && audiencePicked) try { const seg = C.segments.items.find((x) => x.id === state.audience); sessionStorage.setItem('sf-org-type', seg?.orgType || ''); } catch {}
   goTo(target);
   const h = target.querySelector('h1, h2, h3'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
   if (state.stage === 'bulk') preselectOrgType();
@@ -110,10 +114,10 @@ const stages = $$('[data-product]');
 const links = $$('[data-jump]').filter((a) => a.classList.contains('nav__link') || a.classList.contains('menu__link'));
 const stageIO = new IntersectionObserver((entries) => { for (const e of entries) e.target.classList.toggle('is-in', e.isIntersecting); }, { threshold: 0.18 });
 stages.forEach((s) => stageIO.observe(s));
-const faqEl = $('#faq');
+let currentMark = null;
 function markCurrent(stage) {
-  const id = stage === 'story' && faqEl && faqEl.getBoundingClientRect().top < innerHeight * 0.25 ? 'faq' : stage; // the FAQ only once it has reached the top of the view
-  links.forEach((a) => a.setAttribute('aria-current', a.dataset.jump === id ? 'true' : 'false'));
+  if (stage === currentMark) return; currentMark = stage;   // written only when it changes: this runs on every scroll event
+  links.forEach((a) => a.setAttribute('aria-current', a.dataset.jump === stage ? 'true' : 'false'));
 }
 
 // --------------------------------------------- the one scroll-linked move --
@@ -141,7 +145,7 @@ function onScroll(force = false) {
   for (let i = 1; i < stages.length; i++) {
     const a = stages[i - 1].dataset.product, b = stages[i].dataset.product;
     // phones scroll freely: the travel fits inside the stage and the space under the band, so every stage has a rest zone
-    const sp = narrow ? Math.min(Math.max(innerHeight - navH() - (bands[b] || 0), (tops[i] - tops[i - 1]) * 0.7) * 0.8, (tops[i] - tops[i - 1]) * 0.8) : innerHeight * (TRAVEL[`${a}>${b}`] || TRAVEL.default), start = tops[i] - sp;
+    const sp = narrow ? Math.min(Math.max(innerHeight - navH() - (bands[b] || 0), (tops[i] - tops[i - 1]) * 0.7) * 0.8, (tops[i] - tops[i - 1]) * 0.8) : innerHeight * (TRAVEL[`${a}>${b}`] || TRAVEL.default), start = tops[i] - sp - (narrow ? Math.min(40, sp * 0.15) : 0); // stacked: arrived a little early, so a few px of drift at rest (a focus scroll, a rubber band) is not a travel
     if (y < start) break;
     from = a; to = b; at = i; span = sp; u = sp - (y - start) < 1 ? 1 : Math.min(1, (y - start) / sp); // within a pixel of the end counts as arrived
   }
@@ -182,11 +186,20 @@ function setStage(stage) {
 function showPoster() { if (worldReady) return; const img = $('[data-poster-img]'), st = state.stage, want = st === 'explorer' ? `assets/posters/${state.audience}.webp` : `assets/posters/${st}.webp`; if (img && !img.src.endsWith(want)) img.src = want; }
 addEventListener('scroll', () => onScroll(), { passive: true });
 // A resize moves every stage: the page goes with the place it was resting on, unless the visitor is working in a form or the FAQ.
+let lastW = innerWidth;
 addEventListener('resize', () => {
-  const on = snapOn() && !snapPaused() && !snap.animating, k = tops.findIndex((t) => Math.abs(t - scrollY) <= 2), free = scrollY > snap.end + 1;
+  const typing = document.activeElement?.closest?.('input, textarea, select'), y0 = typing ? typing.getBoundingClientRect().top : 0;
+  const widthChanged = innerWidth !== lastW; lastW = innerWidth;
+  // where the visitor is: which stage, and how far into it (a settle under way counts as already there)
+  const y = snap.animating && snap.target >= 0 ? snap.points[snap.target] : scrollY;
+  let k = 0; for (let i = 0; i < tops.length; i++) if (tops[i] <= y + 2) k = i;
+  const span = (i) => Math.max(1, (i + 1 < tops.length ? tops[i + 1] : Math.max(tops[i] + 1, html.scrollHeight - innerHeight)) - tops[i]);
+  const f = clamp((y - tops[k]) / span(k), 0, 1);
   measureStages();
-  if (!on || (free && k < 0)) return;     // scrolling freely, the visitor is wherever they scrolled to
-  snap.jump(free ? tops[k] : k >= 0 ? snap.points[snap.nearest(tops[k])] : snap.points[snap.nearest()]);
+  if (typing) { const d = typing.getBoundingClientRect().top - y0; if (Math.abs(d) > 1) snap.jump(scrollY + d); }   // a field being typed in stays where it is
+  else if (snapOn()) snap.jump(snap.points[snap.nearest(tops[k] + f * span(k))]);
+  else if (widthChanged) snap.jump(Math.round(tops[k] + f * span(k)));                                              // phones: a rotation, not the address bar coming and going
+  else return;
   suppressUntil = 0; lastKey = ''; onScroll(true); updateOverlayVisibility();
 });
 // Anything that changes the page's height (a form error, a sent form, an answer opening) moves the stages below it.
@@ -195,21 +208,16 @@ addEventListener('load', () => { measureStages(); landFirst(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measureStages(); fitStages(true); landFirst(); });
 
 // ------------------------------------------------------------------ snap --
-// Stage 1 through the pilot stage rest on a stage. One stage per gesture; the settle
-// is a timed scroll (SNAP_MS, ease-out) driven by Lenis, so trackpad momentum cannot
-// fight it. Tall stages get extra rest points one viewport apart. The last of these is
-// snap.end: below it the page is the browser's own, with no snap, no settle and nothing
-// intercepted, and a scroll that comes back up simply meets the snap again there.
+// Every stage is a rest point, first to last, and the page's end is the last one (so the footer is always
+// reachable). One rest point per gesture; the settle is a timed scroll (ease-out) driven by Lenis, so trackpad
+// momentum cannot fight it. A stage that cannot fit the window (a short window, the stacked layout) gets inner
+// rest points less than a view apart, so everything in it can be reached. ONE system owns snapping: this one.
+// There is no CSS scroll-snap on the page and Lenis only plays the tween.
 const QS = new URLSearchParams(location.search);
-const snapOn = () => !NARROW.matches;
-const LAST_SNAP = stages.findIndex((s) => s.dataset.product === 'bulk');
-/** Is a scroll from y in this direction (1 down, -1 up) the browser's to do? */
-const freeScroll = (y, dir) => y > snap.end + 1 || (dir > 0 && y >= snap.end - 1);
-/** Snapping stands aside while the visitor is working in a form or the FAQ, for as long as it is on screen. */
-function snapPaused() {
-  const zone = document.activeElement?.closest?.('form, .faq'); if (!zone) return false;
-  const r = zone.getBoundingClientRect(); return r.bottom > navH() && r.top < innerHeight;
-}
+const snapOn = () => SNAPQ.matches;
+const HOW = stages.findIndex((s) => s.dataset.product === 'how');
+/** A long message scrolls itself: the one place a wheel or a swipe is not a step. */
+const scrollsItself = (el) => { const ta = el?.closest?.('textarea'); return !!ta && ta.scrollHeight > ta.clientHeight + 1; };
 const SNAP_MS = clamp(+QS.get('snap') || 600, 200, 1500);               // settle duration
 // Gesture-end debounce: a pause in wheel events longer than this ends a
 // gesture, so the next event starts a new one. Just long enough that the
@@ -223,16 +231,18 @@ let lenis = null;
 // remembered (at most one) and starts when the settle ends; an opposite
 // request reverses to the stage the settle came from.
 const snap = {
-  points: [], end: Infinity, target: -1, from: -1, dir: 0, queued: 0, run: 0, fallback: 0, animating: false, quiet: 0, tabbed: null,
+  points: [], end: Infinity, target: -1, from: -1, dir: 0, queued: 0, run: 0, fallback: 0, animating: false, quiet: 0, tabbed: null, byKey: false,
   measure() {
-    const pts = [], maxY = Math.max(0, document.documentElement.scrollHeight - innerHeight), view = innerHeight - navH();
-    for (let i = 0; i <= LAST_SNAP; i++) {
-      const top = Math.min(tops[i], maxY), end = Math.min(tops[i + 1], maxY + view);
+    const pts = [], maxY = Math.max(0, html.scrollHeight - innerHeight), view = innerHeight - navH();
+    for (let i = 0; i < stages.length; i++) {
+      const top = Math.min(tops[i], maxY), room = Math.max(120, view - (bands[stages[i].dataset.product] || 0));   // what the stage has under the nav (and, stacked, under the band)
       pts.push(top);
-      const extra = end - top - view;                        // part of a tall stage that does not fit under the nav
-      if (extra > (stages[i].classList.contains('stage--full') ? 30 : 16)) { const n = Math.ceil(extra / view); for (let k = 1; k <= n; k++) pts.push(top + (extra * k) / n); } // a full stage's bottom padding can stay cut off
+      const extra = stages[i].offsetHeight - (parseFloat(getComputedStyle(stages[i]).paddingBottom) || 0) * 0.75 - room;   // the part of a tall stage that does not fit (its bottom padding may stay cut off)
+      if (extra > 40) { const n = Math.ceil(extra / (room * 0.85)); for (let k = 1; k <= n; k++) pts.push(top + (extra * k) / n); } // a little bottom padding can stay cut off
     }
-    this.points = [...new Set(pts.map((p) => Math.round(clamp(p, 0, maxY))))].sort((a, b) => a - b);
+    pts.push(maxY);                                          // the end of the page: the footer is always a rest
+    const sorted = [...new Set(pts.map((p) => Math.round(clamp(p, 0, maxY))))].sort((a, b) => a - b);
+    this.points = sorted.filter((p, i, a) => i === a.length - 1 || a[i + 1] - p >= 40);   // two rests closer than 40px are one (the later one: the page's end always stays)
     this.end = this.points[this.points.length - 1];
   },
   nearest(y = scrollY) { let best = 0; for (let i = 1; i < this.points.length; i++) if (Math.abs(this.points[i] - y) < Math.abs(this.points[best] - y)) best = i; return best; },
@@ -256,22 +266,38 @@ const snap = {
       clearTimeout(this.fallback); this.animating = false;
       const q = this.queued; this.queued = 0;
       if (q) this.request(q);                         // the remembered step starts now
-      else this.showFocus();
+      else { this.showFocus(); this.keepFocus(); }
     };
-    clearTimeout(this.fallback); this.fallback = setTimeout(done, SNAP_MS + 400); // never stay stuck if a callback is lost
-    if (lenis && !RM.matches) lenis.scrollTo(y, { duration: SNAP_MS / 1000, easing: SNAP_EASE, lock: true, force: true, onComplete: done });
+    // A whole stage takes SNAP_MS. A shorter hop (an inner rest point, a short stacked stage) takes less, so it never feels
+    // like a stall. Hops beside Stage 3 keep the full curve: its way out of the shoe is paced on it (see onScroll).
+    const d = Math.abs(y - scrollY), view = Math.max(1, innerHeight - navH()), lo = Math.min(y, scrollY), hi = Math.max(y, scrollY);
+    const besideHow = !NARROW.matches && HOW > 0 && hi > tops[HOW - 1] + 1 && lo < (tops[HOW + 1] ?? Infinity) - 1;
+    const ms = besideHow ? SNAP_MS : clamp(SNAP_MS * Math.sqrt(d / view), 240, SNAP_MS);
+    clearTimeout(this.fallback); this.fallback = setTimeout(done, ms + 400); // never stay stuck if a callback is lost
+    if (lenis && !RM.matches) { lenisAwake(); lenis.scrollTo(y, { duration: ms / 1000, easing: SNAP_EASE, lock: true, force: true, onComplete: done }); }
     else { scrollTo({ top: y, behavior: 'auto' }); requestAnimationFrame(done); }
   },
   /** A Tab pressed during a settle loses its scroll: when the page stops, go where the focused control can be seen. */
-  showFocus() {
-    const a = this.tabbed; this.tabbed = null; if (!a || a !== document.activeElement) return;
-    const r = a.getBoundingClientRect(); if (!r.width || (r.bottom > navH() && r.top < innerHeight)) return;
-    const want = scrollY + r.top - navH(); if (want > this.end) { a.scrollIntoView({ block: 'center' }); return; }
-    let i = 0; this.points.forEach((p, k) => { if (p <= want) i = k; });
+  showFocus() { const a = this.tabbed; this.tabbed = null; if (a && a === document.activeElement) this.reveal(a); },
+  /** Rest where a focused control can be seen: the last rest point at or above it. Does nothing if it already shows at a rest point. */
+  reveal(a) {
+    if (this.animating) { this.tabbed = a; return; }
+    const r = a.getBoundingClientRect(); if (!r.width) return;
+    const cover = navH() + (bands[a.closest('[data-product]')?.dataset.product] || 0), at = this.nearest();
+    if (Math.abs(this.points[at] - scrollY) <= 2 && r.top >= cover - 1 && r.bottom <= innerHeight + 1) return;
+    const want = scrollY + r.top - cover - 12; let i = 0; this.points.forEach((p, k) => { if (p <= want + 1) i = k; });
+    if (scrollY + r.bottom - this.points[i] > innerHeight && i + 1 < this.points.length) i++;   // it would still hang off the bottom: the next rest shows it
     if (Math.abs(this.points[i] - scrollY) > 2) this.to(i);
   },
-  settle() { if (this.animating || performance.now() < this.quiet || scrollY > this.end + 1) return; const i = this.nearest(); if (Math.abs(this.points[i] - scrollY) > 2) this.to(i); },
-  jump(y) { this.run++; clearTimeout(this.fallback); this.animating = false; this.queued = 0; this.target = -1; this.quiet = performance.now() + 500; if (lenis) lenis.scrollTo(y, { immediate: true, force: true }); if (Math.abs(scrollY - y) > 1) scrollTo({ top: y, behavior: 'auto' }); }, // Lenis skips a target it already holds, even if the browser has since moved the page
+  /** A key moved the page and left the focused control behind: focus goes with the page, to the stage's heading. */
+  keepFocus() {
+    if (!this.byKey) return; this.byKey = false;
+    const a = document.activeElement; if (!a || a === document.body) return;
+    const r = a.getBoundingClientRect(); if (r.bottom > navH() && r.top < innerHeight) return;
+    const h = stages.find((s) => s.dataset.product === state.stage)?.querySelector('h1, h2'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+  },
+  settle() { if (this.animating || performance.now() < this.quiet) return; const i = this.nearest(); if (Math.abs(this.points[i] - scrollY) > 2) this.to(i); },
+  jump(y) { this.run++; clearTimeout(this.fallback); this.animating = false; this.queued = 0; this.target = -1; this.quiet = performance.now() + 500; if (lenis) { lenisAwake(); lenis.scrollTo(y, { immediate: true, force: true }); } if (Math.abs(scrollY - y) > 1) scrollTo({ top: y, behavior: 'auto' }); }, // Lenis skips a target it already holds, even if the browser has since moved the page
 };
 // wheel and trackpad: one step request per gesture. A gesture starts when
 //  - no wheel event arrived for GESTURE_GAP_MS, or
@@ -282,12 +308,14 @@ const snap = {
 // Momentum alone only decays, and a mouse spin has flat deltas, so neither
 // produces a false rise.
 {
-  const g = { t: -1e9, dir: 0, acc: 0, fired: false, prev: 0, peak: 0, peakT: 0, low: Infinity };
+  const g = { t: -1e9, dir: 0, acc: 0, fired: false, prev: 0, peak: 0, peakT: 0, low: Infinity, slow: 0 };
   const begin = (now, dir) => Object.assign(g, { dir, acc: 0, fired: false, prev: 0, peak: 0, peakT: now, low: Infinity });
   addEventListener('wheel', (e) => {
-    if (!snapOn() || e.ctrlKey || e.target.closest('.menu') || snapPaused()) return;
-    const now = performance.now(), dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
-    if (dy && !snap.animating && freeScroll(scrollY, Math.sign(dy))) return;   // past the snap: the browser scrolls, and nothing here touches the event
+    if (!snapOn() || e.ctrlKey || e.target.closest?.('.menu') || scrollsItself(e.target)) return;
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;                       // a sideways swipe is not a step
+    // The gesture clock is the event's own time stamp, not the time this handler got to run: a stalled main thread
+    // delivers a flick's events late and bunched, and on the handler's clock that read as two gestures (two stages).
+    const now = e.timeStamp || performance.now(), dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
     e.preventDefault(); e.stopImmediatePropagation();
     if (!dy) return;
     const dir = Math.sign(dy), mag = Math.abs(dy);
@@ -299,54 +327,70 @@ const snap = {
     g.t = now; g.prev = mag; g.acc += mag;
     if (lv > g.peak) { g.peak = lv; g.peakT = now; g.low = lv; } else if (lv < g.low) g.low = lv;
     if (!g.fired && g.acc >= 30) { g.fired = true; snap.request(dir); }
+    // a slow, small notch (a high-resolution wheel, one line at a time) never reaches 30px: it still means "next"
+    clearTimeout(g.slow); if (!g.fired) g.slow = setTimeout(() => { if (!g.fired && g.acc >= 4) { g.fired = true; snap.request(g.dir); } }, GESTURE_GAP_MS + 30);
   }, { capture: true, passive: false });
 }
 // keyboard: every press is a step request (queued like wheel steps); holding a key repeats nothing
 addEventListener('keydown', (e) => {
   if (!snapOn() || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
-  if (e.target.closest('input, textarea, select, [contenteditable="true"]') || snapPaused()) return;
+  if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;   // keys typed into a field are the field's
   const k = e.key; let dir = 0;
-  if (k === ' ' && e.target.closest('button, a[href], summary, [role="tab"], [role="button"]')) return; // Space presses a focused control
+  if (k === ' ' && e.target.closest('button, a[href], summary, [role="tab"], [role="button"], [data-drag]')) return; // Space presses a focused control
+  if ((k === 'ArrowDown' || k === 'ArrowUp') && e.target.closest('[role="tab"], [data-drag]')) return;                // arrows belong to a tab list or the turn control
   if (k === 'PageDown' || k === 'ArrowDown' || (k === ' ' && !e.shiftKey)) dir = 1;
   else if (k === 'PageUp' || k === 'ArrowUp' || (k === ' ' && e.shiftKey)) dir = -1;
-  else if (k === 'Home') { e.preventDefault(); snap.toIndex(0); return; }
-  if (!dir || freeScroll(scrollY, dir)) return;   // End and everything past the snap are the browser's
-  e.preventDefault(); if (!e.repeat) snap.request(dir);
+  else if (k === 'Home') { e.preventDefault(); if (snap.nearest() > 2) land(0, stages[0].dataset.product); else snap.toIndex(0); return; } // from far away it jumps, as the nav links do, instead of flying through every stage
+  else if (k === 'End') { e.preventDefault(); const n = snap.points.length - 1; if (n - snap.nearest() > 2) land(snap.points[n], stages[stages.length - 1].dataset.product); else snap.toIndex(n); return; }
+  if (!dir) return;
+  e.preventDefault(); if (!e.repeat) { snap.byKey = true; snap.request(dir); }
 });
 // touch: a swipe (the finger moved) moves one stage in its direction; a tap is just a tap
 {
-  let y0 = 0, y1 = 0, t0 = 0, tracking = false;
-  addEventListener('touchstart', (e) => { if (e.touches.length !== 1) { tracking = false; return; } tracking = true; y0 = y1 = e.touches[0].clientY; t0 = performance.now(); }, { passive: true });
-  addEventListener('touchmove', (e) => { if (tracking && e.touches.length === 1) y1 = e.touches[0].clientY; }, { passive: true });
+  let y0 = 0, y1 = 0, x0 = 0, x1 = 0, t0 = 0, i0 = -1, tracking = false;
+  addEventListener('touchstart', (e) => { if (e.touches.length !== 1) { tracking = false; return; } tracking = true; y0 = y1 = e.touches[0].clientY; x0 = x1 = e.touches[0].clientX; t0 = e.timeStamp; i0 = snap.animating ? -1 : snap.nearest(); if (snapOn()) lenisAwake(); }, { passive: true });   // i0: the rest the finger went down on
+  addEventListener('touchmove', (e) => { if (tracking && e.touches.length === 1) { y1 = e.touches[0].clientY; x1 = e.touches[0].clientX; } }, { passive: true });
   addEventListener('touchend', (e) => {
     if (!tracking) return; tracking = false;
-    if (!snapOn() || snapPaused() || e.target.closest('.who__list, textarea, select, input')) return;   // horizontal lists and fields scroll themselves
-    const dy = y0 - y1, fast = performance.now() - t0 < 320;
-    if (freeScroll(scrollY, Math.sign(dy) || 1)) return;
-    if (Math.abs(dy) > (fast ? 24 : 60)) snap.request(dy > 0 ? 1 : -1); else if (Math.abs(dy) > 4) snap.settle();
+    if (!snapOn() || e.target.closest?.('.who__list, .menu') || scrollsItself(e.target)) return;   // a sideways list, the menu and a long message scroll themselves
+    const dy = y0 - y1, fast = e.timeStamp - t0 < 320;
+    if (Math.abs(x0 - x1) > Math.abs(dy) * 1.2) { snap.settle(); return; }                           // a sideways swipe is not a step
+    // One rest point per swipe, counted from where the finger went down: the page moves with the finger, and a long drag
+    // must not count the rests it passed over as already done.
+    const dir = dy > 0 ? 1 : -1;
+    if (Math.abs(dy) > (fast ? 24 : 60)) { if (i0 >= 0 && !snap.animating) snap.toIndex(i0 + dir); else snap.request(dir); } else if (Math.abs(dy) > 4) snap.settle();
   }, { passive: true });
 }
 // any other scroll source (scrollbar drag, find-in-page): settle when it stops
 {
   let timer = 0;
-  addEventListener('scroll', () => { if (!snapOn() || snap.animating) return; clearTimeout(timer); timer = setTimeout(() => { if (snapOn() && !snapPaused()) snap.settle(); }, 180); }, { passive: true });
+  addEventListener('scroll', () => { if (!snapOn() || snap.animating) return; clearTimeout(timer); timer = setTimeout(() => { if (snapOn()) snap.settle(); }, 180); }, { passive: true });
 }
-{ let tab = 0; addEventListener('keydown', (e) => { if (e.key === 'Tab') tab = performance.now(); }, true); addEventListener('focusin', (e) => { if (snap.animating && performance.now() - tab < 200) snap.tabbed = e.target; }); }
-// leaving a form hands the page back to the snap
-addEventListener('focusout', () => setTimeout(() => { if (snapOn() && !snapPaused() && !snap.animating && !document.activeElement?.closest?.('form, .faq')) snap.settle(); }, 0));
+// Focus moved by the keyboard (Tab, a skip link) scrolls the page natively: the page then rests where that control can be seen.
+addEventListener('focusin', (e) => {
+  if (!snapOn() || e.target === document.body || e.target.closest?.('.nav, .menu, .skip')) return;
+  const a = e.target; requestAnimationFrame(() => { if (a === document.activeElement) snap.reveal(a); });
+});
 // Lenis drives the settle on wide screens only; phones keep the browser's own scrolling
-let lenisRaf = 0;
+let lenisRaf = 0, lenisIdle = 0;
+/** Lenis only needs frames while a settle or a finger drag is under way: its loop runs then, and stops half a second after the page is still. */
+function lenisAwake() {
+  if (!lenis) return; lenisIdle = performance.now() + 500;
+  if (lenisRaf) return;
+  lenis.raf(document.timeline?.currentTime ?? performance.now());   // its clock stood still while it slept: start it from now, or the first frame would swallow a whole tween
+  const raf = (t) => { lenisRaf = 0; if (!lenis) return; lenis.raf(t); if (snap.animating || lenis.isScrolling) lenisIdle = t + 500; if (t < lenisIdle) lenisRaf = requestAnimationFrame(raf); };
+  lenisRaf = requestAnimationFrame(raf);
+}
 function setLenis(on) {
   if (on === !!lenis) return;
-  if (on) {
-    lenis = new Lenis({ smoothWheel: false, syncTouch: true, syncTouchLerp: 0.1, touchInertiaExponent: 1.3, anchors: false, autoRaf: false, virtualScroll: ({ deltaY }) => !freeScroll(scrollY, Math.sign(deltaY) || 1) }); // past the snap, a drag is the browser's too
-    const raf = (t) => { if (!lenis) return; lenis.raf(t); lenisRaf = requestAnimationFrame(raf); };
-    lenisRaf = requestAnimationFrame(raf);
-  } else { cancelAnimationFrame(lenisRaf); lenis.destroy(); lenis = null; }
+  if (on) { lenis = new Lenis({ smoothWheel: false, syncTouch: true, syncTouchLerp: 0.1, touchInertiaExponent: 1.3, anchors: false, autoRaf: false }); lenisAwake(); }
+  else { cancelAnimationFrame(lenisRaf); lenisRaf = 0; lenis.destroy(); lenis = null; }
 }
 setLenis(snapOn() && !RM.matches);
-NARROW.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); bandNow = -1; setOrientation(); measureStages(); });
+NARROW.addEventListener('change', () => { snap.jump(scrollY); bandNow = -1; setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
 SIDE.addEventListener('change', () => { bandNow = -1; measureStages(); });
+SNAPQ.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); measureStages(); if (snapOn()) snap.settle(); });
+addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native scroll (a key in a field, the scrollbar): Lenis keeps its own position in step
 
 // ---------------------------------------------------------- stage 1 --
 const thumbs = Object.fromEntries(C.segments.items.map((a) => [a.id, a.photo || drawThumb(a.venue)]));
@@ -369,12 +413,12 @@ function select(id, { focus = false, animate = true } = {}) {
   showPoster();
 }
 tabs.forEach((t, i) => {
-  t.addEventListener('click', () => select(t.dataset.aud));
+  t.addEventListener('click', () => { audiencePicked = true; select(t.dataset.aud); });
   t.addEventListener('keydown', (e) => {
     const k = e.key; let j = -1;
     if (k === 'ArrowDown' || k === 'ArrowRight') j = (i + 1) % tabs.length; else if (k === 'ArrowUp' || k === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
     else if (k === 'Home') j = 0; else if (k === 'End') j = tabs.length - 1;
-    if (j < 0) return; e.preventDefault(); select(tabs[j].dataset.aud, { focus: true });
+    if (j < 0) return; e.preventDefault(); audiencePicked = true; select(tabs[j].dataset.aud, { focus: true });
   });
   const show = () => { if (!FINE.matches && !t.matches(':focus-visible')) return; thumbImg.src = thumbs[t.dataset.aud]; thumb.style.setProperty('--y', `${t.offsetTop - t.parentElement.offsetTop + t.offsetHeight / 2 - 60}px`); thumb.classList.add('is-on'); };
   const hide = () => thumb.classList.remove('is-on');
@@ -416,7 +460,7 @@ function fitStages(force = false) {
   const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}`;
   if (key === fitKey && !force) return; fitKey = key;
   if (world.W !== worldEl.clientWidth || world.H !== worldEl.clientHeight) world.resize(); // the window's resize event comes before the canvas's own
-  const fitted = ['what', 'customize', 'why', 'story', 'close'], centred = { center: true }, all = stages.map((s) => s.dataset.product);
+  const centred = { center: true }, all = stages.map((s) => s.dataset.product);
   if (NARROW.matches) {
     all.forEach((st) => { world.fitStage(st, null); world.frameStage(st, null); });
     // each section in its own space: its band, or beside the text the whole canvas. The band's foot has a soft fade, so the picture stays above it.
@@ -433,6 +477,7 @@ function fitStages(force = false) {
   world.fitStage('customize', { left: right($('.customize__side--color')) + 16, right: left($('.customize__side--size')) - 16, top: bottom($('.customize__head'), 'customize') + 8, bottom: top($('.customize__note'), 'customize') - 8 });
   world.fitStage('why', { left: 8, right: left($('.why__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('story', { left: 8, right: left($('.story__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
+  world.fitStage('faq', { left: 8, right: left($('.faq__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('close', { left: g, right: innerWidth - g, top: bottom($('.close h2'), 'close') + 8, bottom: top($('.paths'), 'close') - 8 });
   world.fitsChanged();
 }
@@ -561,13 +606,15 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const validEmail = (v) => { const e = (v || '').trim(); return e.length <= 254 && EMAIL.test(e); };
 const tooLong = (v, n) => (v || '').trim().length > n;   // the same limits as api/bulk.js: a long paste gets a message, never a silent cut
 const SUBMIT_TIMEOUT_MS = 10000;
-const withEmail = (s) => s.replace('{email}', C.brand.contactEmail);
+const HAS_CONTACT = (C.brand.contactEmail || '').includes('@');
+const withEmail = (s) => (typeof s === 'string' ? s : HAS_CONTACT ? s.withEmail : s.noEmail).replace('{email}', C.brand.contactEmail);   // with no address set, the message simply does not offer one
 function wireForm(form, { validate, offline }) {
   const status = $('.form__status', form), btn = $('button[type=submit]', form), done = $('[data-done]', form);
   const controls = (name) => { const f = form.elements[name]; return !f ? [] : f instanceof RadioNodeList ? [...f] : [f]; };
   const setErr = (name, msg) => { const p = $(`[data-err="${name}"]`, form); if (p) p.textContent = msg || ''; controls(name).forEach((c) => (msg ? c.setAttribute('aria-invalid', 'true') : c.removeAttribute('aria-invalid'))); };
   const showErrors = (errors) => { $$('[data-err]', form).forEach((p) => setErr(p.dataset.err, errors[p.dataset.err])); Object.keys(errors).flatMap(controls)[0]?.focus(); };
-  const fail = (msg) => { status.textContent = msg; status.classList.add('is-err'); };
+  // a result the visitor must not miss: it is said, shown above the button, and focused (which also brings it into view)
+  const fail = (msg) => { status.textContent = msg; status.classList.add('is-err'); status.focus({ preventScroll: true }); if (snapOn()) snap.reveal(status); else status.scrollIntoView({ block: 'nearest' }); };
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); if (form.dataset.busy) return;
     status.textContent = ''; status.className = 'form__status';
@@ -580,7 +627,7 @@ function wireForm(form, { validate, offline }) {
       const res = await fetch(form.action, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(data), signal: stop.signal });
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.ok) { status.textContent = ''; form.classList.add('is-done'); done.hidden = false; done.focus(); measureStages(); }
-      else if (res.status === 400) { status.textContent = C.forms.invalid; status.classList.add('is-err'); if (body.errors) showErrors(body.errors); }
+      else if (res.status === 400) { status.textContent = C.forms.invalid; status.classList.add('is-err'); if (body.errors) showErrors(body.errors); else status.focus({ preventScroll: true }); }
       else if (res.status === 429) fail(C.forms.rateLimited);
       else if (body.code === 'not_connected' || res.status === 404 || res.status === 405) fail(withEmail(offline));  // no webhook set, or no API behind this page
       else fail(C.forms.temporary);
@@ -591,15 +638,17 @@ function wireForm(form, { validate, offline }) {
 }
 wireForm($('[data-form="bulk"]'), {
   // the pairs range is optional, here and in api/bulk.js
-  validate: (d) => { const er = {}; if (!d.organization?.trim()) er.organization = 'Enter your organization.'; if (!d.type) er.type = 'Choose an organization type.'; if (!d.name?.trim()) er.name = 'Enter your name.'; if (!validEmail(d.email)) er.email = 'Enter a valid email address.'; for (const [k, n] of [['organization', 200], ['name', 200], ['phone', 40], ['message', 2000]]) if (tooLong(d[k], n)) er[k] = `Keep this under ${n} characters.`; return er; },
+  validate: (d) => { const er = {}; if (!d.organization?.trim()) er.organization = 'Enter your organization.'; if (!d.type) er.type = 'Choose an organization type.'; if (!d.name?.trim()) er.name = 'Enter your name.'; if (!validEmail(d.email)) er.email = 'Enter a valid email.'; for (const [k, n] of [['organization', 200], ['name', 200], ['phone', 40], ['message', 2000]]) if (tooLong(d[k], n)) er[k] = `Keep this under ${n} characters.`; return er; },
   offline: C.bulk.form.offline,
 });
-wireForm($('[data-form="waitlist"]'), { validate: (d) => (validEmail(d.email) ? {} : { email: 'Enter a valid email address.' }), offline: C.close.ind.offline });
+wireForm($('[data-form="waitlist"]'), { validate: (d) => (validEmail(d.email) ? {} : { email: 'Enter a valid email.' }), offline: C.close.ind.offline });
 function preselectOrgType() {
   let t = ''; try { t = sessionStorage.getItem('sf-org-type') || ''; } catch {}
-  if (!t) { const seg = C.segments.items.find((x) => x.id === state.audience); t = seg?.orgType || ''; }
-  const sel = $('#b-type'); if (t && sel && !sel.value) sel.value = t;
+  if (audiencePicked) { const seg = C.segments.items.find((x) => x.id === state.audience); t = seg?.orgType || t; }
+  const sel = $('#b-type'); if (!t || !sel) return;
+  if (!sel.value || sel.dataset.auto) { sel.value = t; sel.dataset.auto = '1'; }   // ours to change until the visitor chooses one
 }
+$('#b-type').addEventListener('change', (e) => { delete e.target.dataset.auto; });
 new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) preselectOrgType(); }, { threshold: 0.3 }).observe($('[data-product="bulk"]'));
 
 // ---------------------------------------------------------- why --
@@ -633,7 +682,7 @@ $$('[data-ms]').forEach((b) => b.addEventListener('click', () => {
   $('[data-ms-text]').textContent = C.story.milestones.find((m) => m.id === b.dataset.ms).text;
 }));
 const faqItems = $$('.faq__item');
-faqItems.forEach((d) => d.addEventListener('toggle', () => { if (d.open) faqItems.forEach((o) => { if (o !== d) o.open = false; }); measureStages(); })); // an open answer moves everything below it
+faqItems.forEach((d) => d.addEventListener('toggle', () => { if (d.open) faqItems.forEach((o) => { if (o !== d) o.open = false; }); measureStages(); })); // an open answer can make its stage taller: the rest points follow
 
 // ---------------------------------------------------------- 3D --
 function canWebGL() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } }
@@ -663,5 +712,8 @@ if (canWebGL()) {
 } else html.classList.add('gl-off');
 
 // Verification hooks. Inert unless called.
-window.__sf = { state, select, setStep, selectLayer, setColor, setSizeId, setMethod, measureStages, snap, snapPaused, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+window.__sf = { state, select, setStep, selectLayer, setColor, setSizeId, setMethod, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+// Entrance fades exist only once this script has run to its end (styles.css keys them on .sf-ready): if it fails to
+// load, or throws on the way, every stage simply stays visible. Whatever is on screen now is marked in first, so it does not blink.
+stages.forEach((s) => { const r = s.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) s.classList.add('is-in'); });
 html.classList.add('sf-ready');

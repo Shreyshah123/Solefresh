@@ -9,7 +9,10 @@
   --font-display: "Space Grotesk", "Archivo", system-ui, sans-serif;
   --font-text: "Inter", system-ui, sans-serif;
   --s1: .25rem; --s2: .5rem; --s3: .75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem; --s8: 4rem;
-  --gutter: max(clamp(1rem, 4vw, 3.5rem), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --gutter: max(clamp(1rem, 4vw, 3.5rem), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px), (100vw - 120rem) / 2); /* on very wide screens the content keeps to the middle 120rem */
+  --field-line: color-mix(in oklab, var(--ink) 50%, transparent); /* 3:1 against the page and a white field: an input must be findable by its edge */
+  --stage-top: clamp(1.75rem, 7vh, 4.5rem); --stage-bottom: clamp(1.5rem, 6vh, 4rem); /* where every stage's heading starts and its bottom row ends */
+  --view: calc(100svh - var(--top));
   --nav-h: 4rem;
   --r-sm: 8px; --r-md: 14px; --r-pill: 999px;
   --e1: 0 1px 2px hsl(40 12% 30% / .10), 0 1px 1px hsl(40 12% 30% / .06);
@@ -53,7 +56,7 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 .layer-btn[aria-pressed="true"], .method[aria-pressed="true"] { background: var(--ink); color: var(--bone); border-color: var(--ink); }
 
 /* ------------------------------------------------------------------ nav -- */
-.nav { position: fixed; inset: 0 0 auto 0; z-index: 50; height: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) var(--gutter) 0; display: flex; align-items: center; gap: var(--s5); background: hsl(43 18% 93% / .94); border-bottom: 1px solid var(--hair); }
+.nav { position: fixed; inset: 0 0 auto 0; z-index: 50; height: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) var(--gutter) 0; display: flex; align-items: center; gap: var(--s5); background: var(--bone); border-bottom: 1px solid var(--hair); }
 .nav__logo, .footer__logo { font: 600 1.25rem/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
 .nav__logo span, .footer__logo span { color: var(--cobalt); }
 .nav__links { display: flex; gap: clamp(.75rem, 1.4vw, 1.4rem); margin: 0 auto; }
@@ -86,7 +89,7 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 .gl-live .world__gl { opacity: 1; }
 .gl-live .world__poster { visibility: hidden; }
 /* Bulk: the rack sits softened behind the content (a bone veil, no blur filter) */
-@media (min-width: 900px) and (min-height: 521px) { html[data-stage="bulk"] .world__gl, html[data-stage="bulk"] .world__poster { opacity: .85; } }
+@media (min-width: 900px) and (min-height: 561px) { html[data-stage="bulk"] .world__gl, html[data-stage="bulk"] .world__poster { opacity: .85; } }
 .overlay { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
 .overlay__lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .overlay__lines line { stroke: var(--cobalt); stroke-width: 1.5; opacity: 0; transition: opacity 160ms var(--ease); }
@@ -103,14 +106,19 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 
 /* --------------------------------------------------------------- stages -- */
 main { position: relative; z-index: 1; padding-top: var(--top); }
-.stage { position: relative; background: transparent; min-height: calc(100vh - var(--top)); min-height: calc(100svh - var(--top)); }
-.stage--full { height: calc(100vh - var(--top)); height: calc(100svh - var(--top)); min-height: 600px; overflow: clip; }
-/* arrival: one short fade and rise, never scroll-linked */
-.stage__in { opacity: 0; transform: translateY(10px); transition: opacity var(--in-ms) var(--ease), transform var(--in-ms) var(--ease); }
-.stage.is-in .stage__in { opacity: 1; transform: none; }
-.stage.is-in .stage__in:nth-child(2) { transition-delay: 40ms; }
-.stage.is-in .stage__in:nth-child(3) { transition-delay: 80ms; }
-.no-js .stage__in, .no-js .day { opacity: 1; transform: none; }
+/* Every stage is at least one view tall (the window less the nav). The first five are exactly one view: their content is
+   placed in it. The later ones (.stage without --full) are one view when their content fits, and grow when it cannot (a
+   short window): src/main.js then gives them inner rest points. The floor is the smallest view the wide layout is drawn for:
+   a window 561px tall (see NARROW), less the nav. */
+.stage { position: relative; background: transparent; min-height: calc(100vh - var(--top)); min-height: var(--view); }
+.stage--full { height: calc(100vh - var(--top)); height: var(--view); min-height: 496px; overflow: clip; }
+/* arrival: one short fade and rise, never scroll-linked. It exists only once src/main.js has run to its end and added
+   .sf-ready: without the script, or if it fails, everything is simply visible. The first stage never fades: it is the first
+   thing painted. */
+.sf-ready .stage__in { opacity: 0; transform: translateY(10px); transition: opacity var(--in-ms) var(--ease), transform var(--in-ms) var(--ease); }
+.sf-ready .stage.is-in .stage__in, .sf-ready .explorer .stage__in { opacity: 1; transform: none; }
+.sf-ready .stage.is-in .stage__in:nth-child(2) { transition-delay: 40ms; }
+.sf-ready .stage.is-in .stage__in:nth-child(3) { transition-delay: 80ms; }
 .no-js .warm { display: none; }
 /* no live product: nothing to turn */
 .gl-off .fine-only, .gl-off .touch-only, .no-js .fine-only, .no-js .touch-only { display: none; }
@@ -118,7 +126,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 /* ============================================================== STAGE 1 == */
 .explorer { }
 .explorer__cta { display: none; } /* wide screens have the panel beside the product; phones get the next step right after the intro */
-.explorer__left { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; bottom: 6vh; width: min(25rem, 30vw); display: flex; flex-direction: column; justify-content: space-between; gap: var(--s6); pointer-events: none; }
+.explorer__left { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); bottom: var(--stage-bottom); width: min(27rem, 32vw); display: flex; flex-direction: column; justify-content: space-between; gap: var(--s6); pointer-events: none; }
 .explorer__left > * { pointer-events: auto; }
 .explorer h1 { font-size: clamp(2.5rem, 1.2rem + 3.4vw, 4.5rem); letter-spacing: -.04em; line-height: .98; }
 .explorer__lede { margin: var(--s4) 0 0; max-width: 34ch; font-size: 1.05rem; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
@@ -135,7 +143,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .who__thumb { position: absolute; left: calc(100% + var(--s5)); top: 0; width: 11.5rem; margin: 0; border-radius: var(--r-sm); overflow: hidden; box-shadow: var(--e2); background: var(--bone-2); opacity: 0; transform: translate3d(-6px, var(--y, 0px), 0) scale(.97); transition: opacity 160ms var(--ease), transform 200ms var(--ease); pointer-events: none; }
 .who__thumb.is-on { opacity: 1; transform: translate3d(0, var(--y, 0px), 0) scale(1); }
 .who__thumb img { width: 100%; height: auto; aspect-ratio: 3 / 2; }
-.panel { position: absolute; z-index: 2; right: var(--gutter); bottom: 6vh; width: min(21rem, 26vw); padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); display: grid; gap: var(--s3); }
+.panel { position: absolute; z-index: 2; right: var(--gutter); bottom: var(--stage-bottom); width: min(21rem, 26vw); padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); display: grid; gap: var(--s3); }
 .panel__thumb { display: none; margin: 0; border-radius: var(--r-sm); overflow: hidden; background: var(--bone-2); }
 .panel__thumb img { width: 100%; height: auto; aspect-ratio: 3 / 2; }
 .panel__for { margin: 0; font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
@@ -153,7 +161,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 /* Three bands at any width: the heading, the product (the world fits it between them), the cards. Everything is
    open at all times and plain HTML; only the dots and leader lines come from the 3D. */
 .what.stage--full { min-height: 0; }
-.what__head { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; max-width: 30rem; }
+.what__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); max-width: 30rem; }
 .what__lede { margin: var(--s3) 0 0; color: var(--ink-2); font-size: 1rem; line-height: 1.55; }
 .what__low { position: absolute; z-index: 2; left: var(--gutter); right: var(--gutter); top: calc(58vh - var(--top)); display: grid; gap: var(--s4); }
 .what__low > * { width: min(72rem, 100%); margin-inline: auto; }
@@ -166,8 +174,8 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 
 /* ============================================================== STAGE 3 == */
 .how { }
-.how__head { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; }
-.how__bar { position: absolute; z-index: 2; left: var(--gutter); right: var(--gutter); bottom: 6vh; display: grid; gap: var(--s4); }
+.how__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); }
+.how__bar { position: absolute; z-index: 2; left: var(--gutter); right: var(--gutter); bottom: var(--stage-bottom); display: grid; gap: var(--s4); }
 .how__caption { margin: 0; font: 500 1.1rem/1.4 var(--font-display); color: var(--ink); max-width: 40ch; min-height: 1.5em; }
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s3); }
 .step { position: relative; overflow: hidden; display: flex; align-items: center; gap: .8rem; min-height: 3.25rem; padding: .6rem 1rem; border-radius: var(--r-md); border: 1px solid var(--hair-strong); background: hsl(0 0% 100% / .88); box-shadow: var(--e1); font: 600 .95rem/1.2 var(--font-display); color: var(--ink); text-align: left; cursor: pointer; transition: border-color 140ms var(--ease), background-color 140ms var(--ease), color 140ms var(--ease); }
@@ -187,10 +195,10 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 @keyframes step-sheen { to { transform: translateX(520%); } }
 /* ============================================================== STAGE 4 == */
 .inside { }
-.inside__head { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; max-width: 22rem; }
+.inside__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); max-width: 22rem; }
 .inside__note { margin: var(--s4) 0 0; color: var(--ink-soft); font-size: .92rem; }
 .inside__prompt { display: none; margin: var(--s2) 0 0; font: 600 .95rem/1.3 var(--font-display); color: var(--cobalt); } /* wide screens say it once, in the panel */
-.inside__list { position: absolute; z-index: 2; left: var(--gutter); bottom: 6vh; display: grid; gap: .4rem; }
+.inside__list { position: absolute; z-index: 2; left: var(--gutter); bottom: var(--stage-bottom); display: grid; gap: .4rem; }
 .layer-btn { min-height: 2.5rem; font-size: .86rem; justify-self: start; }
 .sheet { position: absolute; z-index: 2; right: var(--gutter); top: 50%; translate: 0 -50%; width: min(20rem, 26vw); }
 .sheet__body { padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); display: grid; gap: var(--s3); }
@@ -201,11 +209,11 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 
 /* ============================================================ CUSTOMIZE == */
 .customize { }
-.customize__head { position: absolute; z-index: 2; left: var(--gutter); top: 6vh; max-width: 24rem; }
+.customize__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); max-width: 24rem; }
 .customize__lede { margin: var(--s3) 0 0; color: var(--ink-2); font-size: 1rem; line-height: 1.55; max-width: 32ch; }
 .customize__drag { position: absolute; z-index: 1; left: 30%; right: 30%; top: 22%; bottom: 18%; cursor: grab; touch-action: pan-y; }
 .customize__drag.is-dragging { cursor: grabbing; }
-.customize__side { position: absolute; z-index: 2; top: 50%; translate: 0 -50%; width: min(17rem, 24vw); display: grid; gap: var(--s3); }
+.customize__side { position: absolute; z-index: 2; top: 44%; width: min(17rem, 24vw); display: grid; gap: var(--s3); align-content: start; }
 .customize__side--color { left: var(--gutter); }
 .customize__side--size { right: var(--gutter); }
 .eyebrow { margin: 0; font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
@@ -223,43 +231,49 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 @media (hover: hover) and (pointer: fine) { .size:hover { border-color: var(--cobalt); } }
 .size:active { transform: scale(.98); }
 .customize__fit { margin: 0; color: var(--ink-soft); font-size: .85rem; }
-.customize__note { position: absolute; z-index: 2; left: var(--gutter); bottom: 6vh; margin: 0; color: var(--ink-soft); font-size: .85rem; }
+.customize__note { position: absolute; z-index: 2; left: var(--gutter); bottom: var(--stage-bottom); margin: 0; color: var(--ink-soft); font-size: .85rem; }
 
 /* ============================================================== STAGE 5 == */
-.bulk { display: grid; place-items: center; padding: var(--s7) var(--gutter) var(--s8); }
-.bulk__card { position: relative; z-index: 2; width: min(56rem, 100%); display: grid; grid-template-columns: 1fr 1.25fr; gap: var(--s7); padding: var(--s7); border-radius: var(--r-md); background: hsl(0 0% 100% / .86); border: 1px solid var(--hair); box-shadow: var(--e2); }
-.bulk__lines { list-style: none; margin: var(--s5) 0 0; padding: 0; display: grid; gap: var(--s3); }
+.bulk { display: grid; place-items: center; padding: var(--s5) var(--gutter); }
+.bulk__card { position: relative; z-index: 2; width: min(66rem, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.75fr); gap: var(--s6); padding: var(--s6); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); }
+.bulk__lines { list-style: none; margin: var(--s4) 0 0; padding: 0; display: grid; gap: var(--s2); font-size: .95rem; line-height: 1.5; }
 .bulk__lines li { padding-left: 1.1rem; position: relative; color: var(--ink-2); }
 .bulk__lines li::before { content: ""; position: absolute; left: 0; top: .65em; width: 6px; height: 6px; border-radius: 50%; background: var(--cobalt); }
-.form { display: grid; gap: var(--s4); grid-template-columns: 1fr 1fr; }
+/* Six columns: two fields a row, or three. An error line hangs under its field in the row gap, so a message never moves the form. */
+.form { display: grid; gap: 1.2rem var(--s4); grid-template-columns: repeat(6, minmax(0, 1fr)); align-content: start; }
 .form > * { grid-column: 1 / -1; }
-.field { display: grid; gap: .35rem; }
-.field--half { grid-column: auto; }
+.field { position: relative; display: grid; gap: .3rem; min-width: 0; }
+.form > .field--half { grid-column: span 3; }
+.form > .field--third { grid-column: span 2; }
 .field label, .field legend { font: 600 .82rem/1.2 var(--font-display); color: var(--ink); }
-.field input, .field select, .field textarea { min-height: 2.75rem; padding: .5rem .9rem; border-radius: var(--r-sm); border: 1px solid var(--hair-strong); background: var(--surface); color: var(--ink); width: 100%; transition: border-color 140ms var(--ease); }
-.field textarea { resize: vertical; min-height: 5rem; }
+.field input, .field select, .field textarea { min-height: 2.75rem; padding: .5rem .9rem; border-radius: var(--r-sm); border: 1px solid var(--field-line); background: var(--surface); color: var(--ink); width: 100%; transition: border-color 140ms var(--ease); scroll-margin: calc(var(--top) + 2.5rem) 0 2.5rem; }
+.field textarea { resize: vertical; min-height: 3.6rem; display: block; }
 .customize__drag:focus-visible { outline: 2px solid var(--cobalt); outline-offset: -6px; border-radius: var(--r-md); }
 .field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 1px; border-color: transparent; border-radius: var(--r-sm); }
 .field [aria-invalid="true"] { border-color: #C4321C; }
 .field--radios { border: 0; padding: 0; margin: 0; }
 .radios { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .25rem; }
-.radio { position: relative; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); font: 500 .9rem/1 var(--font-display); color: var(--ink); cursor: pointer; transition: border-color 140ms var(--ease), background-color 140ms var(--ease); }
+.radio { position: relative; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--field-line); font: 500 .9rem/1 var(--font-display); color: var(--ink); cursor: pointer; transition: border-color 140ms var(--ease), background-color 140ms var(--ease); }
 .radio input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .radio:has(input:checked) { background: var(--ink); color: var(--bone); border-color: var(--ink); }
 .radio:has(input:focus-visible) { outline: 2px solid var(--cobalt); outline-offset: 3px; }
-.field__err { margin: 0; min-height: 1.2em; font-size: .82rem; color: #B42318; }
+.field__err { position: absolute; left: 0; right: 0; top: 100%; margin: 2px 0 0; font-size: .75rem; line-height: 1.25; color: #B42318; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form--inline .field__err { position: static; white-space: normal; min-height: 1.2em; }
 .form__actions { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
-.form__status { margin: 0; font-size: .9rem; color: var(--ink-2); }
-.form__status.is-err { color: #B42318; }
+/* what happened to a submission, said right above the button, where it cannot be missed (it has its line whether or not it is speaking) */
+.form__status { margin: 0; min-height: 1.35em; font-size: .9rem; line-height: 1.35; color: var(--ink-2); scroll-margin: calc(var(--top) + 1rem) 0 5rem; }
+.form__status:focus { outline: none; }
+.form__status.is-err { color: #B42318; font-weight: 500; }
 .form__note { margin: 0; font-size: .82rem; line-height: 1.4; color: var(--ink-soft); }
 .form__done:focus { outline: none; }
 .form__done { padding: var(--s4) var(--s5); border-radius: var(--r-sm); background: color-mix(in oklab, var(--cobalt) 8%, var(--surface)); border: 1px solid color-mix(in oklab, var(--cobalt) 30%, transparent); color: var(--ink); font: 500 1rem/1.5 var(--font-display); }
 .form__done p { margin: 0; }
+.form.is-done { align-content: center; }
 .form.is-done > :not(.form__done) { display: none; }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 /* ============================================================== STAGE 6 == */
-.why { display: grid; align-items: center; justify-items: end; padding: var(--s6) var(--gutter) var(--s7); }
+.why { display: grid; align-items: center; justify-items: end; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
 .why__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s4); }
 .why__lede { margin: 0; color: var(--ink-2); max-width: 44ch; }
 .methods { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -277,8 +291,9 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .why__fine { margin: 0; color: var(--ink-soft); font-size: .82rem; }
 
 /* ============================================================== STAGE 7 == */
-.story { display: grid; justify-items: end; padding: var(--s6) var(--gutter) var(--s8); }
-.story__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s5); }
+.story, .faqs { display: grid; align-items: center; justify-items: end; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+.story__panel, .faq__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s5); }
+.faq__panel { width: min(42rem, 62%); gap: var(--s4); align-self: start; }
 .story__line { margin: 0; font: 500 1.1rem/1.5 var(--font-display); color: var(--ink); max-width: 36ch; }
 .timeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; }
 .timeline::before { content: ""; position: absolute; left: 10%; right: 10%; top: 9px; height: 2px; background: var(--hair-strong); }
@@ -290,34 +305,33 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .milestone__now { font: 600 .62rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
 @media (hover: hover) and (pointer: fine) { .milestone__btn:hover { color: var(--ink); } }
 .milestone__text { margin: 0; min-height: 3em; padding: var(--s4) var(--s5); border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--hair); color: var(--ink-2); }
-.faq { display: grid; gap: 0; margin-top: var(--s3); }
-.faq h3 { margin-bottom: var(--s3); }
+.faq { display: grid; gap: 0; }
 .faq__item { border-top: 1px solid var(--hair); }
 .faq__item:last-child { border-bottom: 1px solid var(--hair); }
-.faq__item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--s4); padding: .9rem 0; font: 600 1rem/1.3 var(--font-display); color: var(--ink); }
+.faq__item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--s4); padding: .78rem 0; font: 600 1rem/1.3 var(--font-display); color: var(--ink); }
 .faq__item summary::-webkit-details-marker { display: none; }
-.faq__item summary::after { content: "+"; flex: none; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--hair-strong); font-weight: 500; transition: transform 160ms var(--ease), background-color 160ms var(--ease), color 160ms var(--ease); }
+.faq__item summary::after { content: "+"; content: "+" / ""; flex: none; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--hair-strong); font-weight: 500; transition: transform 160ms var(--ease), background-color 160ms var(--ease), color 160ms var(--ease); }
 .faq__item[open] summary::after { transform: rotate(45deg); background: var(--ink); color: var(--bone); border-color: var(--ink); }
 .faq__item summary:focus-visible { outline-offset: -2px; }
 .faq__item p { margin: 0 0 1rem; color: var(--ink-2); max-width: 60ch; }
 
 /* ============================================================== STAGE 8 == */
-.close { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto; padding-top: 6vh; }
-.close__wrap { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(34vh, 1fr) auto; gap: var(--s4); padding: 0 var(--gutter); }
+.close { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto; padding-top: var(--stage-top); }
+.close__wrap { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(7rem, 1fr) auto; gap: var(--s4); padding: 0 var(--gutter); }
 .close__wrap > h2 { align-self: start; }
 .close__wrap > .paths { grid-row: 3; align-self: end; }
 .close h2 { font-size: clamp(2.6rem, 1.4rem + 4vw, 5rem); text-align: center; }
 .paths { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5); max-width: 60rem; width: 100%; margin: 0 auto; }
-.path { display: grid; gap: var(--s3); align-content: start; padding: var(--s5); border-radius: var(--r-md); background: hsl(0 0% 100% / .9); border: 1px solid var(--hair); box-shadow: var(--e1); }
+.path { display: grid; gap: var(--s3); align-content: start; padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); }
 .path__label { margin: 0; font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
 .path__text { margin: 0; color: var(--ink-2); }
 .path .btn { justify-self: start; }
 .form--inline { grid-template-columns: 1fr; gap: .4rem; }
 .form__row { display: flex; gap: .5rem; flex-wrap: wrap; }
-.form__row input { flex: 1 1 12rem; min-width: 0; min-height: 2.75rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); background: var(--surface); color: var(--ink); }
+.form__row input { flex: 1 1 12rem; min-width: 0; min-height: 2.75rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--field-line); background: var(--surface); color: var(--ink); }
 .form__row input:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-color: transparent; }
 .form--inline [aria-invalid="true"] { border-color: #C4321C; }
-.footer { position: relative; z-index: 2; margin-top: var(--s8); padding: var(--s5) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--hair); background: var(--bone); display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); align-items: center; font-size: .85rem; color: var(--ink-soft); }
+.footer { position: relative; z-index: 2; margin-top: var(--s5); padding: var(--s4) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--hair); background: var(--bone); display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); align-items: center; font-size: .85rem; color: var(--ink-soft); }
 .footer__contact { font-family: var(--font-display); color: var(--ink); }
 .footer__contact a { text-decoration: none; }
 .footer__link { color: var(--ink); }
@@ -334,13 +348,13 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .doc__intro { margin-top: var(--s4) !important; font-size: 1.05rem; }
 
 /* ====================================================== phones, tablets == */
-/* Under 900px, and on short screens (keep in step with NARROW in src/main.js). The browser scrolls the page and each
+/* Under 900px, and in windows under 561px tall (keep in step with NARROW in src/main.js). This is the stacked layout: each
    section's height is its content's. The product is a band pinned under the nav by position: sticky while the stages that
    use it (.pin) scroll beneath it; it leaves with the end of .pin, so the form, the comparison, the Story and the FAQ have
    the whole screen. --band-* is how much of the screen each section gives it: bounded both ways, and held back by the
    width where a wide scene would only add empty space. The canvas keeps the tallest of them (the hero's) and --band-now
    shows as much as the section has, so nothing resizes during a scroll. src/world.js frames each section to its band. */
-@media (max-width: 899px), (max-height: 520px) {
+@media (max-width: 899px), (max-height: 560px) {
   :root {
     --nav-h: 3.5rem;
     --band-explorer: clamp(13rem, 43svh, 26rem);
@@ -350,7 +364,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
     --band-customize: clamp(12rem, min(30svh, 58vw), 22rem);
   }
   html { scroll-padding-top: var(--top); }
-  .nav { gap: var(--s3); background: var(--bone); } /* the page scrolls freely under it here, so nothing may show through */
+  .nav { gap: var(--s3); }
   .nav__waitlist { display: none; }
   .nav__cta .btn { min-height: 2.75rem; padding: 0 1rem; font-size: .84rem; }
   h2 { font-size: clamp(1.9rem, 7.5vw, 2.5rem); }
@@ -359,9 +373,15 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .world__poster { bottom: auto; height: var(--band-now, 100%); }
   .overlay { display: none; }
   .stage, .stage--full { height: auto; min-height: 0; overflow: visible; }
-  .pin .stage { padding-block: var(--s4) var(--s7); scroll-margin-top: var(--band-explorer); }
-  .pin :is(a, button, input, select, textarea) { scroll-margin-top: calc(var(--band-explorer) + var(--s3)); }
-  .stage__in, .stage.is-in .stage__in { opacity: 1; transform: none; transition: none; }
+  .field__err { position: static; white-space: normal; }
+  .form > .field--half, .form > .field--third { grid-column: 1 / -1; }
+  .field textarea { min-height: 5rem; }
+  .story, .faqs { align-items: start; }
+  .faq__panel { align-self: auto; }
+  .explorer { --band-self: var(--band-explorer); } .what { --band-self: var(--band-what); } .how { --band-self: var(--band-how); } .inside { --band-self: var(--band-inside); } .customize { --band-self: var(--band-customize); }
+  .pin .stage { padding-block: var(--s4) var(--s7); scroll-margin-top: calc(var(--top) + var(--band-self, 0px)); }
+  .pin :is(a, button, input, select, textarea) { scroll-margin-top: calc(var(--top) + var(--band-self, 0px) + var(--s3)); }
+  .sf-ready .stage__in, .sf-ready .stage.is-in .stage__in { opacity: 1; transform: none; transition: none; }
   /* stage 1: the product, what it is, the next step. Who it's for comes after that. */
   .explorer { display: flex; flex-direction: column; }
   .explorer__left { display: contents; }
@@ -421,16 +441,16 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   /* the pilot form: no card round it, so the fields get the width */
   .bulk { display: block; padding: var(--s6) 0 var(--s7); }
   .bulk__card { width: auto; grid-template-columns: 1fr; gap: var(--s5); padding: 0 var(--gutter); border: 0; border-radius: 0; background: none; box-shadow: none; }
-  .bulk__lines { margin-top: var(--s4); gap: var(--s2); }
+  .bulk__lines { margin-top: var(--s4); gap: var(--s2); font-size: 1rem; }
   .form { grid-template-columns: 1fr; gap: var(--s3); }
-  .field--half { grid-column: 1 / -1; }
+  .radios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .radio { justify-content: center; }
   .field__err:empty { display: none; } /* the space comes when there is a message */
   .field label, .field legend { font-size: .86rem; }
   .radio { min-height: 2.75rem; }
   .form__actions .btn { width: min(100%, 24rem); min-height: 3rem; font-size: 1rem; }
   /* the comparison: the routine's action once, then the week */
-  .why, .story { display: block; justify-items: normal; padding: var(--s6) var(--gutter); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
-  .why__panel, .story__panel { width: auto; }
+  .why, .story, .faqs { display: block; justify-items: normal; padding: var(--s6) var(--gutter); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
+  .why__panel, .story__panel, .faq__panel { width: auto; }
   .method { min-height: 2.75rem; }
   .why__panel { gap: var(--s3); }
   .week__action { display: flex; align-items: center; gap: var(--s3); margin: 0; font: 600 1.05rem/1.2 var(--font-display); color: var(--ink); }
@@ -449,6 +469,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .milestone__text { min-height: 0; padding: var(--s3) var(--s4); }
   /* close */
   .close { padding-top: var(--s6); }
+  .footer { margin-top: var(--s6); }
   .close__wrap { grid-template-rows: auto auto; gap: var(--s5); }
   .close__wrap > .paths { grid-row: 2; }
   .close h2 { font-size: clamp(2.2rem, 10vw, 3rem); }
@@ -459,8 +480,48 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .footer > :last-child { margin-left: 0; }
   .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
 }
-/* tablets in portrait: the same order, with the room used */
-@media (min-width: 600px) and (max-width: 899px) and (min-height: 521px) {
+/* fingers on a wide screen (tablets in the wide layout): every control is at least 44px */
+@media (pointer: coarse) {
+  .layer-btn, .method, .size, .nav__cta .btn { min-height: 2.75rem; }
+  .size { min-width: 2.75rem; justify-content: center; }
+  .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
+}
+/* Short wide windows (a laptop window under about 700px tall): the wide layout, drawn tighter, so each of the first five
+   stages still fits its one view. The view here is 497px to 636px. */
+@media (min-width: 900px) and (min-height: 561px) and (max-height: 700px) {
+  :root { --stage-top: 1.5rem; --stage-bottom: 1.25rem; }
+  h2 { font-size: clamp(1.8rem, 1rem + 1.8vw, 2.6rem); }
+  .explorer h1 { font-size: clamp(2rem, 1rem + 2vw, 2.9rem); }
+  .explorer__lede { margin-top: var(--s3); font-size: .95rem; line-height: 1.45; }
+  .explorer__left { gap: var(--s4); }
+  .who__label { margin-bottom: var(--s2); }
+  .who__item { min-height: 2.15rem; padding-block: .3rem; font-size: .94rem; }
+  .panel { padding: var(--s4); gap: var(--s2); }
+  .panel__line { font-size: 1.02rem; }
+  .how__bar { gap: var(--s3); }
+  .how__caption { font-size: 1rem; }
+  .step { min-height: 2.75rem; padding-block: .4rem; }
+  .inside__list { gap: .3rem; }
+  .layer-btn { min-height: 2.15rem; }
+  .what__low { top: calc(60vh - var(--top)); gap: var(--s3); }
+  .hs-card { padding: var(--s3) var(--s4); }
+  .bulk { padding-block: var(--s4); }
+  .bulk__card { padding: var(--s5); gap: var(--s5); }
+  .bulk__lines { font-size: .9rem; }
+  .form { gap: 1.05rem var(--s3); }
+  .field input, .field select, .field textarea { min-height: 2.5rem; padding-block: .35rem; }
+  .field textarea { min-height: 2.5rem; }
+  .radio { min-height: 2.25rem; }
+  .faq { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s6); align-items: start; }
+  .faq__panel { width: min(60rem, 72%); }
+  .faq__item summary { padding: .6rem 0; font-size: .94rem; }
+  .close__wrap { grid-template-rows: auto minmax(4rem, 1fr) auto; gap: var(--s3); }
+  .close h2 { font-size: clamp(2rem, 1rem + 2.6vw, 3rem); }
+  .path { padding: var(--s4); gap: var(--s2); }
+  .footer { margin-top: var(--s3); padding-block: var(--s3); }
+}
+/* tablets in portrait and narrow desktop windows: the same order, with the room used */
+@media (min-width: 600px) and (max-width: 899px) and (min-height: 561px) {
   .hs-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
   .hs-card, .hs-card:last-child { padding: var(--s3) 0; border-bottom: 0; }
   .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -469,9 +530,12 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .customize__head, .customize__note { grid-column: 1 / -1; }
   .customize__side--color { margin-right: 0; } .customize__side--size { margin-left: 0; }
   .paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .radios { display: flex; } .radio { justify-content: flex-start; }
+  .form { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .form > .field--half { grid-column: span 3; } .form > .field--third { grid-column: span 2; }
 }
 /* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
-@media (max-height: 520px) and (orientation: landscape) {
+@media (max-height: 560px) and (orientation: landscape) and (min-width: 600px) {
   :root { --nav-h: 3.25rem; --band-explorer: 0px; }
   .pin { display: grid; grid-template-columns: minmax(0, 42vw) minmax(0, 1fr); }
   .world { grid-column: 1; grid-row: 1 / span 5; align-self: start; height: calc(100svh - var(--top)); clip-path: none; }

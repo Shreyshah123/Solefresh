@@ -4,7 +4,7 @@
     "tagline": "Fresh Shoes. Every Day.",
     "support": "A reusable shoe-care product designed to manage odor and moisture and keep footwear fresher between wears.",
     "program": "Developed through INCubatoredu",
-    "contactEmail": "shrey.shah.608@k12.friscoisd.org",
+    "contactEmail": "",
     "copyright": "SoleFresh. All rights reserved."
   },
   "nav": {
@@ -292,7 +292,10 @@
       ],
       "button": "Join the facility pilot",
       "done": "Thanks. We'll reach out to talk about your inventory and what a pilot could look like.",
-      "offline": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. You can reach us at {email}."
+      "offline": {
+        "withEmail": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. You can reach us at {email}.",
+        "noEmail": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. Please try again later."
+      }
     }
   },
   "forms": {
@@ -428,7 +431,10 @@
       "text": "Be first to hear when early access opens.",
       "button": "Join the waitlist",
       "done": "You're on the list. We'll email you when early access opens.",
-      "offline": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. You can reach us at {email}."
+      "offline": {
+        "withEmail": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. You can reach us at {email}.",
+        "noEmail": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. Please try again later."
+      }
     }
   },
   "footer": {
@@ -457,7 +463,10 @@
       },
       {
         "heading": "Your choices",
-        "text": "To see, change or delete what you've sent us, email {email}."
+        "text": {
+          "withEmail": "To see, change or delete what you've sent us, email {email}.",
+          "noEmail": "To see, change or delete what you've sent us, reply to any email we've sent you, or send a request through the message box on the facility pilot form. We'll act on it and confirm by email."
+        }
       }
     ]
   }

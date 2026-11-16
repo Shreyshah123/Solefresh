@@ -15,7 +15,7 @@
 <body class="doc-page">
 <header class="nav">
   <a class="nav__logo" href="./" aria-label="SoleFresh home">Sole<span>Fresh</span></a>
-  <a class="doc__back" href="./">Back to SoleFresh</a>
+  <a class="doc__back" href="./#close" data-back>Back to SoleFresh</a>
 </header>
 <main class="doc">
   <h1>Privacy</h1>
@@ -38,8 +38,9 @@
   </section>
   <section>
     <h2>Your choices</h2>
-    <p>To see, change or delete what you've sent us, email <a href="mailto:shrey.shah.608@k12.friscoisd.org">shrey.shah.608@k12.friscoisd.org</a>.</p>
+    <p>To see, change or delete what you've sent us, reply to any email we've sent you, or send a request through the message box on the facility pilot form. We'll act on it and confirm by email.</p>
   </section>
 </main>
+<script>document.querySelector('[data-back]').addEventListener('click', (e) => { try { if (history.length > 1 && new URL(document.referrer).origin === location.origin) { e.preventDefault(); history.back(); } } catch {} });</script>
 </body>
 </html>

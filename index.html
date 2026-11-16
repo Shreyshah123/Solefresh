@@ -218,15 +218,15 @@
     </div>
     <form class="form" method="post" action="/api/bulk" data-form="bulk" novalidate>
       <div class="hp" aria-hidden="true"><label>Leave empty <input type="text" name="hp_check" tabindex="-1" autocomplete="off"></label></div>
-      <div class="field"><label for="b-org">Organization name</label><input id="b-org" name="organization" type="text" autocomplete="organization" required aria-describedby="err-b-org"><p class="field__err" id="err-b-org" data-err="organization"></p></div>
-      <div class="field"><label for="b-type">Organization type</label><select id="b-type" name="type" required aria-describedby="err-b-type"><option value="">Choose one</option><option>Bowling center</option><option>Skating rink</option><option>School or athletic department</option><option>Sports team or club</option><option>Other</option></select><p class="field__err" id="err-b-type" data-err="type"></p></div>
+      <div class="field field--half"><label for="b-org">Organization name</label><input id="b-org" name="organization" type="text" autocomplete="organization" required aria-describedby="err-b-org"><p class="field__err" id="err-b-org" data-err="organization"></p></div>
+      <div class="field field--half"><label for="b-type">Organization type</label><select id="b-type" name="type" required aria-describedby="err-b-type"><option value="">Choose one</option><option>Bowling center</option><option>Skating rink</option><option>School or athletic department</option><option>Sports team or club</option><option>Other</option></select><p class="field__err" id="err-b-type" data-err="type"></p></div>
       <fieldset class="field field--radios" aria-describedby="err-b-pairs"><legend>Approximate pairs of shoes managed <span class="opt">optional</span></legend><div class="radios"><label class="radio"><input type="radio" name="pairs" value="Under 50"><span>Under 50</span></label><label class="radio"><input type="radio" name="pairs" value="50 to 200"><span>50 to 200</span></label><label class="radio"><input type="radio" name="pairs" value="200 to 500"><span>200 to 500</span></label><label class="radio"><input type="radio" name="pairs" value="500+"><span>500+</span></label></div><p class="field__err" id="err-b-pairs" data-err="pairs"></p></fieldset>
-      <div class="field"><label for="b-name">Your name</label><input id="b-name" name="name" type="text" autocomplete="name" required aria-describedby="err-b-name"><p class="field__err" id="err-b-name" data-err="name"></p></div>
-      <div class="field field--half"><label for="b-email">Email</label><input id="b-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="err-b-email"><p class="field__err" id="err-b-email" data-err="email"></p></div>
-      <div class="field field--half"><label for="b-phone">Phone <span class="opt">optional</span></label><input id="b-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" aria-describedby="err-b-phone"><p class="field__err" id="err-b-phone" data-err="phone"></p></div>
-      <div class="field"><label for="b-msg">Message <span class="opt">optional</span></label><textarea id="b-msg" name="message" rows="3" aria-describedby="err-b-msg"></textarea><p class="field__err" id="err-b-msg" data-err="message"></p></div>
-      <div class="form__actions"><button class="btn btn--accent" type="submit">Join the facility pilot</button><p class="form__status" role="status" aria-live="polite"></p></div>
-      <p class="form__note">We'll only use this to contact you about SoleFresh.</p>
+      <div class="field field--third"><label for="b-name">Your name</label><input id="b-name" name="name" type="text" autocomplete="name" required aria-describedby="err-b-name"><p class="field__err" id="err-b-name" data-err="name"></p></div>
+      <div class="field field--third"><label for="b-email">Email</label><input id="b-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="err-b-email"><p class="field__err" id="err-b-email" data-err="email"></p></div>
+      <div class="field field--third"><label for="b-phone">Phone <span class="opt">optional</span></label><input id="b-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" aria-describedby="err-b-phone"><p class="field__err" id="err-b-phone" data-err="phone"></p></div>
+      <div class="field"><label for="b-msg">Message <span class="opt">optional</span></label><textarea id="b-msg" name="message" rows="2" aria-describedby="err-b-msg"></textarea><p class="field__err" id="err-b-msg" data-err="message"></p></div>
+      <p class="form__status" role="status" aria-live="polite" tabindex="-1"></p>
+      <div class="form__actions"><button class="btn btn--accent" type="submit">Join the facility pilot</button><p class="form__note">We'll only use this to contact you about SoleFresh.</p></div>
       <div class="form__done" data-done tabindex="-1" hidden><p>Thanks. We'll reach out to talk about your inventory and what a pilot could look like.</p></div>
     </form>
   </div>
@@ -258,7 +258,7 @@
   </div>
 </section>
 
-<!-- =============================================== STAGE 8: STORY + FAQ == -->
+<!-- ======================================================== STAGE 8: STORY == -->
 <section class="stage story" id="story" data-product="story" aria-labelledby="h-story">
   <div class="story__panel stage__in">
     <h2 id="h-story">Our story.</h2>
@@ -271,8 +271,14 @@
       <li class="milestone is-current"><button type="button" class="milestone__btn" data-ms="refining" aria-pressed="true" aria-describedby="ms-current"><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">Refining now</span><span class="milestone__now" id="ms-current">Current stage</span></button></li>
     </ol>
     <p class="milestone__text" data-ms-text aria-live="polite">Improving materials, effectiveness, cost and durability.</p>
-    <div class="faq" id="faq">
-      <h3>Questions.</h3>
+  </div>
+</section>
+
+<!-- ========================================================== STAGE 9: FAQ == -->
+<section class="stage faqs" id="faq" data-product="faq" aria-labelledby="h-faq">
+  <div class="faq__panel stage__in">
+    <h2 id="h-faq">Questions.</h2>
+    <div class="faq">
       <details class="faq__item" name="faq"><summary>What is SoleFresh?</summary><p>A reusable shoe-care product being developed to help manage shoe odor, moisture and freshness.</p></details>
       <details class="faq__item" name="faq"><summary>Who is it for?</summary><p>Organizations that manage shared or high-use footwear, plus individual athletes and everyday wearers.</p></details>
       <details class="faq__item" name="faq"><summary>How do you use it?</summary><p>Place it inside your shoes when they aren't being worn. Remove it before wearing them again.</p></details>
@@ -285,7 +291,7 @@
   </div>
 </section>
 
-<!-- ======================================================== STAGE 9: CLOSE == -->
+<!-- ======================================================= STAGE 10: CLOSE == -->
 <section class="stage close" id="close" data-product="close" aria-labelledby="h-close">
   <div class="close__wrap stage__in">
     <h2 id="h-close">Fresh Shoes. Every Day.</h2>
@@ -310,10 +316,9 @@
       </div>
     </div>
   </div>
-  <footer class="footer">
+  <footer class="footer" role="contentinfo">
     <span class="footer__logo">Sole<span>Fresh</span></span>
     <span>Developed through INCubatoredu</span>
-    <span class="footer__contact" data-contact><a href="mailto:shrey.shah.608@k12.friscoisd.org">shrey.shah.608@k12.friscoisd.org</a></span>
     <a class="footer__link" href="privacy.html">Privacy</a>
     <span>&copy; <span data-year></span> SoleFresh. All rights reserved.</span>
   </footer>
