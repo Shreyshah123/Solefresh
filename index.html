@@ -64,6 +64,11 @@
     <span class="mk" data-hs="moisture"><span class="mk__dot"></span></span>
     <span class="mk" data-hs="fragrance"><span class="mk__dot"></span></span>
   </div>
+  <div class="overlay__set" data-for="inside" aria-hidden="true" hidden>
+    <span class="mk mk--tag" data-in="moisture"><span class="mk__tag">Moisture</span></span>
+    <span class="mk mk--tag" data-in="odor"><span class="mk__tag">Odor</span></span>
+    <span class="mk mk--tag" data-in="scent"><span class="mk__tag">Scent</span></span>
+  </div>
 </div>
 
 <!-- Paint warm-up: the GPU rasterizer compiles its pipelines for native form controls, a
@@ -153,28 +158,33 @@
 <!-- ======================================================= STAGE 4: INSIDE == -->
 <section class="stage inside stage--full" id="inside" data-product="inside" aria-labelledby="h-inside">
   <div class="inside__head stage__in">
-    <h2 id="h-inside">What's inside.</h2>
-    <p class="inside__note">Current prototype design (v3.2). Materials are still being tested.</p>
-    <p class="inside__prompt" data-inside-prompt>Select a part to see what it does.</p>
+    <h2 id="h-inside">Three jobs. One refillable insert.</h2>
+    <p class="inside__lede">One SoleFresh goes in each shoe between wears. Load it to see what's inside.</p>
   </div>
-  <div class="inside__list stage__in" role="group" aria-label="Parts">
-    <button type="button" class="layer-btn" data-layer="0" aria-pressed="false">Shell bottom</button>
-    <button type="button" class="layer-btn" data-layer="1" aria-pressed="false">Carbon sachet</button>
-    <button type="button" class="layer-btn" data-layer="2" aria-pressed="false">Silica sachet</button>
-    <button type="button" class="layer-btn" data-layer="3" aria-pressed="false">Scent beads</button>
-    <button type="button" class="layer-btn" data-layer="4" aria-pressed="false">Shell top</button>
-    <button type="button" class="layer-btn" data-layer="5" aria-pressed="false">Pull cord</button>
+  <div class="inside__list stage__in" role="group" aria-label="What's inside">
+    <button type="button" class="layer-btn" data-comp="moisture" aria-pressed="false">Moisture</button>
+    <button type="button" class="layer-btn" data-comp="odor" aria-pressed="false">Odor</button>
+    <button type="button" class="layer-btn" data-comp="scent" aria-pressed="false">Scent</button>
+    <button type="button" class="layer-btn" data-comp="cord" aria-pressed="false">Pull cord</button>
   </div>
   <aside class="sheet" data-sheet aria-live="polite">
     <div class="sheet__body">
-      <p class="sheet__prompt" data-sheet-prompt>Select a part to see what it does.</p>
-      <div class="sheet__detail" data-sheet-detail hidden>
-        <p class="sheet__name" data-sheet-name></p>
-        <p class="sheet__role" data-sheet-role></p>
+      <p class="sheet__count" data-load-count>0 of 3 in the housing</p>
+      <div class="sheet__detail">
+        <p class="sheet__name" data-sheet-name>Moisture, odor, scent.</p>
+        <p class="sheet__role" data-sheet-role>Covering all three can mean separate products to buy, place and replace. SoleFresh is designed to hold all three in one housing.</p>
+        <p class="sheet__foot" data-sheet-foot hidden></p>
       </div>
-      <button type="button" class="sheet__close" data-sheet-close aria-label="Close">Close</button>
+      <div class="sheet__actions">
+        <button type="button" class="btn btn--accent" data-load>Load all three</button>
+        <button type="button" class="btn btn--accent" data-refill hidden>Refill</button>
+        <button type="button" class="btn btn--ghost" data-opt aria-pressed="true" hidden></button>
+        <button type="button" class="btn btn--ghost" data-sheet-close hidden>Back</button>
+        <a class="sheet__link" href="#why" data-jump="why" data-compare hidden>Compare with what you use now <span aria-hidden="true">&rarr;</span></a>
+      </div>
     </div>
   </aside>
+  <p class="inside__note stage__in">Prototype. Drying, odor and scent performance haven't been measured yet.</p>
 </section>
 
 <!-- ===================================================== STAGE 5: CUSTOMIZE == -->

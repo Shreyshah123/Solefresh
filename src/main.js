@@ -25,7 +25,7 @@ const SNAPQ = matchMedia('(pointer: fine), (min-width: 768px) and (min-height: 5
 const html = document.documentElement;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, color: C.customize.defaults.color, size: C.customize.defaults.size, method: 'solefresh', milestone: 'refining' };
+export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, inside: { loaded: false, part: null, refilled: false, without: false, busy: false, n: 0 }, color: C.customize.defaults.color, size: C.customize.defaults.size, method: 'solefresh', milestone: 'refining' };
 let world = null, worldReady = false, audiencePicked = false;   // audiencePicked: the visitor chose an audience themselves (the default is not a choice)
 const worldEl = $('[data-world]'), navEl = $('.nav');
 
@@ -166,7 +166,7 @@ function onScroll(force = false) {
   const key = `${wf}>${wt}@${wu.toFixed(3)}`;
   if (key !== lastKey) { lastKey = key; if (world) world.setTravel(wf, wt, wu, below ? wu : uLeave); }
   const tv = u > 0 && u < 1 ? `${from}>${to}` : '';
-  if (tv !== html.dataset.travel) { html.dataset.travel = tv; updateOverlayVisibility(); if (tv && state.layer >= 0) selectLayer(-1); } // a scroll away puts a popped part back first
+  if (tv !== html.dataset.travel) { html.dataset.travel = tv; updateOverlayVisibility(); if (tv) insideLeave(); else insideArrive(); } // a scroll away puts every part back first; arriving at rest in Inside brings the fills out
   setStage(stage);
   const rest = onStage2Rest(); if (rest !== stage2Rest) { stage2Rest = rest; updateOverlayVisibility(); }
 }
@@ -175,11 +175,9 @@ function setStage(stage) {
   if (stage === state.stage) return;
   const prev = state.stage; state.stage = stage; html.dataset.stage = stage;
   if (stage === 'how') $('[data-step-caption]')?.setAttribute('aria-live', 'polite');
-  if (world) {
-    if (stage === 'inside') world.selectLayer(state.layer);
-    if (prev === 'customize') world.releaseDrag();
-  }
-  if (prev === 'inside' && state.layer >= 0) selectLayer(-1); // the layer sheet belongs to its stage
+  if (world && prev === 'customize') world.releaseDrag();
+  if (prev === 'inside') insideLeave();   // the stage starts over next time
+  if (stage === 'inside') insideArrive();
   showPoster();
   updateOverlayVisibility();
 }
@@ -431,6 +429,7 @@ tabs.forEach((t, i) => {
 // Projected from the product each rendered frame, at rest: Stage 2's dots and leader lines.
 const overlay = $('[data-overlay]'), sets = $$('.overlay__set');
 const whatEl = $('#what'), hsDots = C.what.hotspots.map((h) => $(`.mk[data-hs="${h.id}"]`)), hsLines = C.what.hotspots.map((h) => $(`[data-line="${h.id}"]`)), hsCards = C.what.hotspots.map((h) => $(`[data-hs-card="${h.id}"]`));
+const inTags = C.inside.components.filter((c) => c.part !== 'pull_cord').map((c) => [$(`.mk[data-in="${c.id}"]`), c.part]);
 let stage2Rest = false;
 /** Stage 2's leader lines end on cards that scroll with the page, so they only show with the page at rest on the stage. */
 function onStage2Rest() { return state.stage === 'what' && !NARROW.matches && Math.abs(whatEl.getBoundingClientRect().top - navH()) < 2; }
@@ -441,6 +440,8 @@ function updateOverlayVisibility() {
 }
 function placeMarkers(w) {
   if (!worldReady) return;
+  const showIn = state.stage === 'inside' && !html.dataset.travel && !NARROW.matches && !state.inside.part;
+  for (const [el, part] of inTags) { if (!showIn) { el.style.opacity = '0'; continue; } const p = w.partDot(part, part === 'scent_beads' ? [0, 0, 0] : part === 'carbon_sachet' ? [0.12, 0, 0] : [-0.6, 0, 0]); /* the two pouches lie one over the other once loaded: their names sit at different heights */ el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`; el.style.opacity = '1'; }
   const showWhat = !html.dataset.travel && onStage2Rest();
   C.what.hotspots.forEach((h, i) => {
     const line = hsLines[i]; line.style.opacity = showWhat ? '1' : '0'; if (!showWhat) { hsDots[i].style.opacity = '0'; return; }
@@ -475,7 +476,7 @@ function fitStages(force = false) {
   const left = (el) => el.getBoundingClientRect().left, right = (el) => el.getBoundingClientRect().right, g = $('.what__low').offsetLeft;
   world.fitStage('explorer', { left: right($('.explorer__left')) + 16, right: left($('.panel')) - 16, top: nh + 8, bottom: innerHeight - 10 }, centred);
   world.fitStage('what', { left: g, right: innerWidth - g, top: bottom($('.what__head'), 'what') + 10, bottom: top($('.what__low'), 'what') - 18 });
-  world.fitStage('inside', { left: right($('.inside__list')) + 16, right: left($('.sheet')) - 16, top: bottom($('.inside__head'), 'inside') + 8, bottom: innerHeight - 14 }, centred);
+  world.fitStage('inside', { left: Math.max(right($('.inside__list')), g) + 16, right: left($('.sheet')) - 16, top: bottom($('.inside__head'), 'inside') + 8, bottom: top($('.inside__note'), 'inside') - 8 }, centred);
   world.fitStage('customize', { left: right($('.customize__side--color')) + 16, right: left($('.customize__side--size')) - 16, top: bottom($('.customize__head'), 'customize') + 8, bottom: top($('.customize__note'), 'customize') - 8 });
   world.fitStage('why', { left: 8, right: left($('.why__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('story', { left: 8, right: left($('.story__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
@@ -517,37 +518,102 @@ steps.forEach((b, i) => {
 });
 
 // ---------------------------------------------------------- stage 4 --
+// "Load the housing". The stage arrives with the stack open and the three fills out beside the housing (0 of 3).
+// Load all three: they go in one after another, the housing closes and turns see-through (3 of 3): one insert holds all
+// three. Refill: one fill comes out, a fresh one goes in, and the housing never moves: the housing stays, the fills change.
+// A chip (or a part on the model) opens the insert on that one part and says what it is. Every control teaches one thing.
+// inside.optional in content.json ("odor", "scent" or null) names the one fill that can be left out: it gets the word
+// "optional" and an in/out switch on its card. With null, nothing on the page says optional.
+const PARTS = ['shell_bottom', 'carbon_sachet', 'silica_sachet', 'scent_beads', 'shell_top', 'pull_cord'];   // keep in step with src/product-slot.js
+const IN = C.inside, COMPS = IN.components, FILL_PARTS = COMPS.filter((c) => c.part !== 'pull_cord').map((c) => c.part);
+const OPTIONAL = COMPS.find((c) => c.id === IN.optional && c.part !== 'pull_cord') || null;
 const sheet = $('[data-sheet]'), sheetClose = $('[data-sheet-close]');
-let sheetOpener = null;                // the layer button that opened the sheet: closing it returns focus there
-function selectLayer(i) {
-  const held = sheet.contains(document.activeElement);
-  state.layer = i;
-  $$('[data-layer]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.layer === i)));
-  const L = C.inside.layers[i];
-  sheet.classList.toggle('is-open', !!L);
-  $('[data-sheet-prompt]').hidden = !!L; $('[data-sheet-detail]').hidden = !L; $('[data-inside-prompt]').style.visibility = L ? 'hidden' : ''; // it keeps its line, so the part list does not jump
-  if (L) { $('[data-sheet-name]').textContent = L.name; $('[data-sheet-role]').textContent = L.role; }
-  if (world && (state.stage === 'inside' || i < 0)) world.selectLayer(i); // a deselect always reaches the product (leaving Inside calls it after the stage has changed)
-  if (!L && held) sheetOpener?.focus({ preventScroll: true });
+let sheetOpener = null, insideTimers = [], refillTurn = 0, insideDirty = false;
+const later = (ms, fn) => insideTimers.push(setTimeout(fn, RM.matches ? 0 : ms));
+const clearLater = () => { insideTimers.forEach(clearTimeout); insideTimers = []; };
+const leftOut = () => (OPTIONAL && state.inside.without ? [OPTIONAL.part] : []);            // the optional fill, when the visitor has left it out
+const fillsWanted = () => FILL_PARTS.filter((p) => !leftOut().includes(p));
+function renderInside() {
+  const st = state.inside, comp = COMPS.find((c) => c.id === st.part) || null;
+  $$('[data-comp]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.comp === st.part)));
+  const count = $('[data-load-count]'); count.textContent = IN.count.replace('{n}', st.n).replace('{total}', fillsWanted().length); count.hidden = !!comp;
+  const mine = !!comp && comp === OPTIONAL;
+  const card = comp ? { title: comp.title, body: mine && st.without ? IN.optionalOut : comp.body, foot: comp.foot } : st.refilled ? IN.refilled : st.loaded ? IN.loaded : IN.rest;
+  $('[data-sheet-name]').textContent = card.title; $('[data-sheet-role]').textContent = card.body;
+  const foot = $('[data-sheet-foot]'); foot.textContent = card.foot || ''; foot.hidden = !card.foot;
+  $('[data-load]').hidden = !!comp || st.loaded; $('[data-refill]').hidden = !!comp || !st.loaded;
+  $('[data-compare]').hidden = !!comp || !st.loaded; sheetClose.hidden = !comp;
+  const opt = $('[data-opt]'); opt.hidden = !mine; if (mine) { opt.setAttribute('aria-pressed', String(!st.without)); opt.textContent = (st.without ? IN.optionalToggle.out : IN.optionalToggle.in).replace('{name}', comp.chip); }
+  sheet.classList.toggle('is-open', !!comp);
+  state.layer = comp ? PARTS.indexOf(comp.part) : -1;
+  showPoster();
 }
-$$('[data-layer]').forEach((b) => b.addEventListener('click', () => {
-  const i = +b.dataset.layer, open = i !== state.layer;
-  if (open) sheetOpener = b;
-  selectLayer(open ? i : -1);
-}));
-sheetClose.addEventListener('click', () => selectLayer(-1));
-// The parts themselves are the targets: a click on one pops it out as its list button does; on the part that is out, or on
-// empty space, it goes back. The list stays the keyboard's way in, and where focus returns.
+/** At rest on the stage, nothing chosen yet: the fills come out beside the housing. */
+function insideArrive() {
+  const st = state.inside; if (state.stage !== 'inside' || html.dataset.travel || st.part || st.loaded) return;
+  clearLater(); st.n = 0; insideDirty = true; if (world) world.setOut(FILL_PARTS); renderInside();
+}
+/** A scroll away puts everything back first, and the stage starts over the next time it arrives. */
+function insideLeave() {
+  if (!insideDirty) return; insideDirty = false;
+  clearLater(); Object.assign(state.inside, { loaded: false, part: null, refilled: false, busy: false, n: 0 });
+  if (world) { world.selectLayer(-1); world.setOut([]); world.setLoaded(false); }
+  renderInside();
+}
+function loadAll() {
+  const st = state.inside; if (st.loaded || st.busy) return;
+  clearLater(); Object.assign(st, { busy: true, part: null, refilled: false }); insideDirty = true;
+  const want = fillsWanted();
+  if (world) { world.selectLayer(-1); world.setOut(leftOut()); }                                  // the fills go in, one after another
+  want.forEach((_, k) => later(260 + 120 * k, () => { st.n = k + 1; renderInside(); }));         // and are counted as they land
+  later(420 + 120 * want.length, () => { Object.assign(st, { loaded: true, busy: false, n: want.length }); if (world) world.setLoaded(true); renderInside(); });   // then the housing closes round them
+  renderInside();
+}
+function refill() {
+  const st = state.inside; if (!st.loaded || st.busy) return;
+  clearLater(); Object.assign(st, { busy: true, part: null });
+  const order = ['scent_beads', 'silica_sachet', 'carbon_sachet'].filter((p) => fillsWanted().includes(p)), part = order[refillTurn++ % order.length];
+  if (world) world.setLoaded(false);                                                              // the housing opens where it stands
+  later(640, () => world && world.setOut([part, ...leftOut()], 0));                               // one fill comes out
+  later(1180, () => { if (world) world.blinkPart(part); st.refilled = true; st.n = fillsWanted().length - 1; renderInside(); });   // a fresh one takes its place
+  later(1640, () => { if (world) world.setOut(leftOut(), 0); });                                  // and goes in
+  later(2060, () => { st.busy = false; st.n = fillsWanted().length; if (world) world.setLoaded(true); renderInside(); });
+  renderInside();
+}
+/** A chip, or a part on the model: open the insert on that one part. The same one again goes back. */
+function inspect(id) {
+  const st = state.inside, comp = COMPS.find((c) => c.id === id); if (!comp) return;
+  if (st.part === id) { back(); return; }
+  clearLater(); const first = !st.part; Object.assign(st, { busy: false, part: id, refilled: false }); insideDirty = true; renderInside();
+  const i = PARTS.indexOf(comp.part); if (!world) return;
+  if (first && st.loaded) { world.setLoaded(false); later(520, () => world.selectLayer(i)); } else world.selectLayer(i);   // selecting one puts every other part back
+}
+function back() {
+  const st = state.inside; if (!st.part) return;
+  const held = sheet.contains(document.activeElement);
+  clearLater(); st.part = null; st.n = st.loaded ? fillsWanted().length : 0; renderInside();
+  if (held) sheetOpener?.focus({ preventScroll: true });
+  if (!world) return;
+  world.selectLayer(-1);
+  if (st.loaded) later(360, () => { world.setOut(leftOut(), 0); world.setLoaded(true); }); else later(220, () => world.setOut(FILL_PARTS));
+}
+$$('[data-comp]').forEach((b) => b.addEventListener('click', () => { sheetOpener = b; inspect(b.dataset.comp); }));
+sheetClose.addEventListener('click', back);
+$('[data-load]').addEventListener('click', () => { loadAll(); $('[data-refill]').focus({ preventScroll: true }); });
+$('[data-refill]').addEventListener('click', refill);
+$('[data-opt]').addEventListener('click', () => { const st = state.inside; st.without = !st.without; renderInside(); });   // it takes effect the next time the housing is loaded
+// The parts themselves are targets too. Before loading, a press on any of them loads the housing; after, a press on a
+// fill opens the insert on it, and a press on the part that is out, or on empty space, goes back.
 const layerAt = (e) => { if (!worldReady || state.stage !== 'inside' || html.dataset.travel) return -1; const r = worldEl.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return x < 0 || y < 0 || x > r.width || y > (bandNow > 0 ? bandNow : r.height) ? -1 : world.pickLayer(x, y); };
 document.addEventListener('click', (e) => {
   if (state.stage !== 'inside' || e.target.closest('a, button, input, select, textarea, label, summary, .sheet, .nav, .menu')) return;
-  const i = layerAt(e), open = i >= 0 && i !== state.layer;
-  if (i < 0 && state.layer < 0) return;
-  if (open) sheetOpener = $(`.layer-btn[data-layer="${i}"]`);
-  selectLayer(open ? i : -1);
+  const st = state.inside, i = layerAt(e), comp = COMPS.find((c) => c.part === PARTS[i]);
+  if (st.part) { if (comp && comp.id !== st.part) inspect(comp.id); else back(); return; }
+  if (i < 0) return;
+  if (!st.loaded) loadAll(); else if (comp) { sheetOpener = $(`[data-comp="${comp.id}"]`); inspect(comp.id); }
 });
 if (FINE.matches) { let q = 0, last = null; addEventListener('pointermove', (e) => { last = e; if (state.stage !== 'inside' && !html.classList.contains('over-layer')) return; q ||= requestAnimationFrame(() => { q = 0; html.classList.toggle('over-layer', !last.target.closest?.('a, button, .sheet, .nav') && layerAt(last) >= 0); }); }, { passive: true }); }
-addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.stage === 'inside' && state.layer >= 0) selectLayer(-1); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.stage === 'inside' && state.inside.part) back(); });
 
 // -------------------------------------------------------- customize --
 // A colour changes only the shell (shell_top, shell_bottom). A size is a real
@@ -704,7 +770,7 @@ function onSlow(times) {
 html.dataset.stage = state.stage; html.dataset.tier = tier;
 addEventListener('load', () => setTimeout(() => $('.warm')?.remove(), 2500)); // paint warm-up has done its job
 select(state.audience, { animate: false });
-measureStages(); landFirst(); setStep(0, { play: false }); selectLayer(-1); setColor(state.color); setSizeId(state.size);
+measureStages(); landFirst(); setStep(0, { play: false }); renderInside(); setColor(state.color); setSizeId(state.size);
 if (tier !== 'poster') {
   import('./world.js').then(async ({ World }) => {
     world = new World(worldEl, { reduced: () => RM.matches, narrow: () => NARROW.matches, quality: TIERS[tier], onSlow });
@@ -719,7 +785,7 @@ if (tier !== 'poster') {
     world.setColors({ shell: cz.colors.find((c) => c.id === state.color).hex }, 0);
     if (state.size !== world.slot.sizeId) setSizeId(state.size);   // picked while the 3D was still loading
     fitStages(true); landFirst();
-    lastKey = ''; onScroll(true); updateOverlayVisibility();
+    lastKey = ''; onScroll(true); updateOverlayVisibility(); insideArrive();
     html.classList.add('gl-live');
     { const a = $('[data-drag]'); a.tabIndex = 0; a.removeAttribute('aria-hidden'); a.setAttribute('role', 'group'); a.setAttribute('aria-label', cz.dragHint.keys); } // a keyboard stop only where there is a product to turn
     window.__sf.world = world;
@@ -729,7 +795,7 @@ if (tier !== 'poster') {
 } else html.classList.add('gl-off');
 
 // Verification hooks. Inert unless called.
-window.__sf = { get tier() { return tier; }, state, select, setStep, selectLayer, setColor, setSizeId, setMethod, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+window.__sf = { get tier() { return tier; }, state, select, setStep, inside: { loadAll, refill, inspect, back }, setColor, setSizeId, setMethod, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
 // Entrance fades exist only once this script has run to its end (styles.css keys them on .sf-ready): if it fails to
 // load, or throws on the way, every stage simply stays visible. Whatever is on screen now is marked in first, so it does not blink.
 stages.forEach((s) => { const r = s.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) s.classList.add('is-in'); });

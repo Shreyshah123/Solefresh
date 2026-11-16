@@ -176,39 +176,66 @@
     ]
   },
   "inside": {
-    "heading": "What's inside.",
-    "note": "Current prototype design (v3.2). Materials are still being tested.",
-    "prompt": "Select a part to see what it does.",
-    "layers": [
+    "heading": "Three jobs. One refillable insert.",
+    "lede": "One SoleFresh goes in each shoe between wears. Load it to see what's inside.",
+    "note": "Prototype. Drying, odor and scent performance haven't been measured yet.",
+    "count": "{n} of {total} in the housing",
+    "load": "Load all three",
+    "refill": "Refill",
+    "back": "Back",
+    "compare": "Compare with what you use now",
+    "optional": null,
+    "optionalTag": "optional",
+    "optionalToggle": {
+      "in": "{name} pouch: in",
+      "out": "{name} pouch: out"
+    },
+    "optionalOut": "Without it, the housing holds the other two. Same housing, same sizes.",
+    "rest": {
+      "title": "Moisture, odor, scent.",
+      "body": "Covering all three can mean separate products to buy, place and replace. SoleFresh is designed to hold all three in one housing."
+    },
+    "loaded": {
+      "title": "One insert. Place it, pull it, refill it.",
+      "body": "Drop it in narrow end first when the shoes come off. Pull it out by the cord before the next wear. The 3D-printed housing is kept; the fills inside are replaced."
+    },
+    "refilled": {
+      "title": "Same housing, fresh fill.",
+      "body": "One fill comes out and a new one goes in. The housing stays in use.",
+      "foot": "How often each fill needs replacing hasn't been measured yet. Our pilot measures it."
+    },
+    "components": [
       {
-        "id": "shell_bottom",
-        "name": "Shell bottom",
-        "role": "3D-printed PETG. Holds the divider and the scent bay."
+        "id": "moisture",
+        "part": "silica_sachet",
+        "chip": "Moisture",
+        "title": "Moisture: silica-gel pouch",
+        "body": "Silica-gel beads in a sealed, breathable pouch, on top of the stack.",
+        "foot": "How it's recharged or replaced is being tested."
       },
       {
-        "id": "carbon_sachet",
-        "name": "Carbon sachet",
-        "role": "Activated carbon in a sealed fabric pouch, facing the insole. For odor."
+        "id": "odor",
+        "part": "carbon_sachet",
+        "chip": "Odor",
+        "title": "Odor: activated-carbon pouch",
+        "body": "Activated carbon in a sealed pouch, on the insole side, under the silica.",
+        "foot": "Designed as a replaceable refill pouch."
       },
       {
-        "id": "silica_sachet",
-        "name": "Silica sachet",
-        "role": "Silica gel beads in a sealed fabric pouch. For moisture."
+        "id": "scent",
+        "part": "scent_beads",
+        "chip": "Scent",
+        "title": "Scent: aroma beads",
+        "body": "Scented beads in their own bay at the heel end. Small holes let the scent out and keep the beads in. Refill by pouring in new beads.",
+        "foot": "Scent options are still to be announced."
       },
       {
-        "id": "scent_beads",
-        "name": "Scent beads",
-        "role": "Pre-scented aroma beads at the heel end. For fragrance."
-      },
-      {
-        "id": "shell_top",
-        "name": "Shell top",
-        "role": "3D-printed PETG. Snaps onto the bottom half."
-      },
-      {
-        "id": "pull_cord",
-        "name": "Pull cord",
-        "role": "Lets you pull it out of the shoe."
+        "id": "cord",
+        "part": "pull_cord",
+        "chip": "Pull cord",
+        "title": "Pull cord",
+        "body": "Lifts the insert out of footwear where it sits deep, like laced skates.",
+        "foot": ""
       }
     ]
   },

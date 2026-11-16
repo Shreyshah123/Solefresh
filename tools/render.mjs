@@ -7,7 +7,8 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 const attr = esc;
 
 const navLinks = (cls) => C.nav.links.map((l) => `<a class="${cls}" href="#${l.anchor || l.id}" data-jump="${l.id}">${esc(l.label)}</a>`).join('\n      ');
-const seg = C.segments, cz = C.customize;
+const seg = C.segments, cz = C.customize, IN = C.inside;
+const optTag = (c) => (IN.optional === c.id ? ` <span class="opt">${esc(IN.optionalTag)}</span>` : '');
 const outside = (id) => { const [l, w, h] = MODEL.sizes[id].outsideMm.map(Math.round); return cz.sizeOutside.replace('{l}', l).replace('{w}', w).replace('{h}', h); };
 // brand.contactEmail: a real address becomes a link in the footer and the privacy page. Left empty, no address is shown anywhere.
 const hasContact = (C.brand.contactEmail || '').includes('@');
@@ -62,6 +63,9 @@ const html = `<!doctype html>
   <svg class="overlay__lines" data-lines aria-hidden="true">${C.what.hotspots.map((h) => `<line data-line="${h.id}" x1="0" y1="0" x2="0" y2="0"></line>`).join('')}</svg>
   <div class="overlay__set" data-for="what" aria-hidden="true" hidden>
     ${C.what.hotspots.map((h) => `<span class="mk" data-hs="${h.id}"><span class="mk__dot"></span></span>`).join('\n    ')}
+  </div>
+  <div class="overlay__set" data-for="inside" aria-hidden="true" hidden>
+    ${IN.components.filter((c) => c.part !== 'pull_cord').map((c) => `<span class="mk mk--tag" data-in="${c.id}"><span class="mk__tag">${esc(c.chip)}</span></span>`).join('\n    ')}
   </div>
 </div>
 
@@ -143,23 +147,30 @@ const html = `<!doctype html>
 <!-- ======================================================= STAGE 4: INSIDE == -->
 <section class="stage inside stage--full" id="inside" data-product="inside" aria-labelledby="h-inside">
   <div class="inside__head stage__in">
-    <h2 id="h-inside">${esc(C.inside.heading)}</h2>
-    <p class="inside__note">${esc(C.inside.note)}</p>
-    <p class="inside__prompt" data-inside-prompt>${esc(C.inside.prompt)}</p>
+    <h2 id="h-inside">${esc(IN.heading)}</h2>
+    <p class="inside__lede">${esc(IN.lede)}</p>
   </div>
-  <div class="inside__list stage__in" role="group" aria-label="Parts">
-    ${C.inside.layers.map((l, i) => `<button type="button" class="layer-btn" data-layer="${i}" aria-pressed="false">${esc(l.name)}</button>`).join('\n    ')}
+  <div class="inside__list stage__in" role="group" aria-label="What's inside">
+    ${IN.components.map((c) => `<button type="button" class="layer-btn" data-comp="${c.id}" aria-pressed="false">${esc(c.chip)}${optTag(c)}</button>`).join('\n    ')}
   </div>
   <aside class="sheet" data-sheet aria-live="polite">
     <div class="sheet__body">
-      <p class="sheet__prompt" data-sheet-prompt>${esc(C.inside.prompt)}</p>
-      <div class="sheet__detail" data-sheet-detail hidden>
-        <p class="sheet__name" data-sheet-name></p>
-        <p class="sheet__role" data-sheet-role></p>
+      <p class="sheet__count" data-load-count>${esc(IN.count.replace('{n}', '0').replace('{total}', '3'))}</p>
+      <div class="sheet__detail">
+        <p class="sheet__name" data-sheet-name>${esc(IN.rest.title)}</p>
+        <p class="sheet__role" data-sheet-role>${esc(IN.rest.body)}</p>
+        <p class="sheet__foot" data-sheet-foot hidden></p>
       </div>
-      <button type="button" class="sheet__close" data-sheet-close aria-label="Close">Close</button>
+      <div class="sheet__actions">
+        <button type="button" class="btn btn--accent" data-load>${esc(IN.load)}</button>
+        <button type="button" class="btn btn--accent" data-refill hidden>${esc(IN.refill)}</button>
+        <button type="button" class="btn btn--ghost" data-opt aria-pressed="true" hidden></button>
+        <button type="button" class="btn btn--ghost" data-sheet-close hidden>${esc(IN.back)}</button>
+        <a class="sheet__link" href="#why" data-jump="why" data-compare hidden>${esc(IN.compare)} <span aria-hidden="true">&rarr;</span></a>
+      </div>
     </div>
   </aside>
+  <p class="inside__note stage__in">${esc(IN.note)}</p>
 </section>
 
 <!-- ===================================================== STAGE 5: CUSTOMIZE == -->

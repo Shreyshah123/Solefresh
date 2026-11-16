@@ -9,7 +9,7 @@
 // response to a click.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { ProductSlot, PARTS, POSES, TRAVEL_SIZE, VIEW_DOWN } from './product-slot.js';
+import { ProductSlot, PARTS, FILLS, POSES, TRAVEL_SIZE, VIEW_DOWN } from './product-slot.js';
 import { buildShoe, shoeSamples, SHOE, DRAW } from './shoe.js';
 import { drawFloor } from './venues.js';
 import { FX } from './fx.js';
@@ -233,6 +233,7 @@ export class World {
     this.emit = { A: 1, k: 1, add: (x, y, z, o) => { o.alpha *= this.emit.A; this.fx.add(x, this.#up(y), z, o); }, ring: (x, y, z, rad, o = {}) => { o.alpha = (o.alpha ?? 1) * this.emit.A; this.fx.ring(x, this.#up(y), z, rad, o); } };
     this.onStep = null;   // (stepIndex, progress 0..1, done) progress callback for the UI
     this.jump = null; this.frameCbs = [];
+    this.housing = { to: 0, k: 0 };   // Inside: the housing loaded (1: the stack closed and the shell see-through) or open (0)
     this.visible = true; this.running = false; this.last = 0; this.clock = 0;
     this.live = false;    // no frame is drawn until load() has compiled everything off the main thread: a frame before that would compile it on it
     // any input counts as the visitor being about (Step 3's loop calms after a long spell without, and wakes on the next)
@@ -545,6 +546,11 @@ export class World {
   }
   // -------------------------------------------------------------- stage 4
   selectLayer(i) { this.slot.selectLayer(i); this.kick(); }
+  /** Which fills are out beside the housing (see ProductSlot.setOut). */
+  setOut(names, stagger) { this.slot.setOut(names, stagger); this.kick(); }
+  /** Load the housing (the open stack closes round its fills and the shell goes see-through) or open it again. */
+  setLoaded(on) { this.housing.to = on ? 1 : 0; this.kick(); }
+  blinkPart(name) { this.slot.blink(name); this.kick(); }
   /** The layer under a point on the canvas (px), or -1. */
   pickLayer(x, y) {
     if (!this.slot.ready) return -1;
@@ -592,7 +598,8 @@ export class World {
     slot.scale.set(Math.max(0.001, sv * P.sqx), Math.max(0.001, sv * P.sqy), Math.max(0.001, sv * P.sqz));
     _d.set(0, sv * P.sqy * h / 2, 0).applyQuaternion(slot.quaternion);
     slot.position.set(cx - _d.x, cy - _d.y, cz - _d.z);
-    slot.setExplode(S.explode); slot.setWire(S.wire); slot.setGhost(S.ghost); slot.setCord(S.cordS + P.cs, S.cordL + P.cl);
+    const lk = this.housing.k, open = clamp(S.explode);   // the load is Inside's own: its weight is how open the travel has the stack
+    slot.setExplode(S.explode * (1 - easeInOut(clamp(lk / 0.6)))); slot.setWire(S.wire); slot.setGhost(Math.max(S.ghost, open * easeInOut(clamp((lk - 0.6) / 0.4)))); slot.setCord(S.cordS + P.cs, S.cordL + P.cl);
     // shoes: settle hops and squashes about the sole, see-through while the product is inside, footbed tint
     const aw = 1 / Math.sqrt(P.aSq), bw = 1 / Math.sqrt(P.bSq);
     this.shoe.scale.set(S.unit * aw, S.unit * P.aSq, S.unit * aw); this.shoe.userData.setOpacity(S.shoeA * P.aRel, S.shoeA);
@@ -681,6 +688,7 @@ export class World {
       if (L.amp > 0) moving = true;
     }
     if ((S3.tail && !S3.frozen) || S3.fades.length || (S3.still && S3.still.i === 0 && now - S3.still.start < 1100)) moving = true; // effects still finishing
+    if (this.housing.k !== this.housing.to) { const L = this.housing, step = this.reduced() ? 1 : dt / 0.85; L.k = L.to > L.k ? Math.min(L.to, L.k + step) : Math.max(L.to, L.k - step); moving = true; dirty = true; }
     if (dirty) this.applyState();
     moving = this.slot.update(dt, this.reduced()) || moving;
     this.#view();
@@ -743,6 +751,8 @@ export class World {
     if (!box || !this.slot.ready) return;
     const S = this.S, s3 = this.s3, deg = THREE.MathUtils.degToRad(this.camera.fov / 2), turn = this.slot.turn, rx = turn.rotation.x, ry = turn.rotation.y;
     this.s3 = this.#freshS3(); this.#aim(); turn.rotation.set(0, 0, 0);      // the pose itself, not however it is dragged right now
+    const lk = this.housing.k, pops = this.slot.parts.map((L) => ({ ...L.pop }));
+    if (stage === 'inside') { this.housing.k = 0; for (const L of this.slot.parts) if (FILLS.includes(L.name)) { L.pop.p = 1; L.pop.side = POSES.inside_upright.fan[L.name]; } }   // Inside is measured as it arrives: its fills out beside it
     for (let i = 0; i < 16; i++) {
       this.S = { ...T, wire: 0 }; this.applyState(); this.slot.apply();   // the sketch look plays no part in where it sits, and is not free to build
       const b = this.#screenBox(), room = Math.min((box.right - box.left) / (b.x1 - b.x0), (box.bottom - box.top) / (b.y1 - b.y0));
@@ -754,6 +764,7 @@ export class World {
       const ppu = this.H / (2 * Math.tan(deg) * this.camera.position.distanceTo(this.slot.position));
       T.fitX += sx / ppu; T.fitY -= sy / ppu;
     }
+    this.housing.k = lk; this.slot.parts.forEach((L, i) => Object.assign(L.pop, pops[i]));
     this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0);
   }
   /**
@@ -771,6 +782,7 @@ export class World {
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     const at = (v) => { const q = this.project(v); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); };
     const product = () => { this.applyState(); slot.apply(); slot.corners(at); };
+    const lk = this.housing.k; this.housing.k = 0;       // measured open, as it arrives
     this.s3 = this.#freshS3(); this.S = { ...T, wire: 0 }; this.#aim(); turn.rotation.set(0, 0, 0);
     product();
     if (stage === 'how') {
@@ -785,10 +797,10 @@ export class World {
       return { k, x: (box.left + box.right) / 2 - (cx + k * ((x0 + x1) / 2 - cx)), y: (box.top + box.bottom) / 2 - (cy + k * ((y0 + y1) / 2 - cy)) };
     };
     const rest = frame(); T.vk = rest.k; T.vx = rest.x; T.vy = rest.y;
-    if (stage === 'inside') for (const L of slot.parts) { for (const p of [0.5, 0.8, 1, 1.09]) { L.pop.p = p; slot.apply(); slot.corners(at); } L.pop.p = 0; slot.apply(); }
+    if (stage === 'inside') for (const L of slot.parts) { const side = L.pop.side; for (const sd of [POSES.inside_upright.pop.side, POSES.inside_upright.fan[L.name]]) { if (sd == null) continue; L.pop.side = sd; for (const p of [0.5, 0.8, 1, 1.09]) { L.pop.p = p; slot.apply(); slot.corners(at); } } L.pop.p = 0; L.pop.side = side; slot.apply(); }
     if (stage === 'customize') for (let a = 0; a < 8; a++) { turn.rotation.y = (a / 8) * Math.PI * 2; slot.apply(); slot.corners(at); }
     if (stage === 'inside' || stage === 'customize') this.wider[stage] = frame();
-    this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0); this.viewNow = '';
+    this.housing.k = lk; this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0); this.viewNow = '';
   }
   /** The fits have changed: the current state follows, wherever the page is. */
   fitsChanged() {
