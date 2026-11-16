@@ -551,6 +551,8 @@ export class World {
   /** Load the housing (the open stack closes round its fills and the shell goes see-through) or open it again. */
   setLoaded(on) { this.housing.to = on ? 1 : 0; this.kick(); }
   blinkPart(name) { this.slot.blink(name); this.kick(); }
+  /** The comparison stage: light these parts (names), or none (null). */
+  setFocus(names) { this.slot.setFocus(names); this.kick(); }
   /** The layer under a point on the canvas (px), or -1. */
   pickLayer(x, y) {
     if (!this.slot.ready) return -1;

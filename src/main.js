@@ -25,7 +25,7 @@ const SNAPQ = matchMedia('(pointer: fine), (min-width: 768px) and (min-height: 5
 const html = document.documentElement;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, inside: { loaded: false, part: null, refilled: false, without: false, busy: false, n: 0 }, color: C.customize.defaults.color, size: C.customize.defaults.size, method: 'solefresh', milestone: 'refining' };
+export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, inside: { loaded: false, part: null, refilled: false, without: false, busy: false, n: 0 }, color: C.customize.defaults.color, size: C.customize.defaults.size, method: C.why.start, milestone: 'refining' };
 let world = null, worldReady = false, audiencePicked = false;   // audiencePicked: the visitor chose an audience themselves (the default is not a choice)
 const worldEl = $('[data-world]'), navEl = $('.nav');
 
@@ -177,6 +177,7 @@ function setStage(stage) {
   if (stage === 'how') $('[data-step-caption]')?.setAttribute('aria-live', 'polite');
   if (world && prev === 'customize') world.releaseDrag();
   if (prev === 'inside') insideLeave();   // the stage starts over next time
+  if (prev === 'why' || stage === 'why') focusWhy();
   if (stage === 'inside') insideArrive();
   showPoster();
   updateOverlayVisibility();
@@ -478,7 +479,7 @@ function fitStages(force = false) {
   world.fitStage('what', { left: g, right: innerWidth - g, top: bottom($('.what__head'), 'what') + 10, bottom: top($('.what__low'), 'what') - 18 });
   world.fitStage('inside', { left: Math.max(right($('.inside__list')), g) + 16, right: left($('.sheet')) - 16, top: bottom($('.inside__head'), 'inside') + 8, bottom: top($('.inside__note'), 'inside') - 8 }, centred);
   world.fitStage('customize', { left: right($('.customize__side--color')) + 16, right: left($('.customize__side--size')) - 16, top: bottom($('.customize__head'), 'customize') + 8, bottom: top($('.customize__note'), 'customize') - 8 });
-  world.fitStage('why', { left: 8, right: left($('.why__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
+  world.fitStage('why', { left: Math.max(8, g - 24), right: left($('.why__panel')) - 24, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('story', { left: 8, right: left($('.story__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('faq', { left: 8, right: left($('.faq__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('close', { left: g, right: innerWidth - g, top: bottom($('.close h2'), 'close') + 8, bottom: top($('.paths'), 'close') - 8 });
@@ -720,28 +721,22 @@ $('#b-type').addEventListener('change', (e) => { delete e.target.dataset.auto; }
 new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) preselectOrgType(); }, { threshold: 0.3 }).observe($('[data-product="bulk"]'));
 
 // ---------------------------------------------------------- why --
-// What each routine involves day to day. The same mark every day: no coverage, and no schedule that implies a lifespan.
-const ICON = {
-  spray: `<svg viewBox="0 0 32 32"><path d="M11 12h8v14a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z"/><path d="M13 12V8h4v4M15 5v3"/><circle cx="24" cy="9" r="1.1"/><circle cx="27" cy="12" r="1.1"/><circle cx="25" cy="15" r="1.1"/></svg>`,
-  sachet: `<svg viewBox="0 0 32 32"><path d="M9 7h14l1 20H8z"/><path d="M12 7l2-3h4l2 3"/><path d="M12 16h8"/></svg>`,
-  pack: `<svg viewBox="0 0 32 32"><rect x="7" y="8" width="18" height="16" rx="3"/><path d="M16 12c-2 2.5-3 4-3 5.5a3 3 0 0 0 6 0c0-1.5-1-3-3-5.5z"/></svg>`,
-  sole: `<svg viewBox="0 0 32 32"><rect x="4" y="11" width="24" height="10" rx="5"/><path d="M4 16h24"/></svg>`,
-};
-const dayEls = $$('.day'), legendEl = $('[data-legend]');
-function setMethod(id) {
-  const m = C.why.methods.find((x) => x.id === id); if (!m) return;
+// "Versus your shelf". The visitor picks what they use now; the card compares how each is handled (never how well it
+// works: nothing has been measured, and the rows nobody has measured say so for every option alike), one line says the
+// difference, and the product beside the card lights the part that answers it. One pick, one thing learned.
+const WHY = C.why;
+function setAlt(id) {
+  const m = WHY.alternatives.find((x) => x.id === id); if (!m) return;
   state.method = id;
-  $$('.method').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.method === id)));
-  legendEl.textContent = m.legend;
-  $('[data-week-mark]').textContent = m.mark; $('[data-week-icon]').innerHTML = ICON[m.icon];
-  dayEls.forEach((d, i) => {
-    $('[data-day-icon]', d).innerHTML = ICON[m.icon]; $('[data-day-mark]', d).textContent = m.mark;
-    d.style.setProperty('--i', i);
-    d.classList.remove('is-anim'); void d.offsetWidth; d.classList.add('is-anim');
-  });
+  $$('.method[data-alt]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.alt === id)));
+  $('[data-alt-name]').textContent = m.label;
+  for (const r of WHY.rows) $(`[data-alt-cell="${r.id}"]`).textContent = m[r.id] ?? WHY.unmeasured;
+  $('[data-alt-take]').textContent = m.takeaway;
+  focusWhy();
 }
-$$('.method').forEach((b) => b.addEventListener('click', () => setMethod(b.dataset.method)));
-setMethod('solefresh');
+/** The part of the product that answers the picked option, lit while the stage is on screen. */
+function focusWhy() { if (world) world.setFocus(state.stage === 'why' ? WHY.alternatives.find((x) => x.id === state.method)?.parts || null : null); }
+$$('.method[data-alt]').forEach((b) => b.addEventListener('click', () => setAlt(b.dataset.alt)));
 
 // ---------------------------------------------------------- story --
 $$('[data-ms]').forEach((b) => b.addEventListener('click', () => {
@@ -795,7 +790,7 @@ if (tier !== 'poster') {
 } else html.classList.add('gl-off');
 
 // Verification hooks. Inert unless called.
-window.__sf = { get tier() { return tier; }, state, select, setStep, inside: { loadAll, refill, inspect, back }, setColor, setSizeId, setMethod, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+window.__sf = { get tier() { return tier; }, state, select, setStep, inside: { loadAll, refill, inspect, back }, setColor, setSizeId, setAlt, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
 // Entrance fades exist only once this script has run to its end (styles.css keys them on .sf-ready): if it fails to
 // load, or throws on the way, every stage simply stays visible. Whatever is on screen now is marked in first, so it does not blink.
 stages.forEach((s) => { const r = s.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) s.classList.add('is-in'); });

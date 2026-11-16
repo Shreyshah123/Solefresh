@@ -279,22 +279,26 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 /* ============================================================== STAGE 6 == */
-.why { display: grid; align-items: center; justify-items: end; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
-.why__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s4); }
-.why__lede { margin: 0; color: var(--ink-2); max-width: 44ch; }
-.methods { display: flex; flex-wrap: wrap; gap: .5rem; }
-.method { min-height: 2.5rem; font-size: .88rem; }
-.why__legend { margin: 0; min-height: 1.5em; font: 500 .95rem/1.4 var(--font-display); color: var(--ink); }
-.week__action { display: none; } /* phones say the routine's action once, above the days */
-.week { list-style: none; margin: 0; padding: var(--s4); display: grid; grid-template-columns: repeat(7, 1fr); gap: .4rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); position: relative; }
-.day { display: grid; justify-items: center; gap: .35rem; padding: .5rem .2rem .4rem; border-radius: var(--r-sm); background: var(--bone); text-align: center; opacity: 0; transform: translateY(6px); }
-.day.is-anim { animation: day-in 240ms var(--ease) forwards; animation-delay: calc(var(--i) * 32ms); }
-@keyframes day-in { to { opacity: 1; transform: none; } }
-.day__icon { width: 30px; height: 30px; }
-.day__icon svg { width: 100%; height: 100%; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.day__mark { font: 600 .66rem/1.2 var(--font-display); color: var(--ink-soft); min-height: 1.2em; letter-spacing: .02em; }
-.day__name { font: 500 .78rem/1 var(--font-text); color: var(--ink-2); }
-.why__fine { margin: 0; color: var(--ink-soft); font-size: .82rem; }
+.why { display: grid; align-items: center; justify-items: end; padding: var(--s5) var(--gutter); }
+.why h2 { font-size: clamp(1.7rem, 1rem + 1.6vw, 2.7rem); }
+.why__panel { position: relative; z-index: 2; width: min(47rem, 66%); display: grid; gap: var(--s3); }
+.why__lede { margin: 0; color: var(--ink-2); max-width: 62ch; font-size: .95rem; line-height: 1.5; }
+.methods { display: flex; flex-wrap: wrap; gap: .4rem; }
+.method { min-height: 2.4rem; padding: 0 .85rem; font-size: .86rem; }
+/* the comparison: what you use now beside SoleFresh, row for row */
+.vs { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); overflow: hidden; font-size: .86rem; line-height: 1.4; color: var(--ink-2); }
+.vs th, .vs td { padding: .45rem .8rem; text-align: left; vertical-align: top; }
+.vs tbody th, .vs tbody td { border-top: 1px solid var(--hair); }
+.vs thead th { font: 600 .95rem/1.2 var(--font-display); color: var(--ink); padding-block: .6rem; }
+.vs th:first-child { width: 8.6rem; }
+.vs tbody th { font: 600 .78rem/1.35 var(--font-display); color: var(--ink-soft); }
+.vs .vs__us { background: color-mix(in oklab, var(--cobalt) 6%, var(--surface)); color: var(--ink); }
+.vs thead .vs__us { color: var(--cobalt); }
+.why__take { margin: 0; font: 500 .98rem/1.4 var(--font-display); color: var(--ink); min-height: 2.8em; }
+.why__take b { display: block; font: 600 .75rem/1.4 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--cobalt); }
+.why__foot { display: flex; align-items: center; gap: var(--s4); }
+.why__foot .btn { flex: none; }
+.why__fine { margin: 0; color: var(--ink-soft); font-size: .8rem; line-height: 1.4; }
 
 /* ============================================================== STAGE 7 == */
 .story, .faqs { display: grid; align-items: center; justify-items: end; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
@@ -457,15 +461,10 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .why, .story, .faqs { display: block; justify-items: normal; padding: var(--s6) var(--gutter); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
   .why__panel, .story__panel, .faq__panel { width: auto; }
   .method { min-height: 2.75rem; }
-  .why__panel { gap: var(--s3); }
-  .week__action { display: flex; align-items: center; gap: var(--s3); margin: 0; font: 600 1.05rem/1.2 var(--font-display); color: var(--ink); }
-  .week__icon { flex: none; width: 2rem; height: 2rem; }
-  .week__icon svg { width: 100%; height: 100%; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .week { padding: var(--s2); gap: .25rem; }
-  .day { padding: .55rem 0; gap: 0; }
-  .day__icon { display: none; }
-  .day__mark { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* said once above; still read out with each day */
-  .day__name { font: 600 .82rem/1 var(--font-display); }
+  .why__foot { flex-direction: column; align-items: stretch; gap: var(--s3); }
+  .why__foot .btn { min-height: 3rem; }
+  .vs th:first-child { width: 6.2rem; }
+  .vs th, .vs td { padding: .5rem .6rem; }
   /* story */
   .timeline { grid-template-columns: 1fr; gap: 0; }
   .timeline::before { left: 9px; right: auto; top: 12px; bottom: 12px; width: 2px; height: auto; }
@@ -517,6 +516,18 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .field input, .field select, .field textarea { min-height: 2.5rem; padding-block: .35rem; }
   .field textarea { min-height: 2.5rem; }
   .radio { min-height: 2.25rem; }
+  .why { padding-block: var(--s3); }
+  .why__panel { gap: var(--s2); width: min(50rem, 66%); }
+  .why h2 { font-size: clamp(1.5rem, 1rem + 1.2vw, 2rem); }
+  .why__lede { font-size: .86rem; line-height: 1.4; }
+  .method { min-height: 2.05rem; font-size: .8rem; }
+  .vs { font-size: .8rem; line-height: 1.3; }
+  .vs th, .vs td { padding: .26rem .7rem; }
+  .vs thead th { padding-block: .35rem; font-size: .88rem; }
+  .why__take { min-height: 0; font-size: .9rem; }
+  .why__take b { display: inline; margin-right: .5rem; }
+  .why__foot .btn { min-height: 2.3rem; }
+  .why__fine { font-size: .74rem; line-height: 1.3; }
   .faq { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s6); align-items: start; }
   .faq__panel { width: min(60rem, 72%); }
   .faq__item summary { padding: .6rem 0; font-size: .94rem; }

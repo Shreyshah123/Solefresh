@@ -14,7 +14,8 @@ const outside = (id) => { const [l, w, h] = MODEL.sizes[id].outsideMm.map(Math.r
 const hasContact = (C.brand.contactEmail || '').includes('@');
 const contact = hasContact ? `<a href="mailto:${attr(C.brand.contactEmail)}">${esc(C.brand.contactEmail)}</a>` : '';
 const PILOT = C.nav.links.find((l) => l.id === 'bulk').anchor;
-const startMethod = C.why.methods.find((m) => m.id === 'solefresh');
+const WHY = C.why, startAlt = WHY.alternatives.find((m) => m.id === WHY.start) || WHY.alternatives[0];
+const cell = (m, r) => esc(m[r.id] ?? WHY.unmeasured);   // a row nobody has measured says so, for every option alike
 
 const html = `<!doctype html>
 <html lang="en" class="no-js">
@@ -226,17 +227,22 @@ const html = `<!doctype html>
 <!-- =============================================== STAGE 7: WHY SOLEFRESH == -->
 <section class="stage why" id="why" data-product="why" aria-labelledby="h-why">
   <div class="why__panel stage__in">
-    <h2 id="h-why">${esc(C.why.heading)}</h2>
-    <p class="why__lede">${esc(C.why.lede)}</p>
-    <div class="methods" role="group" aria-label="Routine">
-      ${C.why.methods.map((m) => `<button type="button" class="method" data-method="${m.id}" aria-pressed="${m.id === 'solefresh'}">${esc(m.label)}</button>`).join('\n      ')}
+    <h2 id="h-why">${esc(WHY.heading)}</h2>
+    <p class="why__lede">${esc(WHY.lede)}</p>
+    <div class="methods" role="group" aria-label="${attr(WHY.groupLabel)}">
+      ${WHY.alternatives.map((m) => `<button type="button" class="method" data-alt="${m.id}" aria-pressed="${m === startAlt}">${esc(m.label)}</button>`).join('\n      ')}
     </div>
-    <p class="why__legend" data-legend aria-live="polite">${esc(startMethod.legend)}</p>
-    <p class="week__action" aria-hidden="true"><span class="week__icon" data-week-icon></span><span data-week-mark>${esc(startMethod.mark)}</span></p>
-    <ol class="week" data-week aria-label="One week">
-      ${C.why.days.map((d, i) => `<li class="day" style="--i:${i}"><span class="day__icon" data-day-icon aria-hidden="true"></span><span class="day__mark" data-day-mark>${esc(startMethod.mark)}</span><span class="day__name">${esc(d)}</span></li>`).join('\n      ')}
-    </ol>
-    <p class="why__fine">${esc(C.why.fine)}</p>
+    <table class="vs">
+      <thead><tr><th scope="col"><span class="vh">${esc(WHY.compareLabel)}</span></th><th scope="col" data-alt-name>${esc(startAlt.label)}</th><th scope="col" class="vs__us">${esc(WHY.solefresh.label)}</th></tr></thead>
+      <tbody>
+        ${WHY.rows.map((r) => `<tr><th scope="row">${esc(r.label)}</th><td data-alt-cell="${r.id}">${cell(startAlt, r)}</td><td class="vs__us">${cell(WHY.solefresh, r)}</td></tr>`).join('\n        ')}
+      </tbody>
+    </table>
+    <p class="why__take" aria-live="polite"><b>${esc(WHY.takeawayLabel)}</b> <span data-alt-take>${esc(startAlt.takeaway)}</span></p>
+    <div class="why__foot">
+      <a class="btn btn--accent" href="#${PILOT}" data-jump="bulk" data-bulk>${esc(C.nav.bulk)}</a>
+      <p class="why__fine">${esc(WHY.fine)}</p>
+    </div>
   </div>
 </section>
 

@@ -99,7 +99,7 @@ export class ProductSlot extends THREE.Group {
     this.scenes = {};                // size id -> Promise of the loaded scene
     this.edgeGeo = {};               // size:part -> sketch edges
     this.state = { explode: 0, wire: 0, ghost: 0, highlight: 0, selected: -1 };
-    this.cur = { highlight: 0, sel: PARTS.map(() => 0) };
+    this.cur = { highlight: 0, sel: PARTS.map(() => 0), lit: PARTS.map(() => 0), see: 0 };
     this.cord = { swing: 0, lay: 0 };
     this.viewer = new THREE.Vector3(0, 0, 10); // the camera, set by the world: a popped part turns toward it
     this.drag = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, held: false };
@@ -249,6 +249,11 @@ export class ProductSlot extends THREE.Group {
   blink(name) { const L = this.parts[PARTS.indexOf(name)]; if (L) L.blinkAt = performance.now(); }
   /** How many of the fills are in the housing right now (a part on its way counts once it is most of the way back). */
   fillsIn() { return this.parts.filter((L) => FILLS.includes(L.name) && L.pop.p < 0.25 && L.pop.to === 0).length; }
+  /**
+   * Light some parts and quieten the rest (the comparison stage): names from PARTS, or null for none. A lit part takes a
+   * little of the accent; if one of them is inside the closed housing, the shell goes see-through so it shows.
+   */
+  setFocus(names) { this.state.focus = names && names.length ? names : null; }
   /** The pull cord about the heel window: swing + droops it, - lifts it; lay turns the ring from upright to flat. Radians. */
   setCord(swing, lay) { this.cord.swing = swing; this.cord.lay = lay; }
   /** Customize: drag deltas in px turn the product; release eases it back to the pose. */
@@ -378,8 +383,12 @@ export class ProductSlot extends THREE.Group {
     if (!Number.isFinite(s.highlight)) s.highlight = 0; if (!Number.isFinite(c.highlight)) c.highlight = s.highlight; // never let a NaN stick
     const nh = reduced ? s.highlight : approach(c.highlight, s.highlight, dt, 6);
     if (Math.abs(nh - c.highlight) > 1e-4) moving = true; c.highlight = nh;
+    const wantSee = s.focus && s.focus.some((n) => HIDDEN_WHEN_CLOSED.has(n)) ? 1 : 0, ns = reduced ? wantSee : approach(c.see, wantSee, dt, 6);
+    if (Math.abs(ns - c.see) > 1e-4) moving = true; c.see = Math.abs(ns - wantSee) < 2e-3 ? wantSee : ns;
     for (let i = 0; i < this.parts.length; i++) {
-      const t = s.selected < 0 ? 0 : (i === s.selected ? 1 : -1);
+      const lit = s.focus && s.focus.includes(PARTS[i]) ? 1 : 0, nl = reduced ? lit : approach(c.lit[i], lit, dt, 6);
+      if (Math.abs(nl - c.lit[i]) > 1e-4) moving = true; c.lit[i] = Math.abs(nl - lit) < 2e-3 ? lit : nl;
+      const t = s.focus ? (lit ? 0 : -1) : s.selected < 0 ? 0 : (i === s.selected ? 1 : -1);
       const n = reduced ? t : approach(c.sel[i], t, dt, 7);
       if (Math.abs(n - c.sel[i]) > 1e-4) moving = true; c.sel[i] = n;
     }
@@ -395,10 +404,10 @@ export class ProductSlot extends THREE.Group {
       this.#partOffset(L, s.explode, L.group.position);
       if (L.pop.p > 0) this.#popAt(L, L.pop.p, L.group.position); else L.group.quaternion.identity();
       if (L.name === 'pull_cord') L.pivot.rotation.set(this.cord.lay, 0, -this.cord.swing, 'ZXY');
-      const dim = Math.max(0, -sel), glow = c.highlight * 0.35;       // a popped part keeps its own colour: leaving the stack is what marks it
+      const dim = Math.max(0, -sel), glow = Math.max(c.highlight * 0.35, c.lit[i] * 0.2);       // a popped part keeps its own colour: leaving the stack is what marks it
       for (const { m, base, baseI } of L.mats) {
         m.emissive.copy(base).lerp(ACCENT, Math.min(1, glow)); m.emissiveIntensity = baseI * (1 - glow) + glow;
-        m.opacity = (1 - dim * DIM) * (1 - s.wire * 0.72) * (SHELL.has(L.name) ? 1 - s.ghost * GHOST : 1) * (1 - L.blink);
+        m.opacity = (1 - dim * DIM) * (1 - s.wire * 0.72) * (SHELL.has(L.name) ? 1 - Math.max(s.ghost, c.see) * GHOST : 1) * (1 - L.blink);
         m.depthWrite = m.opacity > 0.5;
         m.visible = m.opacity > 0.01;
       }
