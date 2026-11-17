@@ -115,6 +115,7 @@ function landFirst() {
 
 // Current stage in the nav, and stage content arriving with one short fade.
 const stages = $$('[data-product]');
+const ROOMS = stages.map((s) => !!s.querySelector('.room'));   // the stages whose product has a .room in the compact layout
 const links = $$('[data-jump]').filter((a) => a.classList.contains('nav__link') || a.classList.contains('menu__link'));
 const stageIO = new IntersectionObserver((entries) => { for (const e of entries) e.target.classList.toggle('is-in', e.isIntersecting); }, { threshold: 0.18 });
 stages.forEach((s) => stageIO.observe(s));
@@ -170,7 +171,9 @@ function onScroll(force = false) {
   // In the compact layout a stage taller than its screen has inner rest points, and its product sits in a .room in the
   // text: between the stage's first and last rest the picture moves with the page, so the product stays in its room. On
   // the way to the next stage that offset eases out with the travel.
-  if (world && !narrow) world.setPan(!COMPACT.matches ? 0 : u >= 1 || u === 0 ? -clamp(y - tops[at], 0, snap.spans[at] || 0) : -(snap.spans[at - 1] || 0) * (1 - u));
+  // (only a stage with a room: the rack behind the pilot form is a backdrop and stays where it is)
+  const roomSpan = (i) => (ROOMS[i] ? snap.spans[i] || 0 : 0);
+  if (world && !narrow) world.setPan(!COMPACT.matches ? 0 : u >= 1 || u === 0 ? -clamp(y - tops[at], 0, roomSpan(at)) : -roomSpan(at - 1) * (1 - u));
   const key = `${wf}>${wt}@${wu.toFixed(3)}`;
   if (key !== lastKey) { lastKey = key; if (world) world.setTravel(wf, wt, wu, below ? wu : uLeave); }
   const tv = u > 0 && u < 1 ? `${from}>${to}` : '';
