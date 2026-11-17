@@ -567,7 +567,7 @@
       },
       {
         "heading": "This site",
-        "text": "This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type. Its fonts load from Google Fonts, so Google receives your IP address. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel."
+        "text": "This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type, and the level of 3D detail your device handles. Its fonts are served from this site. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel."
       },
       {
         "heading": "Your choices",

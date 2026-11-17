@@ -182,8 +182,21 @@ function setStage(stage) {
   showPoster();
   updateOverlayVisibility();
 }
-/** Without a live product the poster stands in for it, stage by stage. */
-function showPoster() { if (worldReady) return; const img = $('[data-poster-img]'), st = state.stage, want = st === 'explorer' ? `assets/posters/${state.audience}.webp` : `assets/posters/${st}.webp`; if (img && !img.src.endsWith(want)) img.src = want; }
+/**
+ * Without a live product a still stands in for it, and it follows every control: the audience, the step, what is loaded
+ * or picked out Inside, the colour and size, the option being compared. A label never disagrees with the picture.
+ * The files are made by lab/posters.mjs: keep the names in step.
+ */
+function posterName() {
+  const st = state.stage, i = state.inside;
+  if (st === 'explorer') return state.audience;
+  if (st === 'how') return `how-${state.step}`;
+  if (st === 'inside') return i.part ? `inside-${i.part}` : i.loaded ? 'inside-loaded' : 'inside-apart';
+  if (st === 'customize') return `customize-${state.color}-${state.size}`;
+  if (st === 'why') return `why-${state.method}`;
+  return st;
+}
+function showPoster() { if (worldReady) return; const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`; if (img && !img.src.endsWith(want)) img.src = want; }
 addEventListener('scroll', () => onScroll(), { passive: true });
 // A resize moves every stage: the page goes with the place it was resting on, unless the visitor is working in a form or the FAQ.
 let lastW = innerWidth;
@@ -494,6 +507,7 @@ function setStep(i, { focus = false, play = true } = {}) {
   steps.forEach((b, k) => { b.setAttribute('aria-selected', String(k === i)); b.tabIndex = k === i ? 0 : -1; if (k === i && focus) b.focus(); });
   const cap = $('[data-step-caption]'); cap.textContent = C.how.steps[i].caption; cap.setAttribute('aria-labelledby', `step-${i}`);
   if (play && world && state.stage === 'how') world.playStep(i);
+  showPoster();
 }
 function onStepProgress(i, p, done) {
   if (i < 0) { // the stage was left: back to Step 1 (only touching the DOM where something changed, as this runs mid-scroll)
@@ -627,6 +641,7 @@ function setColor(id) {
   $$('.swatch[data-color]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.color === id)));
   $('[data-color-name]').textContent = sw.name;
   if (world) world.setColors({ shell: sw.hex }, 300);
+  showPoster();
 }
 const sizeButtons = $$('.size[data-size]'), sizeLabel = $('[data-size-label]');
 const outside = (id) => { const [l, w, h] = MODEL.sizes[id].outsideMm.map(Math.round); return cz.sizeOutside.replace('{l}', l).replace('{w}', w).replace('{h}', h); };
@@ -634,7 +649,7 @@ async function setSizeId(id) {
   const sz = cz.sizes.find((s) => s.id === id); if (!sz) return;
   state.size = id;
   sizeButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.size === id)));
-  if (!worldReady || world.slot.sizeId === id) { sizeLabel.textContent = outside(id); sizeLabel.classList.remove('is-loading'); return; }
+  if (!worldReady || world.slot.sizeId === id) { sizeLabel.textContent = outside(id); sizeLabel.classList.remove('is-loading'); showPoster(); return; }
   sizeLabel.textContent = cz.sizeLoading.replace('{size}', sz.label); sizeLabel.classList.add('is-loading');
   try {
     await world.setModel(id);
@@ -735,7 +750,7 @@ function setAlt(id) {
   $('[data-alt-name]').textContent = m.label;
   for (const r of WHY.rows) $(`[data-alt-cell="${r.id}"]`).textContent = m[r.id] ?? WHY.unmeasured;
   $('[data-alt-take]').textContent = m.takeaway;
-  focusWhy();
+  focusWhy(); showPoster();
 }
 /** The part of the product that answers the picked option, lit while the stage is on screen. */
 function focusWhy() { if (world) world.setFocus(state.stage === 'why' ? WHY.alternatives.find((x) => x.id === state.method)?.parts || null : null); }
@@ -757,6 +772,7 @@ let tier = pickTier();
 function toPosters(why) {
   if (why) console.warn(why);
   html.classList.remove('gl-live'); html.classList.add('gl-off');
+  tier = 'poster'; html.dataset.tier = tier;
   if (world) { world.dispose(); world = null; } worldReady = false; window.__sf.world = null;
   showPoster(); updateOverlayVisibility();
 }

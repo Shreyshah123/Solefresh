@@ -1,5 +1,8 @@
 /* SoleFresh. Cobalt on bone. Two families, one accent, a 4px spacing scale.
-   Fonts are provisional (owner may change them): swap the two font tokens. */
+   Fonts are provisional (owner may change them): swap the two font tokens. They are served from this site (assets/fonts/,
+   the latin subsets of the variable fonts, SIL Open Font License), so the first paint does not wait on another origin. */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/inter-latin.woff2) format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 500 600; font-display: swap; src: url(assets/fonts/space-grotesk-latin.woff2) format("woff2"); }
 :root {
   --top: calc(var(--nav-h) + env(safe-area-inset-top, 0px));
   --bone: #F1EFEA; --bone-2: #E9E6DF; --surface: #FFFFFF; --ink: #15171C; --ink-2: #2A2D35; --ink-soft: #565B66;
