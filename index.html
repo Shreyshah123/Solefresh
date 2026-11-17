@@ -75,10 +75,11 @@
 <div class="warm" aria-hidden="true" inert><div class="warm__card"><select><option>a</option></select><textarea rows="1"></textarea><input type="text"><input type="radio"><button type="button">b</button><details open><summary>s</summary><p>p</p></details><span class="swatches"><span class="swatch" style="--sw1:#E9E7E1;--sw2:#2346FF"><span class="swatch__chip"><span class="swatch__dot"></span></span></span><span class="swatch" aria-pressed="true" style="--sw1:#2346FF;--sw2:#F1EFEA"><span class="swatch__chip"><span class="swatch__dot"></span></span></span></span><span class="sizes"><span class="size">a</span><span class="size" aria-pressed="true">b</span></span><span class="layer-btn">a</span><span class="layer-btn" aria-pressed="true">b</span></div></div>
 
 <main>
-<!-- .pin holds the stages that use the product. On wide screens the world is one fixed layer behind the whole
-     page and makes exactly one scroll-linked move per transition. Under 900px it is a band pinned under the nav,
-     as tall as each section needs, while these stages scroll beneath it, and it scrolls away with the end of .pin,
-     before the Bulk form. On short landscape screens it sits beside them instead. -->
+<!-- .pin holds the stages that use the product. With a mouse or trackpad (and on tablets) the world is one fixed
+     layer behind the whole page and makes exactly one scroll-linked move per transition; each stage is one screen,
+     and under 900px wide its .room is the space the product is framed into. On phones it is a band pinned under the
+     nav, as tall as each section needs, while these stages scroll beneath it, and it scrolls away with the end of
+     .pin, before the Bulk form. On short landscape screens it sits beside them instead. -->
 <div class="pin">
 <div class="world" data-world aria-hidden="true">
   <picture class="world__poster" data-poster>
@@ -109,6 +110,7 @@
       <figure class="who__thumb" aria-hidden="true" data-thumb><img alt="" width="360" height="240" data-thumb-img></figure>
     </div>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <aside class="panel stage__in" id="panel" role="tabpanel" aria-labelledby="tab-bowling">
     <figure class="panel__thumb" aria-hidden="true"><img alt="" width="360" height="240" data-panel-thumb></figure>
     <p class="panel__for" data-panel-for>For bowling centers</p>
@@ -130,6 +132,7 @@
     <h2 id="h-what">What it does.</h2>
     <p class="what__lede">Three jobs in one reusable insert.</p>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <!-- always open, plain HTML: nothing here depends on WebGL or a hover -->
   <div class="what__low">
     <ul class="hs-cards" role="list" data-hs-cards>
@@ -144,6 +147,7 @@
 <!-- ================================================ STAGE 3: HOW IT WORKS == -->
 <section class="stage how stage--full" id="how" data-product="how" aria-labelledby="h-how">
   <div class="how__head stage__in"><h2 id="h-how">How it works.</h2></div>
+  <div class="room" aria-hidden="true"></div>
   <div class="how__bar stage__in">
     <p class="how__caption" id="step-panel" role="tabpanel" aria-labelledby="step-0" data-step-caption aria-live="polite">After a game, a session, practice or a shift.</p>
     <div class="steps" role="tablist" aria-label="Steps">
@@ -167,6 +171,7 @@
     <button type="button" class="layer-btn" data-comp="scent" aria-pressed="false">Scent</button>
     <button type="button" class="layer-btn" data-comp="cord" aria-pressed="false">Pull cord</button>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <aside class="sheet" data-sheet aria-live="polite">
     <div class="sheet__body">
       <p class="sheet__count" data-load-count>0 of 3 in the housing</p>
@@ -193,6 +198,7 @@
     <h2 id="h-customize">Sizes and colors.</h2>
     <p class="customize__lede">Three housing sizes and four prototype colors. <span class="fine-only">Drag the product to turn it.</span><span class="touch-only">Drag the product sideways to turn it.</span></p>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <div class="customize__drag" data-drag aria-hidden="true"></div>
   <div class="customize__turn stage__in" data-turn hidden><button type="button" class="turn" data-turn-by="-1" aria-label="Turn left"><span aria-hidden="true">&larr;</span></button><button type="button" class="turn" data-turn-by="1" aria-label="Turn right"><span aria-hidden="true">&rarr;</span></button></div>
   <div class="customize__side customize__side--color stage__in">
@@ -247,6 +253,7 @@
 <section class="stage why" id="why" data-product="why" aria-labelledby="h-why">
   <div class="why__panel stage__in">
     <h2 id="h-why">Compared with what's on your shelf.</h2>
+    <div class="room" aria-hidden="true"></div>
     <p class="why__lede">Pick what you use now. This compares how each is handled, not how well it works: we haven't measured performance yet.</p>
     <div class="methods" role="group" aria-label="What you use now">
       <button type="button" class="method" data-alt="spray" aria-pressed="true">Sprays</button>
@@ -279,6 +286,7 @@
 <section class="stage story" id="story" data-product="story" aria-labelledby="h-story">
   <div class="story__panel stage__in">
     <h2 id="h-story">Our story.</h2>
+    <div class="room" aria-hidden="true"></div>
     <p class="story__line">SoleFresh is a student-founded startup, developed through INCubatoredu, a high school entrepreneurship program.</p>
     <ol class="timeline" aria-label="Development timeline">
       <li class="milestone"><button type="button" class="milestone__btn" data-ms="concept" aria-pressed="false" ><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">Concept</span></button></li>
@@ -295,6 +303,7 @@
 <section class="stage faqs" id="faq" data-product="faq" aria-labelledby="h-faq">
   <div class="faq__panel stage__in">
     <h2 id="h-faq">Questions.</h2>
+    <div class="room" aria-hidden="true"></div>
     <div class="faq">
       <details class="faq__item" name="faq"><summary>What is SoleFresh?</summary><p>A reusable insert you place in a shoe between wears. One 3D-printed housing is designed to hold a moisture pouch, an odor pouch and scent beads.</p></details>
       <details class="faq__item" name="faq"><summary>How do you use it?</summary><p>Drop one in each shoe, narrow end first, when the shoes aren't being worn. Pull it out by its cord before they're worn again.</p></details>
@@ -312,6 +321,7 @@
 <section class="stage close" id="close" data-product="close" aria-labelledby="h-close">
   <div class="close__wrap stage__in">
     <h2 id="h-close">Want to try SoleFresh?</h2>
+    <div class="room" aria-hidden="true"></div>
     <div class="paths">
       <div class="path">
         <p class="path__label">For organizations</p>

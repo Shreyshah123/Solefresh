@@ -92,7 +92,7 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 .gl-live .world__gl { opacity: 1; }
 .gl-live .world__poster { visibility: hidden; }
 /* Bulk: the rack sits softened behind the content (a bone veil, no blur filter) */
-@media (min-width: 900px) and (min-height: 561px) { html[data-stage="bulk"] .world__gl, html[data-stage="bulk"] .world__poster { opacity: .85; } }
+@media (min-width: 768px) and (min-height: 561px), (min-width: 480px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (min-height: 561px) and (pointer: none) { html[data-stage="bulk"] .world__gl, html[data-stage="bulk"] .world__poster { opacity: .85; } }
 .overlay { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
 .overlay__lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .overlay__lines line { stroke: var(--cobalt); stroke-width: 1.5; opacity: 0; transition: opacity 160ms var(--ease); }
@@ -111,10 +111,11 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 main { position: relative; z-index: 1; padding-top: var(--top); }
 /* Every stage is at least one view tall (the window less the nav). The first five are exactly one view: their content is
    placed in it. The later ones (.stage without --full) are one view when their content fits, and grow when it cannot (a
-   short window): src/main.js then gives them inner rest points. The floor is the smallest view the wide layout is drawn for:
-   a window 561px tall (see NARROW), less the nav. */
+   short or narrow window): src/main.js then gives them inner rest points, each starting at a line that was not yet whole.
+   The floor is the smallest view the full-screen layout is drawn for: a window 561px tall (see NARROW), less the nav. */
 .stage { position: relative; background: transparent; min-height: calc(100vh - var(--top)); min-height: var(--view); }
 .stage--full { height: calc(100vh - var(--top)); height: var(--view); min-height: 496px; overflow: clip; }
+.room { display: none; } /* the product's space in the compact layout (see there) */
 /* arrival: one short fade and rise, never scroll-linked. It exists only once src/main.js has run to its end and added
    .sf-ready: without the script, or if it fails, everything is simply visible. The first stage never fades: it is the first
    thing painted. */
@@ -369,14 +370,15 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .doc p { margin: 0; color: var(--ink-2); text-wrap: pretty; }
 .doc__intro { margin-top: var(--s4) !important; font-size: 1.05rem; }
 
-/* ====================================================== phones, tablets == */
-/* Under 900px, and in windows under 561px tall (keep in step with NARROW in src/main.js). This is the stacked layout: each
+/* ================================================================ phones == */
+/* Phones (a coarse pointer under 768px wide), and any window under 480px wide or 561px tall (keep in step with NARROW in
+   src/main.js). A mouse or trackpad window keeps the full-screen website down to those sizes (see compact, below). This is the stacked layout: each
    section's height is its content's. The product is a band pinned under the nav by position: sticky while the stages that
    use it (.pin) scroll beneath it; it leaves with the end of .pin, so the form, the comparison, the Story and the FAQ have
    the whole screen. --band-* is how much of the screen each section gives it: bounded both ways, and held back by the
    width where a wide scene would only add empty space. The canvas keeps the tallest of them (the hero's) and --band-now
    shows as much as the section has, so nothing resizes during a scroll. src/world.js frames each section to its band. */
-@media (max-width: 899px), (max-height: 560px) {
+@media (max-width: 479px), (max-height: 560px), (pointer: coarse) and (max-width: 767px) {
   :root {
     --nav-h: 3.5rem;
     --band-explorer: clamp(12rem, 37svh, 24rem);
@@ -551,8 +553,8 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .path { padding: var(--s4); gap: var(--s2); }
   .footer { margin-top: var(--s3); padding-block: var(--s3); }
 }
-/* tablets in portrait and narrow desktop windows: the same order, with the room used */
-@media (min-width: 600px) and (max-width: 899px) and (min-height: 561px) {
+/* large phones and small tablets in the stacked layout: the same order, with the room used */
+@media (min-width: 600px) and (max-width: 767px) and (min-height: 561px) and (pointer: coarse) {
   .hs-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
   .hs-card, .hs-card:last-child { padding: var(--s3) 0; border-bottom: 0; }
   .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -564,6 +566,129 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .radios { display: flex; } .radio { justify-content: flex-start; }
   .form { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .form > .field--half { grid-column: span 3; } .form > .field--third { grid-column: span 2; }
+}
+/* ============================================================= compact == */
+/* The full-screen website in a narrow or tall window: a mouse or trackpad window under 900px wide, a tablet in portrait.
+   Every stage is still one screen and one rest point. Its text sits above, below or beside a .room, and src/world.js
+   frames the product into that room for the window's shape (src/main.js measures it). Keep in step with COMPACT in
+   src/main.js. */
+@media (min-width: 768px) and (max-width: 899px) and (min-height: 561px), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: none) {
+  :root { --stage-top: clamp(1rem, 3.4vh, 2.5rem); --stage-bottom: clamp(.9rem, 3vh, 2.25rem); }
+  h2 { font-size: clamp(1.65rem, min(5.2vw, 4.4vh), 2.6rem); }
+  .room { display: block; min-width: 0; min-height: 0; }
+  .stage--full { display: grid; gap: var(--s3); padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+  .stage--full > * { position: static; inset: auto; translate: none; width: auto; max-width: none; margin: 0; }
+  /* stage 1: what it is above; who it's for; the product beside the audience's card */
+  .explorer { grid-template: "intro intro" auto "who who" auto "room panel" minmax(0, 1fr) / minmax(0, 1fr) minmax(0, 1fr); }
+  .explorer__left { display: contents; }
+  .explorer__intro { grid-area: intro; }
+  .explorer h1 { font-size: clamp(1.7rem, min(6.2vw, 5.2vh), 3rem); }
+  .explorer__chip { margin-bottom: var(--s2); }
+  .explorer__lede { margin-top: var(--s2); font-size: clamp(.88rem, 1.9vh, 1rem); line-height: 1.45; max-width: 52ch; }
+  .who { grid-area: who; }
+  .who__label { margin-bottom: var(--s2); }
+  .who__list { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .who__item, .who__item:last-child { min-height: 2.25rem; padding: 0 .85rem; border: 1px solid var(--hair-strong); border-radius: var(--r-pill); font-size: .86rem; }
+  .who__item::before { display: none; }
+  .who__item[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bone); }
+  .who__thumb { display: none; }
+  .explorer > .room { grid-area: room; }
+  .panel { grid-area: panel; align-self: end; padding: var(--s4); gap: var(--s2); }
+  .panel__line { font-size: 1rem; }
+  .panel__note { margin-bottom: var(--s2); font-size: .86rem; }
+  /* stage 2: heading, the product, the three cards */
+  .what { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .what__lede { margin-top: var(--s2); font-size: .95rem; }
+  .what__low { gap: var(--s3); }
+  .what__low > * { width: auto; }
+  .hs-cards { gap: var(--s3); }
+  .hs-card { padding: var(--s3) var(--s4); }
+  .hs-card__label { font-size: .98rem; }
+  .hs-card__text { font-size: .84rem; line-height: 1.4; }
+  .what__note { font-size: .84rem; line-height: 1.4; }
+  /* stage 3: heading, the shoes, the steps */
+  .how { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .how__bar { gap: var(--s3); }
+  .how__caption { font-size: 1rem; min-height: 2.8em; max-width: none; }
+  .step { min-height: 2.9rem; padding: .45rem .75rem; gap: .6rem; font-size: .88rem; }
+  /* stage 4: heading; the product beside the card; the chips */
+  .inside { grid-template: "head head" auto "room sheet" minmax(0, 1fr) "list list" auto "note note" auto / minmax(0, 1fr) minmax(0, 1fr); }
+  .inside__head { grid-area: head; }
+  .inside__lede { margin-top: var(--s2); font-size: .95rem; line-height: 1.45; }
+  .inside > .room { grid-area: room; }
+  .sheet { grid-area: sheet; align-self: center; }
+  .sheet__body { padding: var(--s4); gap: var(--s2); }
+  .sheet__role, .sheet__foot { font-size: .88rem; line-height: 1.4; }
+  .inside__list { grid-area: list; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
+  .layer-btn { justify-self: stretch; justify-content: center; min-height: 2.4rem; padding: 0 .5rem; }
+  .inside__note { grid-area: note; text-align: left; font-size: .8rem; }
+  /* sizes and colors: heading, the product (turn it there), the two choices */
+  .customize { grid-template: "head head" auto "room room" minmax(0, 1fr) "color size" auto "note note" auto / minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s5); }
+  .customize__head { grid-area: head; }
+  .customize__lede { margin-top: var(--s2); font-size: .95rem; line-height: 1.45; max-width: 52ch; }
+  .customize > .room, .customize__drag { grid-area: room; }
+  .customize__drag { position: relative; z-index: 1; }
+  .customize__turn { grid-area: room; align-self: end; justify-self: center; position: relative; z-index: 2; }
+  .customize__side { gap: var(--s2); }
+  .customize__side--color { grid-area: color; }
+  .customize__side--size { grid-area: size; }
+  .customize__fit { font-size: .82rem; }
+  .customize__note { grid-area: note; font-size: .8rem; }
+  /* the pilot form */
+  .bulk { padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+  .bulk__card { padding: var(--s5); gap: var(--s5); }
+  .bulk__lines { margin-top: var(--s3); gap: .35rem; font-size: .9rem; line-height: 1.45; }
+  .form { gap: 1.05rem var(--s3); }
+  .field input, .field select, .field textarea { min-height: 2.5rem; padding-block: .35rem; }
+  .field textarea { min-height: 2.6rem; }
+  .radio { min-height: 2.25rem; }
+  /* the comparison, the story, the questions: one column, the product beside the heading */
+  .why, .story, .faqs { justify-items: stretch; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+  .why__panel, .story__panel, .faq__panel { width: auto; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); column-gap: var(--s4); }
+  .why__panel > *, .story__panel > *, .faq__panel > * { grid-column: 1 / -1; }
+  .why__panel > h2, .why__lede, .story__panel > h2, .story__line, .faq__panel > h2 { grid-column: 1; }
+  .why__panel > .room, .story__panel > .room { grid-column: 2; grid-row: 1 / span 2; min-height: 7rem; }
+  .faq__panel > .room { grid-column: 2; grid-row: 1; min-height: 6rem; }
+  .why__panel { gap: var(--s3); }
+  .why__lede { font-size: .92rem; }
+  .method { min-height: 2.25rem; padding: 0 .75rem; font-size: .82rem; }
+  .vs { font-size: .84rem; }
+  .vs th, .vs td { padding: .4rem .6rem; }
+  .vs th:first-child { width: 6.8rem; }
+  .why__take { min-height: 0; font-size: .92rem; }
+  .why__foot { flex-wrap: wrap; gap: var(--s3); }
+  .story__panel { gap: var(--s4); }
+  .faq__panel { gap: var(--s3); }
+  .faq__item summary { padding: .65rem 0; font-size: .95rem; }
+  /* the close */
+  .close__wrap { grid-template-rows: auto minmax(6rem, 1fr) auto; gap: var(--s3); }
+  .close__wrap > .room { grid-row: 2; }
+  .close h2 { font-size: clamp(1.8rem, min(6vw, 5vh), 3rem); }
+  .paths { gap: var(--s3); }
+  .path { padding: var(--s4); gap: var(--s2); }
+  .footer { margin-top: var(--s3); padding-block: var(--s3); gap: var(--s2) var(--s4); }
+  @media (max-width: 699px) {
+    .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+    .bulk__card { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 559px) { .paths { grid-template-columns: minmax(0, 1fr); } }
+  /* a short one (a laptop window): the comparison and the close drawn tighter, so each still fits one screen */
+  @media (max-height: 760px) {
+    .why__panel { gap: var(--s2); }
+    .why__lede { font-size: .86rem; line-height: 1.4; }
+    .methods { gap: .3rem; }
+    .method { min-height: 2rem; padding: 0 .6rem; font-size: .78rem; }
+    .vs { font-size: .8rem; line-height: 1.3; }
+    .vs th, .vs td { padding: .3rem .55rem; }
+    .vs thead th { padding-block: .4rem; font-size: .88rem; }
+    .why__take { font-size: .88rem; }
+    .why__take b { display: inline; margin-right: .4rem; }
+    .why__foot .btn { min-height: 2.4rem; }
+    .why__fine { font-size: .74rem; line-height: 1.3; }
+    .close__wrap { grid-template-rows: auto minmax(4rem, 1fr) auto; }
+    .path__text { font-size: .9rem; line-height: 1.45; }
+    .footer { margin-top: var(--s2); padding-block: var(--s2); }
+  }
 }
 /* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
 @media (max-height: 560px) and (orientation: landscape) and (min-width: 600px) {

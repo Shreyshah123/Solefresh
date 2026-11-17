@@ -1,6 +1,6 @@
 // SoleFresh landing page.
-// Section-first. With a mouse or trackpad, at any window size, and on touch tablets,
-// the page comes to rest on a stage from the first stage to the footer: wheel,
+// Section-first. With a mouse or trackpad, at any window size, and on touch tablets, the page is the full-screen
+// website (compact under 900px wide) and comes to rest on a stage from the first stage to the footer: wheel,
 // trackpad, keys and touch each move one rest point per gesture, and the settle is
 // a timed Lenis scroll (SNAP_MS for a whole stage). Only phones (a coarse pointer
 // under 768px wide, or a short landscape phone) keep the browser's own scrolling. The ONE
@@ -17,10 +17,13 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const FINE = matchMedia('(hover: hover) and (pointer: fine)');
-const NARROW = matchMedia('(max-width: 899px), (max-height: 560px)'); // keep in step with styles.css: the stacked layout (phones, tablets in portrait, narrow or very short windows)
+const NARROW = matchMedia('(max-width: 479px), (max-height: 560px), (pointer: coarse) and (max-width: 767px)'); // keep in step with styles.css: the stacked layout (phones, and windows too small for anything else)
+// The full-screen website in a narrow or tall window (a mouse or trackpad window under 900px wide, a tablet in portrait):
+// every stage is one screen and the product is framed into its .room. Keep in step with styles.css.
+const COMPACT = matchMedia('(min-width: 768px) and (max-width: 899px) and (min-height: 561px), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: none)');
 const SIDE = matchMedia('(max-height: 560px) and (orientation: landscape) and (min-width: 600px)'); // and within it, short landscape: the product beside the text, not above it
 // Who gets the snap: any fine pointer (mouse, trackpad) at any window size, and touch tablets (768px wide or more and not a
-// phone on its side). The layout (NARROW) and the snap are separate questions: a narrow desktop window is stacked AND snaps.
+// phone on its side). The layout (NARROW, COMPACT) and the snap are separate questions.
 const SNAPQ = matchMedia('(pointer: fine), (min-width: 768px) and (min-height: 500px)');
 const html = document.documentElement;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -137,6 +140,7 @@ function measureStages() {
   snap.measure();
   onScroll(true);
   fitStages();
+  if (!worldReady) placePoster();   // the stills (no live product) go where the stages now are
 }
 let lastKey = '';
 function onScroll(force = false) {
@@ -163,6 +167,10 @@ function onScroll(force = false) {
   // phones: the band has scrolled away by the time Bulk arrives, so the world stays in its last stage below that
   const below = narrow && at > LAST_BAND, wf = below ? stages[LAST_BAND - 1].dataset.product : from, wt = below ? stages[LAST_BAND].dataset.product : to, wu = below ? 1 : u;
   if (narrow) { const k = RM.matches ? (wu < 0.5 ? 0 : 1) : wu * wu * (3 - 2 * wu); setBand((bands[wf] || 0) + ((bands[wt] || 0) - (bands[wf] || 0)) * k); }
+  // In the compact layout a stage taller than its screen has inner rest points, and its product sits in a .room in the
+  // text: between the stage's first and last rest the picture moves with the page, so the product stays in its room. On
+  // the way to the next stage that offset eases out with the travel.
+  if (world && !narrow) world.setPan(!COMPACT.matches ? 0 : u >= 1 || u === 0 ? -clamp(y - tops[at], 0, snap.spans[at] || 0) : -(snap.spans[at - 1] || 0) * (1 - u));
   const key = `${wf}>${wt}@${wu.toFixed(3)}`;
   if (key !== lastKey) { lastKey = key; if (world) world.setTravel(wf, wt, wu, below ? wu : uLeave); }
   const tv = u > 0 && u < 1 ? `${from}>${to}` : '';
@@ -211,8 +219,24 @@ function decodedPoster(url) {
   if (!posterCache.has(url)) { const im = new Image(); im.decoding = 'async'; im.src = url; posterCache.set(url, im.decode().then(() => im, () => im)); }
   return posterCache.get(url);
 }
+// The stills are drawn for the wide layout. In the compact one each goes into its stage's .room (at the stage's rest):
+// the upright hero cropped round the product, the wider scenes whole, and the comparison, Story and FAQ ones cropped to
+// the left, where their product is.
+// [fit, focus, zoom]: a whole wide still has empty margins round the product, so it is shown a little larger, clipped to the room
+const POSTER_FIT = { explorer: ['cover', '50% 50%', 1], why: ['cover', '16% 55%', 1], story: ['cover', '20% 55%', 1], faq: ['cover', '20% 55%', 1], inside: ['contain', '50% 50%', 1.7], customize: ['contain', '50% 50%', 1.4], how: ['contain', '50% 50%', 1.25] };
+let posterKey = '';
+function placePoster() {
+  const key = `${state.stage}/${innerWidth}x${innerHeight}/${COMPACT.matches}/${worldReady}/${tops.join()}`; if (key === posterKey) return; posterKey = key;
+  const pic = $('[data-poster]'), img = $('[data-poster-img]'); if (!pic || !img) return;
+  const i = stages.findIndex((s) => s.dataset.product === state.stage), room = COMPACT.matches && !worldReady && tops.length ? stages[i]?.querySelector('.room') : null;
+  if (!room || room.offsetHeight < 24) { pic.style.cssText = ''; img.style.objectFit = ''; img.style.objectPosition = ''; img.style.transform = ''; return; }
+  const r = room.getBoundingClientRect(), top = pageTop(room) - Math.min(tops[i], Math.max(0, html.scrollHeight - innerHeight)), [fit, at, zoom] = POSTER_FIT[state.stage] || ['contain', '50% 50%', 1.3];
+  pic.style.cssText = `left:${Math.round(r.left)}px;top:${Math.round(top)}px;width:${Math.round(r.width)}px;height:${room.offsetHeight}px;right:auto;bottom:auto;overflow:clip`;
+  img.style.objectFit = fit; img.style.objectPosition = at; img.style.transform = zoom !== 1 ? `scale(${zoom})` : '';
+}
 function showPoster() {
   if (worldReady) return;
+  placePoster();
   const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`;
   if (!img || img.src.endsWith(want) || posterWant === want) return;
   posterWant = want;
@@ -277,19 +301,57 @@ let lenis = null;
 // Steps are queued, not dropped: a same-direction request during a settle is
 // remembered (at most one) and starts when the settle ends; an opposite
 // request reverses to the stage the settle came from.
+// What a rest point must never slice: lines of text and controls, and the groups that read as one (a field with its label,
+// a card, a table row, a question with its answer).
+const UNIT = 'h1, h2, h3, p, li, tr, label, legend, summary, .btn, button, input, select, textarea, img';
+const GROUP = '.field, .hs-card, tr, .faq__item, .path, .sheet__body, .form__actions, .step, .radio, .swatch, .size';
+/** The page-y spans [top, bottom] of a stage's units, as laid out (an arrival fade's transform plays no part). */
+function unitsOf(stage) {
+  const out = [], seen = new Set();
+  for (const e of stage.querySelectorAll(UNIT)) {
+    if (e.closest('[hidden], .hp, .vh, [aria-hidden="true"]')) continue;
+    const g = e.closest(GROUP) || e; if (seen.has(g)) continue; seen.add(g);
+    if (!g.getClientRects().length || g.offsetHeight < 2) continue;   // not rendered
+    const t = pageTop(g); out.push([t, t + g.offsetHeight]);
+  }
+  return out;
+}
 const snap = {
-  points: [], end: Infinity, target: -1, from: -1, dir: 0, queued: 0, run: 0, fallback: 0, animating: false, quiet: 0, tabbed: null, byKey: false,
+  points: [], spans: [], end: Infinity, target: -1, from: -1, dir: 0, queued: 0, run: 0, fallback: 0, animating: false, quiet: 0, tabbed: null, byKey: false,
   measure() {
     const pts = [], maxY = Math.max(0, html.scrollHeight - innerHeight), view = innerHeight - navH();
+    this.spans = [];
     for (let i = 0; i < stages.length; i++) {
-      const top = Math.min(tops[i], maxY), room = Math.max(120, view - (bands[stages[i].dataset.product] || 0));   // what the stage has under the nav (and, stacked, under the band)
-      pts.push(top);
-      const extra = stages[i].offsetHeight - (parseFloat(getComputedStyle(stages[i]).paddingBottom) || 0) * 0.75 - room;   // the part of a tall stage that does not fit (its bottom padding may stay cut off)
-      if (extra > 40) { const n = Math.ceil(extra / (room * 0.85)); for (let k = 1; k <= n; k++) pts.push(top + (extra * k) / n); } // a little bottom padding can stay cut off
+      const band = bands[stages[i].dataset.product] || 0, top = Math.min(tops[i], maxY), room = Math.max(120, view - band), cover = innerHeight - room;   // what the stage has under the nav (and, stacked, under the band)
+      pts.push(top); this.spans[i] = 0;
+      // A stage taller than its view gets inner rest points. Each one starts at the first line or control that was not yet
+      // whole at the rest before it, just under the nav (and band), so a rest never slices a line at the top. The last
+      // one puts the stage's end at the window's bottom when what is left fits.
+      const us = unitsOf(stages[i]), end = Math.min(maxY, pageTop(stages[i]) + stages[i].offsetHeight - innerHeight);
+      for (let y = top, k = 0; k < 16; k++) {
+        const left = us.filter(([, b]) => b > y + innerHeight + 1); if (!left.length) break;
+        // the line the next rest starts at: the top of the first unit not yet whole, moved up past any unit that crosses it,
+        // with up to 12px of air that never shows a sliver of the unit above
+        let L = Math.min(...left.map(([a]) => a));
+        for (let again = true; again;) { again = false; for (const [a, b] of us) if (a < L - 1 && b > L + 1 && a > y + cover) { L = a; again = true; } }
+        const above = us.reduce((m, [, b]) => (b <= L + 1 ? Math.max(m, b) : m), -Infinity);
+        const next = L - cover - clamp(L - above - 2, 0, 12);
+        if (end <= next + 1) {
+          // what is left fits with the stage's end at the window's bottom; a line already read that this rest would slice at
+          // the top is scrolled the rest of the way under the nav instead (the next stage's margin shows a little more)
+          let e = end; for (let again = true; again;) { again = false; for (const [a, b] of us) if (a < e + cover - 1 && b > e + cover + 1) { e = b - cover + 2; again = true; } }
+          e = Math.min(e, maxY); if (e > y + 40) { pts.push(e); this.spans[i] = e - top; } break;
+        }
+        y = next > y + 40 ? next : y + room * 0.85;   // a single unit taller than the view: step through it
+        if (y >= maxY) break;
+        pts.push(y); this.spans[i] = y - top;
+      }
     }
     pts.push(maxY);                                          // the end of the page: the footer is always a rest
     const sorted = [...new Set(pts.map((p) => Math.round(clamp(p, 0, maxY))))].sort((a, b) => a - b);
-    this.points = sorted.filter((p, i, a) => i === a.length - 1 || a[i + 1] - p >= 40);   // two rests closer than 40px are one (the later one: the page's end always stays)
+    // two rests closer than 40px are one (the later one), except the page's end: it always stays, and so does a rest just
+    // before it, or the last stage's heading would rest under the nav
+    this.points = sorted.filter((p, i, a) => i === a.length - 1 || a[i + 1] - p >= (i === a.length - 2 ? 12 : 40));
     this.end = this.points[this.points.length - 1];
   },
   nearest(y = scrollY) { let best = 0; for (let i = 1; i < this.points.length; i++) if (Math.abs(this.points[i] - y) < Math.abs(this.points[best] - y)) best = i; return best; },
@@ -436,6 +498,7 @@ function setLenis(on) {
 setLenis(snapOn() && !RM.matches);
 NARROW.addEventListener('change', () => { snap.jump(scrollY); bandNow = -1; setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
 SIDE.addEventListener('change', () => { bandNow = -1; measureStages(); });
+COMPACT.addEventListener('change', () => { snap.jump(scrollY); setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
 SNAPQ.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); measureStages(); if (snapOn()) snap.settle(); });
 addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native scroll (a key in a field, the scrollbar): Lenis keeps its own position in step
 
@@ -443,7 +506,7 @@ addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native
 // A venue thumbnail is drawn the first time it is asked for (a hover), not at load: drawing all five cost about 300ms of the first second.
 const thumbCache = {}, thumbOf = (id) => (thumbCache[id] ||= ((a) => a.photo || drawThumb(a.venue))(C.segments.items.find((x) => x.id === id)));
 const tabs = $$('.who__item'), panel = $('#panel'), thumb = $('[data-thumb]'), thumbImg = $('[data-thumb-img]');
-function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches ? 'horizontal' : 'vertical'); }
+function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches || COMPACT.matches ? 'horizontal' : 'vertical'); }
 setOrientation();
 function select(id, { focus = false, animate = true } = {}) {
   const a = C.segments.items.find((x) => x.id === id); if (!a) return;
@@ -508,7 +571,7 @@ let fitKey = '';
 function fitStages(force = false) {
   if (!worldReady) return;
   // on phones the address bar coming and going changes innerHeight but none of the bands: nothing to redo mid-scroll
-  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}`;
+  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}/${COMPACT.matches}`;
   if (key === fitKey && !force) return; fitKey = key;
   if (world.W !== worldEl.clientWidth || world.H !== worldEl.clientHeight) world.resize(); // the window's resize event comes before the canvas's own
   const centred = { center: true }, all = stages.map((s) => s.dataset.product);
@@ -521,6 +584,22 @@ function fitStages(force = false) {
   all.forEach((st) => world.frameStage(st, null));
   const maxY = Math.max(0, html.scrollHeight - innerHeight), rest = (st) => Math.min(tops[stages.findIndex((s) => s.dataset.product === st)], maxY);
   const top = (el, st) => pageTop(el) - rest(st), bottom = (el, st) => top(el, st) + el.offsetHeight, nh = navH();
+  // The rack behind the pilot form is drawn for a wide window: in a narrower one the whole picture zooms out until it fits.
+  world.frameStage('bulk', { left: 0, right: worldEl.clientWidth, top: nh, bottom: innerHeight }, { shrinkOnly: true });
+  if (COMPACT.matches) {
+    // Each stage's product in its .room, at the stage's rest. The upright poses are centred and may grow to fill it; How
+    // frames the shoes and every step as it plays (a zoom of the whole picture, so the product stays true to the shoes).
+    for (const s of stages) {
+      const st = s.dataset.product, room = s.querySelector('.room'); if (!room || room.offsetHeight < 24) { world.fitStage(st, null); continue; }
+      const r = room.getBoundingClientRect(), box = { left: r.left + 4, right: r.right - 4, top: top(room, st) + 4, bottom: bottom(room, st) - 4 };
+      if (st === 'customize') box.bottom -= 52;   // the turn buttons sit at the foot of the room
+      if (st === 'how') { world.fitStage(st, null); world.frameStage(st, box, { grow: 1.3, balance: 0.6 }); }
+      else world.fitStage(st, box, { center: true, grow: 1.6 });
+    }
+    world.fitsChanged(); return;
+  }
+  // How: the shoes and every step as it plays keep to the space between the heading and the steps (zoomed out only if they must)
+  world.frameStage('how', { left: 8, right: worldEl.clientWidth - 8, top: bottom($('.how__head'), 'how') + 8, bottom: top($('.how__bar'), 'how') - 8 }, { shrinkOnly: true });
   const left = (el) => el.getBoundingClientRect().left, right = (el) => el.getBoundingClientRect().right, g = $('.what__low').offsetLeft;
   world.fitStage('explorer', { left: right($('.explorer__left')) + 16, right: left($('.panel')) - 16, top: nh + 8, bottom: innerHeight - 10 }, centred);
   world.fitStage('what', { left: g, right: innerWidth - g, top: bottom($('.what__head'), 'what') + 10, bottom: top($('.what__low'), 'what') - 18 });
@@ -841,7 +920,7 @@ if (tier !== 'poster') {
 } else html.classList.add('gl-off');
 
 // Verification hooks. Inert unless called.
-window.__sf = { get tier() { return tier; }, state, select, setStep, inside: { loadAll, refill, inspect, back }, setColor, setSizeId, setAlt, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+window.__sf = { get tier() { return tier; }, COMPACT, NARROW, state, select, setStep, inside: { loadAll, refill, inspect, back }, setColor, setSizeId, setAlt, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
 // Entrance fades exist only once this script has run to its end (styles.css keys them on .sf-ready): if it fails to
 // load, or throws on the way, every stage simply stays visible. Whatever is on screen now is marked in first, so it does not blink.
 stages.forEach((s) => { const r = s.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) s.classList.add('is-in'); });

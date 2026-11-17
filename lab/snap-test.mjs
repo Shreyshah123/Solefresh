@@ -5,7 +5,7 @@
 // Phones (a coarse pointer under 768px wide) do not snap: the browser scrolls.
 //   node lab/snap-test.mjs                      wide window, mouse and keys (1440x900)
 //   node lab/snap-test.mjs --w 1280 --h 577     any window size
-//   node lab/snap-test.mjs --tablet             768x1024 touch: the stacked layout, snapping, finger swipes
+//   node lab/snap-test.mjs --tablet             768x1024 touch: the compact full-screen layout, finger swipes
 //   node lab/snap-test.mjs --mobile             390x844 phone: no snap
 //   SITE_URL=http://localhost:4520/ by default
 import { createRequire } from 'node:module';

@@ -76,10 +76,11 @@ const html = `<!doctype html>
 <div class="warm" aria-hidden="true" inert><div class="warm__card"><select><option>a</option></select><textarea rows="1"></textarea><input type="text"><input type="radio"><button type="button">b</button><details open><summary>s</summary><p>p</p></details><span class="swatches"><span class="swatch" style="--sw1:#E9E7E1;--sw2:#2346FF"><span class="swatch__chip"><span class="swatch__dot"></span></span></span><span class="swatch" aria-pressed="true" style="--sw1:#2346FF;--sw2:#F1EFEA"><span class="swatch__chip"><span class="swatch__dot"></span></span></span></span><span class="sizes"><span class="size">a</span><span class="size" aria-pressed="true">b</span></span><span class="layer-btn">a</span><span class="layer-btn" aria-pressed="true">b</span></div></div>
 
 <main>
-<!-- .pin holds the stages that use the product. On wide screens the world is one fixed layer behind the whole
-     page and makes exactly one scroll-linked move per transition. Under 900px it is a band pinned under the nav,
-     as tall as each section needs, while these stages scroll beneath it, and it scrolls away with the end of .pin,
-     before the Bulk form. On short landscape screens it sits beside them instead. -->
+<!-- .pin holds the stages that use the product. With a mouse or trackpad (and on tablets) the world is one fixed
+     layer behind the whole page and makes exactly one scroll-linked move per transition; each stage is one screen,
+     and under 900px wide its .room is the space the product is framed into. On phones it is a band pinned under the
+     nav, as tall as each section needs, while these stages scroll beneath it, and it scrolls away with the end of
+     .pin, before the Bulk form. On short landscape screens it sits beside them instead. -->
 <div class="pin">
 <div class="world" data-world aria-hidden="true">
   <picture class="world__poster" data-poster>
@@ -106,6 +107,7 @@ const html = `<!doctype html>
       <figure class="who__thumb" aria-hidden="true" data-thumb><img alt="" width="360" height="240" data-thumb-img></figure>
     </div>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <aside class="panel stage__in" id="panel" role="tabpanel" aria-labelledby="tab-${seg.items[0].id}">
     <figure class="panel__thumb" aria-hidden="true"><img alt="" width="360" height="240" data-panel-thumb></figure>
     <p class="panel__for" data-panel-for>For ${esc(seg.items[0].name.toLowerCase())}</p>
@@ -127,6 +129,7 @@ const html = `<!doctype html>
     <h2 id="h-what">${esc(C.what.heading)}</h2>
     <p class="what__lede">${esc(C.what.lede)}</p>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <!-- always open, plain HTML: nothing here depends on WebGL or a hover -->
   <div class="what__low">
     <ul class="hs-cards" role="list" data-hs-cards>
@@ -139,6 +142,7 @@ const html = `<!doctype html>
 <!-- ================================================ STAGE 3: HOW IT WORKS == -->
 <section class="stage how stage--full" id="how" data-product="how" aria-labelledby="h-how">
   <div class="how__head stage__in"><h2 id="h-how">${esc(C.how.heading)}</h2></div>
+  <div class="room" aria-hidden="true"></div>
   <div class="how__bar stage__in">
     <p class="how__caption" id="step-panel" role="tabpanel" aria-labelledby="step-0" data-step-caption aria-live="polite">${esc(C.how.steps[0].caption)}</p>
     <div class="steps" role="tablist" aria-label="Steps">
@@ -156,6 +160,7 @@ const html = `<!doctype html>
   <div class="inside__list stage__in" role="group" aria-label="What's inside">
     ${IN.components.map((c) => `<button type="button" class="layer-btn" data-comp="${c.id}" aria-pressed="false">${esc(c.chip)}${optTag(c)}</button>`).join('\n    ')}
   </div>
+  <div class="room" aria-hidden="true"></div>
   <aside class="sheet" data-sheet aria-live="polite">
     <div class="sheet__body">
       <p class="sheet__count" data-load-count>${esc(IN.count.replace('{n}', '0').replace('{total}', '3'))}</p>
@@ -182,6 +187,7 @@ const html = `<!doctype html>
     <h2 id="h-customize">${esc(cz.heading)}</h2>
     <p class="customize__lede">${esc(cz.lede)} <span class="fine-only">${esc(cz.dragHint.fine)}</span><span class="touch-only">${esc(cz.dragHint.touch)}</span></p>
   </div>
+  <div class="room" aria-hidden="true"></div>
   <div class="customize__drag" data-drag aria-hidden="true"></div>
   <div class="customize__turn stage__in" data-turn hidden><button type="button" class="turn" data-turn-by="-1" aria-label="${attr(cz.turnLeft)}"><span aria-hidden="true">&larr;</span></button><button type="button" class="turn" data-turn-by="1" aria-label="${attr(cz.turnRight)}"><span aria-hidden="true">&rarr;</span></button></div>
   <div class="customize__side customize__side--color stage__in">
@@ -231,6 +237,7 @@ const html = `<!doctype html>
 <section class="stage why" id="why" data-product="why" aria-labelledby="h-why">
   <div class="why__panel stage__in">
     <h2 id="h-why">${esc(WHY.heading)}</h2>
+    <div class="room" aria-hidden="true"></div>
     <p class="why__lede">${esc(WHY.lede)}</p>
     <div class="methods" role="group" aria-label="${attr(WHY.groupLabel)}">
       ${WHY.alternatives.map((m) => `<button type="button" class="method" data-alt="${m.id}" aria-pressed="${m === startAlt}">${esc(m.label)}</button>`).join('\n      ')}
@@ -253,6 +260,7 @@ const html = `<!doctype html>
 <section class="stage story" id="story" data-product="story" aria-labelledby="h-story">
   <div class="story__panel stage__in">
     <h2 id="h-story">${esc(C.story.heading)}</h2>
+    <div class="room" aria-hidden="true"></div>
     <p class="story__line">${esc(C.story.line)}</p>
     <ol class="timeline" aria-label="Development timeline">
       ${C.story.milestones.map((m) => `<li class="milestone${m.current ? ' is-current' : ''}"><button type="button" class="milestone__btn" data-ms="${m.id}" aria-pressed="${!!m.current}" ${m.current ? `aria-describedby="ms-current"` : ''}><span class="milestone__dot" aria-hidden="true"></span><span class="milestone__t">${esc(m.title)}</span>${m.current ? `<span class="milestone__now" id="ms-current">${esc(C.story.currentLabel)}</span>` : ''}</button></li>`).join('\n      ')}
@@ -265,6 +273,7 @@ const html = `<!doctype html>
 <section class="stage faqs" id="faq" data-product="faq" aria-labelledby="h-faq">
   <div class="faq__panel stage__in">
     <h2 id="h-faq">${esc(C.story.faqHeading)}</h2>
+    <div class="room" aria-hidden="true"></div>
     <div class="faq">
       ${C.story.faq.map((f) => `<details class="faq__item" name="faq"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('\n      ')}
     </div>
@@ -275,6 +284,7 @@ const html = `<!doctype html>
 <section class="stage close" id="close" data-product="close" aria-labelledby="h-close">
   <div class="close__wrap stage__in">
     <h2 id="h-close">${esc(C.close.heading)}</h2>
+    <div class="room" aria-hidden="true"></div>
     <div class="paths">
       <div class="path">
         <p class="path__label">${esc(C.close.org.label)}</p>

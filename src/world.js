@@ -227,6 +227,7 @@ export class World {
     this.rack = new THREE.Group(); scene.add(this.rack); this.units = [];
 
     this.wider = {};      // phones: the frames for a popped part and a turned product (see frameStage)
+    this.pan = 0;         // the compact layout's scroll with a tall stage (see setPan)
     this.S = { ...STATES.explorer }; this.travel = { from: 'explorer', to: 'explorer', u: 0 };
     this.st3 = makeStage3();
     this.s3 = this.#freshS3(); this._P3 = { ...this.st3.REST, fxAlpha: 1 }; this._loopP = { ...this.st3.REST };
@@ -629,13 +630,15 @@ export class World {
     const S = this.S, c = this.camera, slot = this.slot;
     // a part out of the stack, or the product turned, eases the view out to the frame measured for it
     const out = Math.min(1, Math.max(...slot.parts.map((L) => L.pop.p), 0)), turned = Math.min(1, Math.abs(Math.sin(slot.drag.yaw)) * 1.8), f = out > 0 ? this.wider.inside : turned > 0 ? this.wider.customize : null, w = f ? (out > 0 ? easeInOut(out) : turned) : 0;
-    const k = lerp(S.vk, f?.k ?? S.vk, w), x = lerp(S.vx, f?.x ?? S.vx, w), y = lerp(S.vy, f?.y ?? S.vy, w), key = `${k.toFixed(4)},${x.toFixed(2)},${y.toFixed(2)}`;
+    const k = lerp(S.vk, f?.k ?? S.vk, w), x = lerp(S.vx, f?.x ?? S.vx, w), y = lerp(S.vy, f?.y ?? S.vy, w) + this.pan, key = `${k.toFixed(4)},${x.toFixed(2)},${y.toFixed(2)}`;
     if (key === this.viewNow) return; this.viewNow = key;
     c.zoom = k;
     if (Math.abs(x) > 0.01 || Math.abs(y) > 0.01) c.setViewOffset(this.W, this.H, -x, -y, this.W, this.H); else c.clearViewOffset();
     c.updateProjectionMatrix();
     this.fx.setScale(this.fxScale * k, this.renderer.getPixelRatio());
   }
+  /** The compact layout: the picture moves with the page (px, up is negative) while a tall stage scrolls between its rests. */
+  setPan(px) { const v = Math.round(px * 2) / 2; if (v === this.pan) return; this.pan = v; this.kick(); }
   /** Step to another tier while running (density, rack and idle time follow; anti-aliasing is fixed when the context is made). */
   setQuality(q) { this.q = { ...q, aa: this.q.aa }; this.loopIdle = q.loopIdle ?? this.loopIdle; this.samples.length = 0; this.resize(); }
   /**
@@ -770,14 +773,17 @@ export class World {
     this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0);
   }
   /**
-   * Phones: frame a stage in the part of the canvas it has (px), from what it really puts on screen: the cord, the shoes and
-   * every Stage 3 step as it plays. The whole picture is zoomed and panned so that just fits. A zoom cannot change anything's
-   * size relative to anything else, so the product stays true to the shoes, and the values ease through the travels like any
-   * other key, so no section's scale jumps. Inside and Customize also measure what a click or a drag can do (each part
-   * popped out, the product turned all the way round): that is a second, wider frame the view eases to only while it happens,
-   * so at rest the product fills its space. null: no framing, as on wide screens.
+   * Frame a stage in the part of the canvas it has (px), from what it really puts on screen: the cord, the shoes and every
+   * Stage 3 step as it plays, the rack. The whole picture is zoomed and panned so that just fits. A zoom cannot change
+   * anything's size relative to anything else, so the product stays true to the shoes, and the values ease through the
+   * travels like any other key, so no section's scale jumps. Inside and Customize also measure what a click or a drag can
+   * do (each part popped out, the product turned all the way round): that is a second, wider frame the view eases to only
+   * while it happens, so at rest the product fills its space. Options: grow, the most it may enlarge (phones: 5); shrinkOnly,
+   * zoom out only if it must and move only as far as it must (a full-screen stage whose picture is drawn for the window);
+   * balance, how far (0 to 1) the frame aims at the picture at rest rather than at everything it does: How's steps lift the
+   * product well above the shoes, and centring all of that leaves the resting shoes low in the frame. null: no framing.
    */
-  frameStage(stage, box) {
+  frameStage(stage, box, { grow = 5, shrinkOnly = false, balance = 0 } = {}) {
     const T = STATES[stage]; T.vk = 1; T.vx = 0; T.vy = 0; delete this.wider[stage];
     if (!box || !this.slot.ready) return;
     const S = this.S, s3 = this.s3, slot = this.slot, turn = slot.turn, rx = turn.rotation.x, ry = turn.rotation.y, st = this.st3;
@@ -792,11 +798,28 @@ export class World {
         _bb.setFromObject(o);
         for (let i = 0; i < 8; i++) at(_lo.set(i & 1 ? _bb.max.x : _bb.min.x, i & 2 ? _bb.max.y : _bb.min.y, i & 4 ? _bb.max.z : _bb.min.z));
       }
+    }
+    const r0 = { x0, x1, y0, y1 };   // the picture at rest
+    if (stage === 'how') {
       for (let i = 0; i < st.steps.length; i++) { const from = st.startOf(i, st.REST); for (let t = 0; t <= 1.001; t += 0.1) { st.evalStep(i, t, from, this.s3.P); product(); } }
     }
+    if (stage === 'bulk' && this.units.length) {
+      this.rack.updateMatrixWorld(true); _bb.setFromObject(this.rack);
+      for (let i = 0; i < 8; i++) at(_lo.set(i & 1 ? _bb.max.x : _bb.min.x, i & 2 ? _bb.max.y : _bb.min.y, i & 4 ? _bb.max.z : _bb.min.z));
+    }
     const frame = () => {
-      const k = clamp(Math.min((box.right - box.left) / (x1 - x0), (box.bottom - box.top) / (y1 - y0)), 0.3, 5), cx = this.W / 2, cy = this.H / 2;
-      return { k, x: (box.left + box.right) / 2 - (cx + k * ((x0 + x1) / 2 - cx)), y: (box.top + box.bottom) / 2 - (cy + k * ((y0 + y1) / 2 - cy)) };
+      const k = clamp(Math.min((box.right - box.left) / (x1 - x0), (box.bottom - box.top) / (y1 - y0)), 0.3, shrinkOnly ? 1 : grow), cx = this.W / 2, cy = this.H / 2;
+      if (!shrinkOnly && balance > 0) {
+        // aim between everything and the picture at rest; the zoom is the largest that keeps everything in the box around that aim
+        const ax = lerp((x0 + x1) / 2, (r0.x0 + r0.x1) / 2, balance), ay = lerp((y0 + y1) / 2, (r0.y0 + r0.y1) / 2, balance);
+        const bx = (box.left + box.right) / 2, by = (box.top + box.bottom) / 2, lim = (lo, hi, m, a, b, c) => Math.min(a < m ? (c - lo) / (m - a) : Infinity, b > m ? (hi - c) / (b - m) : Infinity);
+        const kb = clamp(Math.min(lim(box.left, box.right, ax, x0, x1, bx), lim(box.top, box.bottom, ay, y0, y1, by)), 0.3, grow);
+        return { k: kb, x: bx - (cx + kb * (ax - cx)), y: by - (cy + kb * (ay - cy)) };
+      }
+      if (!shrinkOnly) return { k, x: (box.left + box.right) / 2 - (cx + k * ((x0 + x1) / 2 - cx)), y: (box.top + box.bottom) / 2 - (cy + k * ((y0 + y1) / 2 - cy)) };
+      // as drawn where it fits; otherwise zoomed out about the centre and moved the least that brings it inside
+      const into = (a, b, lo, hi) => (a < lo ? lo - a : b > hi ? hi - b : 0), c = (v, m) => m + k * (v - m);
+      return { k, x: into(c(x0, cx), c(x1, cx), box.left, box.right), y: into(c(y0, cy), c(y1, cy), box.top, box.bottom) };
     };
     const rest = frame(); T.vk = rest.k; T.vx = rest.x; T.vy = rest.y;
     if (stage === 'inside') for (const L of slot.parts) { const side = L.pop.side; for (const sd of [POSES.inside_upright.pop.side, POSES.inside_upright.fan[L.name]]) { if (sd == null) continue; L.pop.side = sd; for (const p of [0.5, 0.8, 1, 1.09]) { L.pop.p = p; slot.apply(); slot.corners(at); } } L.pop.p = 0; L.pop.side = side; slot.apply(); }

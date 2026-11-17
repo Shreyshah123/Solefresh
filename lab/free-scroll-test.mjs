@@ -47,8 +47,10 @@ for (const [name, act] of [['mouse tick', async (d) => { await p.mouse.move(W / 
 // a form error does not switch snapping off
 await goStage('bulk'); await p.click('[data-form="bulk"] button[type=submit]'); await p.waitForTimeout(400);
 const errs = await p.evaluate(() => [...document.querySelectorAll('[data-form="bulk"] .field__err')].filter((e) => e.textContent).length);
-await p.mouse.move(W / 2, H * 0.4); await p.mouse.wheel(0, -100); await idle();
-ok('after a form error (focus in a field), a tick still steps one stage', (await stageNow()) === 'customize' && errs > 0, `${errs} error lines shown, now on ${await stageNow()}`);
+const restIdx = async () => { const y = await idle(); return (await S()).points.findIndex((q) => Math.abs(q - y) <= 2); };
+const i0 = await restIdx(); await p.mouse.move(W / 2, H * 0.4); await p.mouse.wheel(0, -100); const i1 = await restIdx();
+// one rest point up: the stage above, or the form's own top when a small window gives the form an inner rest
+ok('after a form error (focus in a field), a tick still steps one rest point', i0 >= 0 && i1 === i0 - 1 && errs > 0, `${errs} error lines shown, rest ${i0} -> ${i1}, now on ${await stageNow()}`);
 // the result of a submission is on screen
 await goStage('bulk'); await p.fill('#b-org', 'Test Lanes'); await p.selectOption('#b-type', 'Bowling center'); await p.fill('#b-name', 'Test'); await p.fill('#b-email', 'test@example.com'); await p.click('[data-form="bulk"] button[type=submit]'); await p.waitForTimeout(900);
 const st = await p.evaluate(() => { const e = document.querySelector('[data-form="bulk"] .form__status'), r = e.getBoundingClientRect(); return { text: e.textContent.slice(0, 60), on: r.top >= document.querySelector('.nav').getBoundingClientRect().bottom && r.bottom <= innerHeight }; });
