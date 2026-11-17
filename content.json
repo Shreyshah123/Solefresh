@@ -337,8 +337,8 @@
     "rateLimited": "Too many tries in a row, so this wasn't sent. What you typed is still here. Please wait a minute and try again."
   },
   "why": {
-    "heading": "Compared with what's on your shelf.",
-    "lede": "Pick what you use now. This compares how each is handled, not how well it works: we haven't measured performance yet.",
+    "heading": "Versus what you use now.",
+    "lede": "Pick yours. This compares how each is used, not how well it works.",
     "groupLabel": "What you use now",
     "compareLabel": "Compared on",
     "rows": [
@@ -348,64 +348,56 @@
       },
       {
         "id": "between",
-        "label": "Between wears"
+        "label": "How it's used"
       },
       {
         "id": "usedUp",
-        "label": "What gets used up"
+        "label": "What runs out"
       },
       {
         "id": "power",
         "label": "Needs power"
-      },
-      {
-        "id": "cost",
-        "label": "Cost per use"
-      },
-      {
-        "id": "time",
-        "label": "Staff time per pair"
       }
     ],
     "unmeasured": "Not measured yet",
     "solefresh": {
       "label": "SoleFresh",
-      "what": "A 3D-printed insert that holds a moisture pouch, an odor pouch and scent beads. One per shoe.",
-      "between": "Dropped in narrow end first, pulled out by its cord.",
-      "usedUp": "The fills, which are replaced. The housing is kept.",
+      "what": "A 3D-printed insert holding a moisture pouch, an odor pouch and scent beads. One per shoe.",
+      "between": "Dropped in, pulled out by its cord.",
+      "usedUp": "Only the fills. The housing is kept.",
       "power": "No"
     },
     "alternatives": [
       {
         "id": "spray",
         "label": "Sprays",
-        "what": "A liquid sprayed into each shoe.",
-        "between": "Applied to each pair, each time.",
+        "what": "A liquid sprayed into the shoe.",
+        "between": "Each pair, every time.",
         "usedUp": "The can.",
         "power": "No",
         "parts": [
           "scent_beads"
         ],
-        "takeaway": "SoleFresh's scent sits in a refillable bead bay. Nothing is sprayed into the shoe."
+        "takeaway": "Scent comes from a refillable bead bay. Nothing is sprayed."
       },
       {
         "id": "soda",
         "label": "Baking soda",
-        "what": "A loose powder sprinkled into the shoe.",
-        "between": "Sprinkled in, then shaken out before wear.",
+        "what": "A loose powder.",
+        "between": "Sprinkled in, shaken out.",
         "usedUp": "The powder.",
         "power": "No",
         "parts": [
           "carbon_sachet",
           "silica_sachet"
         ],
-        "takeaway": "SoleFresh's fills are sealed in pouches. Nothing loose goes into the shoe."
+        "takeaway": "The fills are sealed in pouches. Nothing loose goes in the shoe."
       },
       {
         "id": "charcoal",
         "label": "Charcoal bags",
-        "what": "A fabric bag of charcoal placed in the shoe.",
-        "between": "Placed in, then taken out.",
+        "what": "A fabric bag of charcoal.",
+        "between": "Put in, taken out.",
         "usedUp": "Varies by product.",
         "power": "No",
         "parts": [
@@ -413,50 +405,50 @@
           "silica_sachet",
           "scent_beads"
         ],
-        "takeaway": "SoleFresh adds a moisture pouch and a scent bay to the carbon, in one housing."
+        "takeaway": "Carbon too, plus a moisture pouch and scent, in one housing."
       },
       {
         "id": "cedar",
         "label": "Cedar inserts",
-        "what": "Shaped cedar wood placed in the shoe.",
-        "between": "Placed in, then taken out.",
+        "what": "Shaped cedar wood.",
+        "between": "Put in, taken out.",
         "usedUp": "Varies by product.",
         "power": "No",
         "parts": [
           "shell_top",
           "shell_bottom"
         ],
-        "takeaway": "SoleFresh is a 3D-printed housing in three sizes, with fills that are replaced."
+        "takeaway": "One housing in three sizes. Only its fills are replaced."
       },
       {
         "id": "disposable",
         "label": "Disposables",
-        "what": "A single-use insert or pouch.",
-        "between": "Left in until it is replaced.",
+        "what": "A single-use insert.",
+        "between": "Left in until replaced.",
         "usedUp": "The whole insert.",
         "power": "No",
         "parts": [
           "shell_top",
           "shell_bottom"
         ],
-        "takeaway": "SoleFresh's housing is kept. Only the fills are replaced."
+        "takeaway": "The housing is kept. Only the fills are replaced."
       },
       {
         "id": "dryer",
         "label": "UV or heated dryers",
-        "what": "A powered device used in or on the shoe.",
-        "between": "Plugged in or charged, then switched on.",
+        "what": "A powered device.",
+        "between": "Plugged in or charged.",
         "usedUp": "Electricity.",
         "power": "Yes",
         "parts": [
           "pull_cord"
         ],
-        "takeaway": "SoleFresh needs no power. Its cord is for pulling it out of the shoe."
+        "takeaway": "No power needed. The cord is for pulling it out."
       }
     ],
     "start": "spray",
     "takeawayLabel": "The difference",
-    "fine": "SoleFresh is a prototype. Its drying, odor and scent performance, cost per use and staff time haven't been measured yet. Our facility pilot measures them."
+    "fine": "SoleFresh is a prototype. Its performance, cost per use and staff time aren't measured yet: the facility pilot measures them."
   },
   "story": {
     "heading": "Our story.",
