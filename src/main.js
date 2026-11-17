@@ -700,7 +700,13 @@ function loadAll() {
   const want = fillsWanted();
   if (world) { world.selectLayer(-1); world.setOut(leftOut()); }                                  // the fills go in, one after another
   want.forEach((_, k) => later(260 + 120 * k, () => { st.n = k + 1; renderInside(); }));         // and are counted as they land
-  later(420 + 120 * want.length, () => { Object.assign(st, { loaded: true, busy: false, n: want.length }); if (world) world.setLoaded(true); renderInside(); });   // then the housing closes round them
+  later(420 + 120 * want.length, () => {                                                        // then the housing closes round them
+    // the Load button is about to hide: if the visitor's focus is still on it (or in the card), it goes on to Refill, which
+    // is what the card now offers. If they have moved on (Tab, a chip, another stage), focus stays where they took it.
+    const held = !!document.activeElement && sheet.contains(document.activeElement);
+    Object.assign(st, { loaded: true, busy: false, n: want.length }); if (world) world.setLoaded(true); renderInside();
+    if (held && state.stage === 'inside') $('[data-refill]').focus({ preventScroll: true });
+  });
   renderInside();
 }
 function refill() {
@@ -733,7 +739,7 @@ function back() {
 }
 $$('[data-comp]').forEach((b) => b.addEventListener('click', () => { sheetOpener = b; inspect(b.dataset.comp); }));
 sheetClose.addEventListener('click', back);
-$('[data-load]').addEventListener('click', () => { loadAll(); $('[data-refill]').focus({ preventScroll: true }); });
+$('[data-load]').addEventListener('click', loadAll);   // focus follows to Refill once it shows (see loadAll)
 $('[data-refill]').addEventListener('click', refill);
 $('[data-opt]').addEventListener('click', () => { const st = state.inside; st.without = !st.without; renderInside(); });   // it takes effect the next time the housing is loaded
 // The parts themselves are targets too. Before loading, a press on any of them loads the housing; after, a press on a
@@ -893,6 +899,10 @@ function toPosters(why) {
   html.classList.remove('gl-live'); html.classList.add('gl-off');
   tier = 'poster'; html.dataset.tier = tier;
   if (world) { world.dispose(); world = null; } worldReady = false; window.__sf.world = null;
+  // a still cannot be turned: the turn buttons go (they only ever showed once the 3D was live), and if one of them had the
+  // focus it moves to the colour picked, the nearest control that still does something
+  const turn = $('[data-turn]');
+  if (turn && !turn.hidden) { const had = turn.contains(document.activeElement); turn.hidden = true; if (had) $('.swatch[aria-pressed="true"]')?.focus({ preventScroll: true }); }
   showPoster(); updateOverlayVisibility();
 }
 function onSlow(times) {
