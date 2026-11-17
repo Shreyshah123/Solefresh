@@ -690,6 +690,14 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
     .footer { margin-top: var(--s2); padding-block: var(--s2); }
   }
 }
+/* Phones, with flags.phoneSnap in content.json (or ?phonesnap=1 to preview): the browser's own scroll-snap, proximity only,
+   on each stage's start. No script moves the page: a swipe that ends near a stage's start settles onto it, and anything
+   else (a long section, a slow drag) stays where the finger left it. */
+@media (pointer: coarse) and (max-width: 767px) {
+  html.phone-snap { scroll-snap-type: y proximity; }
+  html.phone-snap [data-product] { scroll-snap-align: start; }
+  html.phone-snap .pin .stage { scroll-margin-top: var(--band-self, 0px); } /* the page's scroll-padding already keeps the nav clear: a stage starts right under the band */
+}
 /* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
 @media (max-height: 560px) and (orientation: landscape) and (min-width: 600px) {
   :root { --nav-h: 3.25rem; --band-explorer: 0px; }

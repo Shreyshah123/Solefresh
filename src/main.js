@@ -285,6 +285,9 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { me
 // rest points less than a view apart, so everything in it can be reached. ONE system owns snapping: this one.
 // There is no CSS scroll-snap on the page and Lenis only plays the tween.
 const QS = new URLSearchParams(location.search);
+// Phones only (they keep native scrolling): CSS scroll-snap, proximity, on each stage's start, if flags.phoneSnap is set in
+// content.json. `?phonesnap=1` (or 0) overrides it, to compare. styles.css applies it only to phones.
+if ((QS.get('phonesnap') ?? (C.flags?.phoneSnap ? '1' : '0')) === '1') html.classList.add('phone-snap');
 const snapOn = () => SNAPQ.matches;
 const HOW = stages.findIndex((s) => s.dataset.product === 'how');
 /** A long message scrolls itself: the one place a wheel or a swipe is not a step. */
