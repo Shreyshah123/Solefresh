@@ -558,7 +558,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .inside__list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .customize { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .customize__head, .customize__note { grid-column: 1 / -1; }
+  .customize__head, .customize__note, .customize__turn { grid-column: 1 / -1; }
   .customize__side--color { margin-right: 0; } .customize__side--size { margin-left: 0; }
   .paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .radios { display: flex; } .radio { justify-content: flex-start; }
