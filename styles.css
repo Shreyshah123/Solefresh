@@ -500,12 +500,6 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .footer > :last-child { margin-left: 0; }
   .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
 }
-/* fingers on a wide screen (tablets in the wide layout): every control is at least 44px */
-@media (pointer: coarse) {
-  .layer-btn, .method, .size, .nav__cta .btn { min-height: 2.75rem; }
-  .size { min-width: 2.75rem; justify-content: center; }
-  .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
-}
 /* Short wide windows (a laptop window under about 700px tall): the wide layout, drawn tighter, so each of the first five
    stages still fits its one view. The view here is 497px to 636px. */
 @media (min-width: 900px) and (min-height: 561px) and (max-height: 700px) {
@@ -712,6 +706,14 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 /* the header's call to action shortens on the narrowest phones (the full label is in the menu) */
 @media (max-width: 479px) { .cta-long { display: none; } .cta-short { display: inline; } }
 @media (max-width: 380px) { .nav__logo { font-size: 1.1rem; } .nav__cta .btn { padding: 0 .85rem; } }
+/* Fingers (tablets, and phones): every control is at least 44px tall, whatever size a layout above drew it at. It is the
+   last layout rule in the file on purpose: the compact and short-window rules draw some controls smaller for a mouse, and
+   a rule of the same weight later in the file would win over this one. */
+@media (pointer: coarse) {
+  .layer-btn, .method, .size, .radio, .who__item, .who__item:last-child, .nav__cta .btn, .why__foot .btn, .field input, .field select, .faq__item summary { min-height: 2.75rem; }
+  .size { min-width: 2.75rem; justify-content: center; }
+  .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
