@@ -170,8 +170,16 @@ function onScroll(force = false) {
   setStage(stage);
   const rest = onStage2Rest(); if (rest !== stage2Rest) { stage2Rest = rest; updateOverlayVisibility(); }
 }
+// The other two sizes are fetched (not parsed) once the visitor reaches Inside or Sizes, or points at a size button, so a
+// size pick does not wait on the network, and nobody who never gets there downloads them.
+let sizesFetched = false;
+function prefetchSizes() {
+  if (sizesFetched || !worldReady || navigator.connection?.saveData) return; sizesFetched = true;
+  for (const id of Object.keys(MODEL.sizes)) if (id !== world.slot.sizeId) fetch(MODEL.sizes[id].url, { priority: 'low' }).catch(() => {});
+}
 function setStage(stage) {
   markCurrent(stage);
+  if (stage === 'inside' || stage === 'customize') prefetchSizes();
   if (stage === state.stage) return;
   const prev = state.stage; state.stage = stage; html.dataset.stage = stage;
   if (stage === 'how') $('[data-step-caption]')?.setAttribute('aria-live', 'polite');
@@ -196,7 +204,33 @@ function posterName() {
   if (st === 'why') return `why-${state.method}`;
   return st;
 }
-function showPoster() { if (worldReady) return; const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`; if (img && !img.src.endsWith(want)) img.src = want; }
+let posterWant = '';
+const posterCache = new Map();
+/** A decoded copy of a still, made once. decode() runs off the main thread; the swap after it is only a paint. */
+function decodedPoster(url) {
+  if (!posterCache.has(url)) { const im = new Image(); im.decoding = 'async'; im.src = url; posterCache.set(url, im.decode().then(() => im, () => im)); }
+  return posterCache.get(url);
+}
+function showPoster() {
+  if (worldReady) return;
+  const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`;
+  if (!img || img.src.endsWith(want) || posterWant === want) return;
+  posterWant = want;
+  decodedPoster(want).then(() => { if (posterWant === want) img.src = want; });   // a later pick wins
+  preloadNeighbours();
+}
+/** On the stills, the pictures one click away are decoded ahead (the stage's other states, and the next stage's first). */
+function preloadNeighbours() {
+  const st = state.stage, near = [];
+  if (st === 'explorer') near.push(...C.segments.items.map((a) => a.id));
+  if (st === 'how') near.push(...C.how.steps.map((_, i) => `how-${i}`));
+  if (st === 'inside') near.push('inside-loaded', ...C.inside.components.map((c) => `inside-${c.id}`));
+  if (st === 'customize') near.push(...C.customize.colors.map((c) => `customize-${c.id}-${state.size}`), ...C.customize.sizes.map((z) => `customize-${state.color}-${z.id}`));
+  if (st === 'why') near.push(...C.why.alternatives.map((m) => `why-${m.id}`));
+  const i = stages.findIndex((x) => x.dataset.product === st), next = stages[i + 1]?.dataset.product;
+  if (next) near.push({ how: 'how-0', inside: 'inside-apart', customize: `customize-${state.color}-${state.size}`, why: `why-${state.method}` }[next] || next);
+  (window.requestIdleCallback || setTimeout)(() => near.forEach((n) => decodedPoster(`assets/posters/${n}.webp`)));
+}
 addEventListener('scroll', () => onScroll(), { passive: true });
 // A resize moves every stage: the page goes with the place it was resting on, unless the visitor is working in a form or the FAQ.
 let lastW = innerWidth;
@@ -663,7 +697,7 @@ async function setSizeId(id) {
   }
 }
 $$('.swatch[data-color]').forEach((b) => b.addEventListener('click', () => setColor(b.dataset.color)));
-sizeButtons.forEach((b) => b.addEventListener('click', () => setSizeId(b.dataset.size)));
+sizeButtons.forEach((b) => { b.addEventListener('click', () => setSizeId(b.dataset.size)); b.addEventListener('pointerenter', prefetchSizes); b.addEventListener('focus', prefetchSizes); });
 {
   const area = $('[data-drag]'); let down = null;
   const grab = (e) => { if (state.stage !== 'customize' || !world) return; down = { x: e.clientX, y: e.clientY, id: e.pointerId, axis: null }; area.classList.add('is-dragging'); };
@@ -803,8 +837,6 @@ if (tier !== 'poster') {
     html.classList.add('gl-live');
     $('[data-turn]').hidden = false;   // the turn buttons exist only where there is a product to turn
     window.__sf.world = world;
-    // the other two sizes: fetched (not parsed) once the page is idle, so a size pick does not wait on the network
-    if (tier !== 'low' && !navigator.connection?.saveData) (window.requestIdleCallback || setTimeout)(() => { for (const id of Object.keys(MODEL.sizes)) if (id !== world?.slot.sizeId) fetch(MODEL.sizes[id].url, { priority: 'low' }).catch(() => {}); }, { timeout: 6000 });
   }).catch((err) => { toPosters(); console.warn('3D unavailable, poster fallback in use.', err); });
 } else html.classList.add('gl-off');
 
