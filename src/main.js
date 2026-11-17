@@ -135,6 +135,7 @@ const LAST_BAND = stages.map((s) => !!s.closest('.pin')).lastIndexOf(true);   //
 /** On phones everything below the band is out of the world's sight: it rests in the band's last stage. */
 const bandStage = (stage) => (NARROW.matches && stages.findIndex((s) => s.dataset.product === stage) > LAST_BAND ? stages[LAST_BAND].dataset.product : stage);
 function measureStages() {
+  splitScreens();
   measureBands();
   tops.length = 0;
   for (const s of stages) tops.push(restY(s)); // integers: the browser rests on whole pixels
@@ -237,7 +238,46 @@ function placePoster() {
   pic.style.cssText = `left:${Math.round(r.left)}px;top:${Math.round(top)}px;width:${Math.round(r.width)}px;height:${room.offsetHeight}px;right:auto;bottom:auto;overflow:clip`;
   img.style.objectFit = fit; img.style.objectPosition = at; img.style.transform = zoom !== 1 ? `scale(${zoom})` : '';
 }
+// Phones: each stage has its own picture, and it follows that stage's controls (styles.css shows them only on phones).
+const PHONE = matchMedia('(pointer: coarse) and (max-width: 767px) and (orientation: portrait)');
+function picName(st) {
+  const i = state.inside;
+  if (st === 'explorer') return state.audience;
+  if (st === 'how') return `how-${state.step}`;
+  if (st === 'inside') return i.part ? `inside-${i.part}` : i.loaded ? 'inside-loaded' : 'inside-apart';
+  if (st === 'customize') return `customize-${state.color}-${state.size}`;
+  if (st === 'why') return `why-${state.method}`;
+  return st;
+}
+/**
+ * Phones: a stage that needs two screens (stage 1, the pilot form, the comparison, the close) has a section its second
+ * screen starts at (a scroll-snap point, styles.css). That section is moved down to exactly one screen into the stage, so
+ * the first screen shows nothing of the second, and the stage is made at least as tall as its last screen, so nothing of
+ * the next stage shows either. Without this script the snap points are still there; the screens are just less exact.
+ */
+const SPLITS = ['.who', '.bulk .form', '.vs', '.paths > .path:nth-child(2)'];
+function splitScreens() {
+  for (const sel of SPLITS) { const el = $(sel); if (el) { el.style.marginTop = ''; el.closest('[data-product]').style.minHeight = ''; } }
+  if (!PHONE.matches) return;
+  const scr = innerHeight - navH();
+  for (const sel of SPLITS) {
+    const el = $(sel); if (!el || !el.getClientRects().length) continue;
+    const stage = el.closest('[data-product]'), air = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    const at = el.getBoundingClientRect().top - stage.getBoundingClientRect().top;      // where the section starts in its stage
+    const add = Math.max(0, scr + air - at);
+    if (add) el.style.marginTop = `${(parseFloat(getComputedStyle(el).marginTop) || 0) + add}px`;
+    stage.style.minHeight = `${at + add - air + scr}px`;
+  }
+}
+function updatePics() {
+  if (!PHONE.matches) return;
+  for (const img of $$('[data-pic]')) {
+    const want = `assets/posters/${picName(img.dataset.pic)}.webp`;
+    if (img.getAttribute('src') !== want && img.dataset.want !== want) { img.dataset.want = want; decodedPoster(want).then(() => { if (img.dataset.want === want) img.setAttribute('src', want); }); }
+  }
+}
 function showPoster() {
+  updatePics();
   if (worldReady) return;
   placePoster();
   const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`;
@@ -288,9 +328,6 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { me
 // rest points less than a view apart, so everything in it can be reached. ONE system owns snapping: this one.
 // There is no CSS scroll-snap on the page and Lenis only plays the tween.
 const QS = new URLSearchParams(location.search);
-// Phones only (they keep native scrolling): CSS scroll-snap, proximity, on each stage's start, if flags.phoneSnap is set in
-// content.json. `?phonesnap=1` (or 0) overrides it, to compare. styles.css applies it only to phones.
-if ((QS.get('phonesnap') ?? (C.flags?.phoneSnap ? '1' : '0')) === '1') html.classList.add('phone-snap');
 const snapOn = () => SNAPQ.matches;
 const HOW = stages.findIndex((s) => s.dataset.product === 'how');
 /** A long message scrolls itself: the one place a wheel or a swipe is not a step. */
@@ -873,7 +910,7 @@ function setAlt(id) {
   state.method = id;
   $$('.method[data-alt]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.alt === id)));
   $('[data-alt-name]').textContent = m.label;
-  for (const r of WHY.rows) $(`[data-alt-cell="${r.id}"]`).textContent = m[r.id] ?? WHY.unmeasured;
+  for (const r of WHY.rows) { const c = $(`[data-alt-cell="${r.id}"]`); c.textContent = m[r.id] ?? WHY.unmeasured; c.dataset.name = m.label; }   // data-name: the column's name, which a phone shows beside each cell
   $('[data-alt-take]').textContent = m.takeaway;
   focusWhy(); showPoster();
 }

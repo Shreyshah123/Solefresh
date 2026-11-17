@@ -24,6 +24,9 @@ const KEY = 'sf-tier';
 export function pickTier() {
   const forced = new URLSearchParams(location.search).get('tier');
   if (ORDER.includes(forced)) return forced;
+  // A phone held upright is the phone layout: every stage carries its own still (see .pic in styles.css). No 3D there:
+  // nothing to download or draw, and the stills follow every control.
+  if (matchMedia('(pointer: coarse) and (max-width: 767px) and (orientation: portrait)').matches) return 'poster';
   try { const s = sessionStorage.getItem(KEY); if (ORDER.includes(s)) return s; } catch {}   // what this visit already found out
   if (!window.WebGL2RenderingContext && !window.WebGLRenderingContext) return 'poster';
   const nav = navigator, cores = nav.hardwareConcurrency || 8, mem = nav.deviceMemory || 8;

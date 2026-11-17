@@ -115,7 +115,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
    The floor is the smallest view the full-screen layout is drawn for: a window 561px tall (see NARROW), less the nav. */
 .stage { position: relative; background: transparent; min-height: calc(100vh - var(--top)); min-height: var(--view); }
 .stage--full { height: calc(100vh - var(--top)); height: var(--view); min-height: 496px; overflow: clip; }
-.room { display: none; } /* the product's space in the compact layout (see there) */
+.room, .pic { display: none; } /* the product's space in the compact layout (see there) */
 /* arrival: one short fade and rise, never scroll-linked. It exists only once src/main.js has run to its end and added
    .sf-ready: without the script, or if it fails, everything is simply visible. The first stage never fades: it is the first
    thing painted. */
@@ -684,13 +684,113 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
     .footer { margin-top: var(--s2); padding-block: var(--s2); }
   }
 }
-/* Phones, with flags.phoneSnap in content.json (or ?phonesnap=1 to preview): the browser's own scroll-snap, proximity only,
-   on each stage's start. No script moves the page: a swipe that ends near a stage's start settles onto it, and anything
-   else (a long section, a slow drag) stays where the finger left it. */
-@media (pointer: coarse) and (max-width: 767px) {
-  html.phone-snap { scroll-snap-type: y proximity; }
-  html.phone-snap [data-product] { scroll-snap-align: start; }
-  html.phone-snap .pin .stage { scroll-margin-top: var(--band-self, 0px); } /* the page's scroll-padding already keeps the nav clear: a stage starts right under the band */
+/* =========================================================== phone stages == */
+/* A phone held upright (a coarse pointer under 768px wide). The same idea as the full-screen site: every stage is its own
+   screen, with its own picture inside it (a still that follows the stage's controls: updatePics in src/main.js), then its
+   heading, then its controls. No band, no 3D. The browser snaps (scroll-snap-type: mandatory, one stop per stage, and
+   whole-section stops inside the few stages that need two screens); no script moves the page. Body text stays at 16px and
+   every control at 44px: what does not fit a 375x667 screen is cut down or moved, never shrunk. Comes after the stacked
+   rules it replaces. */
+@media (pointer: coarse) and (max-width: 767px) and (orientation: portrait) {
+  :root { --scr: calc(100svh - var(--top)); --pic: 30svh; --band-explorer: 0px; --band-what: 0px; --band-how: 0px; --band-inside: 0px; --band-customize: 0px; }
+  html { scroll-snap-type: y mandatory; scroll-padding-top: var(--top); touch-action: manipulation; } /* manipulation: no double-tap zoom */
+  .world, .overlay { display: none; }
+  input, select, textarea { font-size: max(1rem, 16px); } /* iOS zooms into a field under 16px */
+  /* the picture: full width, cropped round the product (--fx --fy: where it is in the still; --z: how far in) */
+  .pic { display: block; flex: none; height: var(--pic); margin: 0 0 var(--s3); overflow: hidden; }
+  .pic img { width: 100%; height: 100%; object-fit: cover; object-position: var(--fx, 50%) var(--fy, 50%); transform: scale(var(--z, 1)); transform-origin: var(--fx, 50%) var(--fy, 50%); }
+  [data-stage-pic="what"] { --fx: 38%; --fy: 42%; --z: 1.35; }
+  [data-stage-pic="how"] { --fx: 58%; --fy: 44%; --z: 1.15; }
+  [data-stage-pic="inside"] { --fx: 28%; --fy: 52%; --z: 1.55; }
+  [data-stage-pic="customize"] { --fx: 62%; --fy: 52%; --z: 1.5; }
+  [data-stage-pic="bulk"] { --fx: 70%; --fy: 55%; --z: 1.1; }
+  [data-stage-pic="why"] { --fx: 9%; --fy: 50%; --z: 1.9; }
+  [data-stage-pic="story"], [data-stage-pic="faq"] { --fx: 29%; --fy: 56%; --z: 2; }
+  [data-stage-pic="close"] { --fx: 65%; --fy: 47%; --z: 1.9; }
+  /* every stage one screen, one stop */
+  .stage, .stage--full, .pin .stage { min-height: var(--scr); scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: 0; padding-block: 0 var(--s5); }
+  .pin .how { padding-bottom: var(--s5); }
+  /* A stage that needs two screens: its second one starts at a whole section (the elements below), and src/main.js
+     (splitScreens) moves that section down to exactly one screen in and makes the stage's last screen full. */
+  .who, .bulk .form, .vs, .paths > .path:nth-child(2) { scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: var(--s3); }
+  /* stage 1 is two screens: what it is, then who it's for */
+  .explorer__intro { display: flex; flex-direction: column; padding: 0 var(--gutter) var(--s4); }
+  .explorer__intro .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 28svh; }
+  .explorer__cta { margin-top: var(--s3); }
+  .who { margin-top: 0; }
+  .who .pic { --pic: 20svh; }
+  .who__list { flex-wrap: wrap; overflow: visible; padding: 2px var(--gutter) 0; }
+  .who__item, .who__item:last-child { font-size: 1rem; scroll-snap-align: none; } /* the chips no longer scroll sideways: no snap points of their own */
+  .panel { align-self: stretch; }
+  .panel__line { font-size: 1.05rem; }
+  .panel__note { font-size: 1rem; }
+  /* stage 2 */
+  .what { --pic: 26svh; gap: var(--s3); }
+  .hs-card { padding: var(--s2) 0; }
+  .hs-card__text, .what__note { font-size: 1rem; line-height: 1.45; }
+  /* stage 3 */
+  .how { --pic: 36svh; }
+  .how__caption { font-size: 1.05rem; }
+  /* stage 4 */
+  .inside { --pic: 24svh; gap: var(--s3); }
+  .inside__list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; }
+  .layer-btn { padding: 0 .25rem; font-size: .9rem; }
+  .sheet__body { min-height: 0; padding: var(--s4); gap: var(--s2); }
+  .sheet__role, .sheet__foot { font-size: 1rem; line-height: 1.45; }
+  .inside__note { font-size: .875rem; }
+  /* sizes and colours */
+  .customize { --pic: 26svh; gap: var(--s3); }
+  .customize__side { padding-top: var(--s3); gap: var(--s2); }
+  .customize__pick { font-size: 1rem; }
+  /* the pilot form: two screens, the rack and what a pilot is, then the form from its second field */
+  .bulk { padding: 0 0 var(--s5); }
+  .bulk__card { gap: var(--s3); }
+  .bulk__intro .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 22svh; }
+  .bulk__lines { margin-top: var(--s3); gap: var(--s2); }
+  .form { gap: .75rem; }
+  .form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem .75rem; } /* the second screen: the whole form */
+  .form > .field:has(#b-email), .form > .field:has(#b-phone) { grid-column: span 1; } /* email and phone share a row (they are neighbours, so the reading order stays) */
+  .radios { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; } .radio { padding: 0 .3rem; font-size: .875rem; }
+  .field textarea { min-height: 3.25rem; }
+  .form__status { min-height: 0; }
+  .form__actions { gap: var(--s2); }
+  /* the comparison: pick an option on the first screen; the second is one stacked card, the option beside SoleFresh, row by row */
+  .why { padding: 0 var(--gutter) var(--s5); }
+  .why__panel { gap: var(--s3); }
+  .why__panel .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 28svh; }
+  .why__lede { font-size: 1rem; }
+  .vs { display: block; }
+  .vs thead { display: none; }
+  .vs tbody, .vs tr, .vs th, .vs td { display: block; width: auto; }
+  .vs tr { padding: var(--s3) var(--s4); border-top: 1px solid var(--hair); }
+  .vs tr:first-child { border-top: 0; }
+  .vs tbody th, .vs tbody td { border: 0; padding: 0; }
+  .vs tbody th { margin-bottom: .2rem; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+  .vs td { font-size: 1rem; line-height: 1.4; color: var(--ink-2); }
+  .vs td::before { content: attr(data-name) ": "; font: 600 1rem/1.4 var(--font-display); color: var(--ink); }
+  .vs td.vs__us { margin-top: .3rem; padding: .3rem .5rem; border-radius: var(--r-sm); }
+  .vs td.vs__us::before { color: var(--cobalt); }
+  .why__take { font-size: 1rem; }
+  /* story and questions */
+  .story, .faqs { padding: 0 var(--gutter) var(--s5); }
+  .story__panel .pic, .faq__panel .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 24svh; }
+  .faq__panel .pic { --pic: 18svh; }
+  .story__line { font-size: 1.05rem; }
+  .timeline { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .timeline::before { left: 10%; right: 10%; top: 9px; bottom: auto; width: auto; height: 2px; }
+  .milestone__btn { grid-template-columns: none; justify-items: center; text-align: center; gap: .4rem; min-height: 4.5rem; padding: 0 .1rem; font-size: .75rem; }
+  .milestone__text { font-size: 1rem; }
+  .faq__item summary { font-size: 1rem; }
+  /* the close: two screens, organizations then individuals and the footer */
+  .close { padding-top: 0; }
+  .close__wrap { display: flex; flex-direction: column; gap: var(--s3); }
+  .close__wrap .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 26svh; }
+  .path__text { font-size: 1rem; }
+  /* a short phone (667px and under): the second pictures go, and the one note that only repeats the heading */
+  @media (max-height: 760px) {
+    .who .pic, .faq__panel .pic { display: none; }
+    .customize__fit { display: none; }
+  }
 }
 /* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
 @media (max-height: 560px) and (orientation: landscape) and (min-width: 600px) {
