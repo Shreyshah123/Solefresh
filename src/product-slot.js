@@ -43,16 +43,20 @@ import MODEL from './model-data.json';
  *   pop.clear  how far in front of the stack it ends up
  *   pop.face   how much of the way it turns to face the camera (0 to 1)
  *   pop.cordUp how far the pull cord also rises, from below the stack to beside it
+ *   fan        where each fill rests when all three are out beside the housing ("0 of 3 in the housing"), in mm to the side:
+ *              the silica pouch and the scent beads share the first column (as they share a layer inside), the carbon pouch the second
  */
 export const POSES = {
   hero_upright:   { tilt: 12, turn: 20, scale: 1.25, cordSwing: 0.42, cordLay: Math.PI / 2 },
-  inside_upright: { tilt: 12, turn: 20, scale: 0.89, cordSwing: 0.42, cordLay: Math.PI / 2, gap: 3.5, pop: { ms: 380, side: 26, clear: 8, face: 0.6, cordUp: 34 } },
+  inside_upright: { tilt: 12, turn: 20, scale: 0.89, cordSwing: 0.42, cordLay: Math.PI / 2, gap: 3.5, pop: { ms: 380, side: 26, clear: 8, face: 0.6, cordUp: 34 }, fan: { silica_sachet: 54, scent_beads: 54, carbon_sachet: 104 } },
 };
 /** Moving to or from an upright pose, the product travels at this share of the other stage's size and settles to it as the transition ends. */
 export const TRAVEL_SIZE = 0.85;
 /** Degrees the camera looks down on the page: what a tilt adds to, so the lean the visitor sees is the lean asked for. */
 export const VIEW_DOWN = 14.5;
 
+/** The three fills: what goes into the housing. */
+export const FILLS = ['silica_sachet', 'carbon_sachet', 'scent_beads'];
 /** The parts, bottom to top with the cord last: the order of the Inside layers in content.json. */
 export const PARTS = ['shell_bottom', 'carbon_sachet', 'silica_sachet', 'scent_beads', 'shell_top', 'pull_cord'];
 const SHELL = new Set(['shell_bottom', 'shell_top']);
@@ -95,7 +99,7 @@ export class ProductSlot extends THREE.Group {
     this.scenes = {};                // size id -> Promise of the loaded scene
     this.edgeGeo = {};               // size:part -> sketch edges
     this.state = { explode: 0, wire: 0, ghost: 0, highlight: 0, selected: -1 };
-    this.cur = { highlight: 0, sel: PARTS.map(() => 0) };
+    this.cur = { highlight: 0, sel: PARTS.map(() => 0), lit: PARTS.map(() => 0), see: 0 };
     this.cord = { swing: 0, lay: 0 };
     this.viewer = new THREE.Vector3(0, 0, 10); // the camera, set by the world: a popped part turns toward it
     this.drag = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, held: false };
@@ -156,7 +160,7 @@ export class ProductSlot extends THREE.Group {
       mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;', `vec3 outgoingLight = (totalDiffuse + totalSpecular) * ${SHELL_LIT.toFixed(3)} + diffuseColor.rgb * ${SHELL_EVEN.toFixed(3)} + totalEmissiveRadiance;
         float toe = min(outgoingLight.r, min(outgoingLight.g, outgoingLight.b)); outgoingLight += toe < 0.04 ? 0.4 * sqrt(max(toe, 0.0)) - toe : 0.04;`); };
     }
-    return { name, group, pivot, inner, marker, mat, mats, mesh: null, centre: new THREE.Vector3(), half: new THREE.Vector3(), lift: 0, out: 0, clear: 0, pop: { p: 0, from: 0, to: 0, start: 0 } };
+    return { name, group, pivot, inner, marker, mat, mats, mesh: null, centre: new THREE.Vector3(), half: new THREE.Vector3(), lift: 0, out: 0, clear: 0, blink: 0, blinkAt: 0, pop: { p: 0, from: 0, to: 0, start: 0, side: POSES.inside_upright.pop.side, sideTo: POSES.inside_upright.pop.side } };
   }
   /**
    * The open stack at inside_upright, from the parts' own bounds: each layer rises to sit one gap above the layer behind it,
@@ -226,8 +230,30 @@ export class ProductSlot extends THREE.Group {
   selectLayer(i) {
     if (i === this.state.selected) return;
     const was = this.state.selected, now = performance.now(); this.state.selected = i;
-    this.parts.forEach((L, k) => { const to = k === i ? 1 : 0; if (L.pop.to !== to) Object.assign(L.pop, { from: L.pop.p, to, start: now + (to && was >= 0 ? 90 : 0) }); }); // the new one waits a beat for the old one to get out of its way
+    this.parts.forEach((L, k) => { const to = k === i ? 1 : 0; if (to) L.pop.sideTo = POSES.inside_upright.pop.side; if (L.pop.to !== to) Object.assign(L.pop, { from: L.pop.p, to, start: now + (to && was >= 0 ? 90 : 0) }); }); // the new one waits a beat for the old one to get out of its way
   }
+  /**
+   * Inside, before the housing is loaded: which fills are out beside it (names from FILLS; [] puts every one back in).
+   * They leave or return one after another, `stagger` ms apart, each to its own place in the fan. Nothing is selected or dimmed.
+   */
+  setOut(names = [], stagger = 120) {
+    this.state.selected = -1;
+    const now = performance.now(); let n = 0;
+    this.parts.forEach((L) => {
+      const to = names.includes(L.name) ? 1 : 0;
+      if (to) L.pop.sideTo = POSES.inside_upright.fan[L.name] ?? POSES.inside_upright.pop.side;
+      if (L.pop.to !== to) Object.assign(L.pop, { from: L.pop.p, to, start: now + stagger * n++ });
+    });
+  }
+  /** A fill is swapped for a fresh one: it blinks out and back where it is (the housing does not move). */
+  blink(name) { const L = this.parts[PARTS.indexOf(name)]; if (L) L.blinkAt = performance.now(); }
+  /** How many of the fills are in the housing right now (a part on its way counts once it is most of the way back). */
+  fillsIn() { return this.parts.filter((L) => FILLS.includes(L.name) && L.pop.p < 0.25 && L.pop.to === 0).length; }
+  /**
+   * Light some parts and quieten the rest (the comparison stage): names from PARTS, or null for none. A lit part takes a
+   * little of the accent; if one of them is inside the closed housing, the shell goes see-through so it shows.
+   */
+  setFocus(names) { this.state.focus = names && names.length ? names : null; }
   /** The pull cord about the heel window: swing + droops it, - lifts it; lay turns the ring from upright to flat. Radians. */
   setCord(swing, lay) { this.cord.swing = swing; this.cord.lay = lay; }
   /** Customize: drag deltas in px turn the product; release eases it back to the pose. */
@@ -292,7 +318,12 @@ export class ProductSlot extends THREE.Group {
   pick(raycaster) {
     let best = -1, near = Infinity;
     this.updateWorldMatrix(true, true);
-    this.parts.forEach((L, i) => { const hit = L.mat.opacity > 0.01 && raycaster.intersectObject(L.mesh, false)[0]; if (hit && hit.distance < near) { near = hit.distance; best = i; } });
+    this.parts.forEach((L, i) => {
+      if (L.mat.opacity <= 0.45) return;   // hidden, or a see-through shell: a press goes through to what is behind it
+      const g = L.mesh.geometry; if (!g.boundingBox) g.computeBoundingBox();
+      if (!raycaster.ray.intersectsBox(_box.copy(g.boundingBox).applyMatrix4(L.mesh.matrixWorld))) return;   // a miss on the part's box is a miss on the part
+      const hit = raycaster.intersectObject(L.mesh, false)[0]; if (hit && hit.distance < near) { near = hit.distance; best = i; }
+    });
     return best;
   }
   /**
@@ -311,7 +342,7 @@ export class ProductSlot extends THREE.Group {
    * A part with nothing in front of it comes straight out. Never through a neighbour.
    */
   #popAt(L, p, out) {
-    const P = POSES.inside_upright.pop, side = P.side * 0.001, over = Math.max(0, p - 1), first = L.clear || side;
+    const P = POSES.inside_upright.pop, side = L.pop.side * 0.001, over = Math.max(0, p - 1), first = L.clear || side;
     _qi.copy(this.quaternion).invert();
     _view.copy(this.viewer).sub(this.position).applyQuaternion(_qi).normalize();                 // toward the camera, in the model's axes
     const fwd = (L.out / Math.max(0.3, _view.y)) * (smooth((p - 0.3) / 0.45) + over * 0.6);
@@ -342,13 +373,22 @@ export class ProductSlot extends THREE.Group {
       q.p = t >= 1 ? q.to : q.to ? q.from + (1 - q.from) * spring(t) : q.from * (1 - springBack(t));
       moving = true;
     }
+    for (const L of this.parts) {
+      // where a part that is out sits to the side eases between the fan's place and the single part's place
+      const q = L.pop; if (Math.abs(q.sideTo - q.side) > 0.05) { q.side = reduced || q.p < 0.02 ? q.sideTo : approach(q.side, q.sideTo, dt, 10); moving = true; } else q.side = q.sideTo;
+      if (L.blinkAt) { const t = (now - L.blinkAt) / 420; if (t >= 1 || reduced) { L.blink = 0; L.blinkAt = 0; } else L.blink = Math.sin(Math.PI * t); moving = true; }
+    }
     // interaction states
     const c = this.cur, s = this.state;
     if (!Number.isFinite(s.highlight)) s.highlight = 0; if (!Number.isFinite(c.highlight)) c.highlight = s.highlight; // never let a NaN stick
     const nh = reduced ? s.highlight : approach(c.highlight, s.highlight, dt, 6);
     if (Math.abs(nh - c.highlight) > 1e-4) moving = true; c.highlight = nh;
+    const wantSee = s.focus && s.focus.some((n) => HIDDEN_WHEN_CLOSED.has(n)) ? 1 : 0, ns = reduced ? wantSee : approach(c.see, wantSee, dt, 6);
+    if (Math.abs(ns - c.see) > 1e-4) moving = true; c.see = Math.abs(ns - wantSee) < 2e-3 ? wantSee : ns;
     for (let i = 0; i < this.parts.length; i++) {
-      const t = s.selected < 0 ? 0 : (i === s.selected ? 1 : -1);
+      const lit = s.focus && s.focus.includes(PARTS[i]) ? 1 : 0, nl = reduced ? lit : approach(c.lit[i], lit, dt, 6);
+      if (Math.abs(nl - c.lit[i]) > 1e-4) moving = true; c.lit[i] = Math.abs(nl - lit) < 2e-3 ? lit : nl;
+      const t = s.focus ? (lit ? 0 : -1) : s.selected < 0 ? 0 : (i === s.selected ? 1 : -1);
       const n = reduced ? t : approach(c.sel[i], t, dt, 7);
       if (Math.abs(n - c.sel[i]) > 1e-4) moving = true; c.sel[i] = n;
     }
@@ -364,10 +404,10 @@ export class ProductSlot extends THREE.Group {
       this.#partOffset(L, s.explode, L.group.position);
       if (L.pop.p > 0) this.#popAt(L, L.pop.p, L.group.position); else L.group.quaternion.identity();
       if (L.name === 'pull_cord') L.pivot.rotation.set(this.cord.lay, 0, -this.cord.swing, 'ZXY');
-      const dim = Math.max(0, -sel), glow = c.highlight * 0.35;       // a popped part keeps its own colour: leaving the stack is what marks it
+      const dim = Math.max(0, -sel), glow = Math.max(c.highlight * 0.35, c.lit[i] * 0.2);       // a popped part keeps its own colour: leaving the stack is what marks it
       for (const { m, base, baseI } of L.mats) {
         m.emissive.copy(base).lerp(ACCENT, Math.min(1, glow)); m.emissiveIntensity = baseI * (1 - glow) + glow;
-        m.opacity = (1 - dim * DIM) * (1 - s.wire * 0.72) * (SHELL.has(L.name) ? 1 - s.ghost * GHOST : 1);
+        m.opacity = (1 - dim * DIM) * (1 - s.wire * 0.72) * (SHELL.has(L.name) ? 1 - Math.max(s.ghost, c.see) * GHOST : 1) * (1 - L.blink);
         m.depthWrite = m.opacity > 0.5;
         m.visible = m.opacity > 0.01;
       }
@@ -378,4 +418,4 @@ export class ProductSlot extends THREE.Group {
     for (const w of this.wires) { w.material.opacity = s.wire * 0.5; w.visible = s.wire > 0.01; }
   }
 }
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _view = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion(), _qf = new THREE.Quaternion(), _qp = new THREE.Quaternion();
+const _box = new THREE.Box3(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _view = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion(), _qf = new THREE.Quaternion(), _qp = new THREE.Quaternion();

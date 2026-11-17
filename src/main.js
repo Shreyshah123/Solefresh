@@ -1,9 +1,9 @@
 // SoleFresh landing page.
-// Section-first. On wide screens, from Stage 1 through the pilot stage, the page
-// comes to rest on a stage: wheel, trackpad, keys and touch each move one stage per
-// gesture, and the settle is a timed Lenis scroll of SNAP_MS. Past the pilot stage
-// (Why, Story, FAQ, Close, footer) scrolling is the browser's own, and so it is
-// everywhere under 900px and on short landscape screens. The ONE
+// Section-first. With a mouse or trackpad, at any window size, and on touch tablets, the page is the full-screen
+// website (compact under 900px wide) and comes to rest on a stage from the first stage to the footer: wheel,
+// trackpad, keys and touch each move one rest point per gesture, and the settle is
+// a timed Lenis scroll (SNAP_MS for a whole stage). Only phones (a coarse pointer
+// under 768px wide, or a short landscape phone) keep the browser's own scrolling. The ONE
 // scroll-linked motion is the product's travel between neighbouring stage
 // states, computed over a short window before each stage. Everything else plays
 // on a clock or on click/hover/tap and finishes.
@@ -11,23 +11,31 @@ import C from '../content.json';
 import MODEL from './model-data.json';
 import { drawThumb } from './venues.js';
 import Lenis from 'lenis';
+import { TIERS, pickTier, refineTier, tierBelow, rememberTier } from './tier.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const FINE = matchMedia('(hover: hover) and (pointer: fine)');
-const NARROW = matchMedia('(max-width: 899px), (max-height: 520px)'); // keep in step with styles.css: the phone layout
-const SIDE = matchMedia('(max-height: 520px) and (orientation: landscape)'); // and within it, short landscape: the product beside the text, not above it
+const NARROW = matchMedia('(max-width: 479px), (max-height: 560px), (pointer: coarse) and (max-width: 767px)'); // keep in step with styles.css: the stacked layout (phones, and windows too small for anything else)
+// The full-screen website in a narrow or tall window (a mouse or trackpad window under 900px wide, a tablet in portrait):
+// every stage is one screen and the product is framed into its .room. Keep in step with styles.css.
+const COMPACT = matchMedia('(min-width: 768px) and (max-width: 899px) and (min-height: 561px), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: none)');
+const SIDE = matchMedia('(max-height: 560px) and (orientation: landscape) and (min-width: 600px)'); // and within it, short landscape: the product beside the text, not above it
+// Who gets the snap: any fine pointer (mouse, trackpad) at any window size, and touch tablets (768px wide or more and not a
+// phone on its side). The layout (NARROW, COMPACT) and the snap are separate questions.
+const SNAPQ = matchMedia('(pointer: fine), (min-width: 768px) and (min-height: 500px)');
 const html = document.documentElement;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, color: C.customize.defaults.color, size: C.customize.defaults.size, method: 'solefresh', milestone: 'refining' };
-let world = null, worldReady = false;
+export const state = { audience: C.segments.items[0].id, stage: 'explorer', step: 0, layer: -1, inside: { loaded: false, part: null, refilled: false, without: false, busy: false, n: 0 }, color: C.customize.defaults.color, size: C.customize.defaults.size, method: C.why.start, milestone: 'refining' };
+let world = null, worldReady = false, audiencePicked = false;   // audiencePicked: the visitor chose an audience themselves (the default is not a choice)
 const worldEl = $('[data-world]'), navEl = $('.nav');
 
 // ------------------------------------------------------------------- nav --
 const menuBtn = $('.nav__menu'), menu = $('#menu');
-function setMenu(open) { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', String(open)); }
+function setMenu(open) { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', String(open)); const m = $('main'); if (m) m.inert = open; }   // what is behind an open menu cannot be reached
+addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('.menu, .nav__menu')) setMenu(false); }, true);
 menuBtn.addEventListener('click', () => setMenu(menu.hidden));
 matchMedia('(min-width: 1241px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); }); // the burger is gone up there: keep in step with styles.css
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { setMenu(false); menuBtn.focus(); } });
@@ -74,7 +82,7 @@ document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-jump]'); if (!a) return;
   const target = document.getElementById(a.getAttribute('href').slice(1)); if (!target) return;
   e.preventDefault(); setMenu(false);
-  if (a.hasAttribute('data-bulk')) try { const seg = C.segments.items.find((x) => x.id === state.audience); sessionStorage.setItem('sf-org-type', seg?.orgType || ''); } catch {}
+  if (a.hasAttribute('data-bulk') && audiencePicked) try { const seg = C.segments.items.find((x) => x.id === state.audience); sessionStorage.setItem('sf-org-type', seg?.orgType || ''); } catch {}
   goTo(target);
   const h = target.querySelector('h1, h2, h3'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
   if (state.stage === 'bulk') preselectOrgType();
@@ -107,13 +115,14 @@ function landFirst() {
 
 // Current stage in the nav, and stage content arriving with one short fade.
 const stages = $$('[data-product]');
+const ROOMS = stages.map((s) => !!s.querySelector('.room'));   // the stages whose product has a .room in the compact layout
 const links = $$('[data-jump]').filter((a) => a.classList.contains('nav__link') || a.classList.contains('menu__link'));
 const stageIO = new IntersectionObserver((entries) => { for (const e of entries) e.target.classList.toggle('is-in', e.isIntersecting); }, { threshold: 0.18 });
 stages.forEach((s) => stageIO.observe(s));
-const faqEl = $('#faq');
+let currentMark = null;
 function markCurrent(stage) {
-  const id = stage === 'story' && faqEl && faqEl.getBoundingClientRect().top < innerHeight * 0.25 ? 'faq' : stage; // the FAQ only once it has reached the top of the view
-  links.forEach((a) => a.setAttribute('aria-current', a.dataset.jump === id ? 'true' : 'false'));
+  if (stage === currentMark) return; currentMark = stage;   // written only when it changes: this runs on every scroll event
+  links.forEach((a) => a.setAttribute('aria-current', a.dataset.jump === stage ? 'true' : 'false'));
 }
 
 // --------------------------------------------- the one scroll-linked move --
@@ -132,6 +141,7 @@ function measureStages() {
   snap.measure();
   onScroll(true);
   fitStages();
+  if (!worldReady) placePoster();   // the stills (no live product) go where the stages now are
 }
 let lastKey = '';
 function onScroll(force = false) {
@@ -141,7 +151,7 @@ function onScroll(force = false) {
   for (let i = 1; i < stages.length; i++) {
     const a = stages[i - 1].dataset.product, b = stages[i].dataset.product;
     // phones scroll freely: the travel fits inside the stage and the space under the band, so every stage has a rest zone
-    const sp = narrow ? Math.min(Math.max(innerHeight - navH() - (bands[b] || 0), (tops[i] - tops[i - 1]) * 0.7) * 0.8, (tops[i] - tops[i - 1]) * 0.8) : innerHeight * (TRAVEL[`${a}>${b}`] || TRAVEL.default), start = tops[i] - sp;
+    const sp = narrow ? Math.min(Math.max(innerHeight - navH() - (bands[b] || 0), (tops[i] - tops[i - 1]) * 0.7) * 0.8, (tops[i] - tops[i - 1]) * 0.8) : innerHeight * (TRAVEL[`${a}>${b}`] || TRAVEL.default), start = tops[i] - sp - (narrow ? Math.min(40, sp * 0.15) : 0); // stacked: arrived a little early, so a few px of drift at rest (a focus scroll, a rubber band) is not a travel
     if (y < start) break;
     from = a; to = b; at = i; span = sp; u = sp - (y - start) < 1 ? 1 : Math.min(1, (y - start) / sp); // within a pixel of the end counts as arrived
   }
@@ -158,35 +168,112 @@ function onScroll(force = false) {
   // phones: the band has scrolled away by the time Bulk arrives, so the world stays in its last stage below that
   const below = narrow && at > LAST_BAND, wf = below ? stages[LAST_BAND - 1].dataset.product : from, wt = below ? stages[LAST_BAND].dataset.product : to, wu = below ? 1 : u;
   if (narrow) { const k = RM.matches ? (wu < 0.5 ? 0 : 1) : wu * wu * (3 - 2 * wu); setBand((bands[wf] || 0) + ((bands[wt] || 0) - (bands[wf] || 0)) * k); }
+  // In the compact layout a stage taller than its screen has inner rest points, and its product sits in a .room in the
+  // text: between the stage's first and last rest the picture moves with the page, so the product stays in its room. On
+  // the way to the next stage that offset eases out with the travel.
+  // (only a stage with a room: the rack behind the pilot form is a backdrop and stays where it is)
+  const roomSpan = (i) => (ROOMS[i] ? snap.spans[i] || 0 : 0);
+  if (world && !narrow) world.setPan(!COMPACT.matches ? 0 : u >= 1 || u === 0 ? -clamp(y - tops[at], 0, roomSpan(at)) : -roomSpan(at - 1) * (1 - u));
   const key = `${wf}>${wt}@${wu.toFixed(3)}`;
   if (key !== lastKey) { lastKey = key; if (world) world.setTravel(wf, wt, wu, below ? wu : uLeave); }
   const tv = u > 0 && u < 1 ? `${from}>${to}` : '';
-  if (tv !== html.dataset.travel) { html.dataset.travel = tv; updateOverlayVisibility(); if (tv && state.layer >= 0) selectLayer(-1); } // a scroll away puts a popped part back first
+  if (tv !== html.dataset.travel) { html.dataset.travel = tv; updateOverlayVisibility(); if (tv) insideLeave(); else insideArrive(); } // a scroll away puts every part back first; arriving at rest in Inside brings the fills out
   setStage(stage);
   const rest = onStage2Rest(); if (rest !== stage2Rest) { stage2Rest = rest; updateOverlayVisibility(); }
 }
+// The other two sizes are fetched (not parsed) once the visitor reaches Inside or Sizes, or points at a size button, so a
+// size pick does not wait on the network, and nobody who never gets there downloads them.
+let sizesFetched = false;
+function prefetchSizes() {
+  if (sizesFetched || !worldReady || navigator.connection?.saveData) return; sizesFetched = true;
+  for (const id of Object.keys(MODEL.sizes)) if (id !== world.slot.sizeId) fetch(MODEL.sizes[id].url, { priority: 'low' }).catch(() => {});
+}
 function setStage(stage) {
   markCurrent(stage);
+  if (stage === 'inside' || stage === 'customize') prefetchSizes();
   if (stage === state.stage) return;
   const prev = state.stage; state.stage = stage; html.dataset.stage = stage;
   if (stage === 'how') $('[data-step-caption]')?.setAttribute('aria-live', 'polite');
-  if (world) {
-    if (stage === 'inside') world.selectLayer(state.layer);
-    if (prev === 'customize') world.releaseDrag();
-  }
-  if (prev === 'inside' && state.layer >= 0) selectLayer(-1); // the layer sheet belongs to its stage
+  if (world && prev === 'customize') world.releaseDrag();
+  if (prev === 'inside') insideLeave();   // the stage starts over next time
+  if (prev === 'why' || stage === 'why') focusWhy();
+  if (stage === 'inside') insideArrive();
   showPoster();
   updateOverlayVisibility();
 }
-/** Without a live product the poster stands in for it, stage by stage. */
-function showPoster() { if (worldReady) return; const img = $('[data-poster-img]'), st = state.stage, want = st === 'explorer' ? `assets/posters/${state.audience}.webp` : `assets/posters/${st}.webp`; if (img && !img.src.endsWith(want)) img.src = want; }
+/**
+ * Without a live product a still stands in for it, and it follows every control: the audience, the step, what is loaded
+ * or picked out Inside, the colour and size, the option being compared. A label never disagrees with the picture.
+ * The files are made by lab/posters.mjs: keep the names in step.
+ */
+function posterName() {
+  const st = state.stage, i = state.inside;
+  if (st === 'explorer') return state.audience;
+  if (st === 'how') return `how-${state.step}`;
+  if (st === 'inside') return i.part ? `inside-${i.part}` : i.loaded ? 'inside-loaded' : 'inside-apart';
+  if (st === 'customize') return `customize-${state.color}-${state.size}`;
+  if (st === 'why') return `why-${state.method}`;
+  return st;
+}
+let posterWant = '';
+const posterCache = new Map();
+/** A decoded copy of a still, made once. decode() runs off the main thread; the swap after it is only a paint. */
+function decodedPoster(url) {
+  if (!posterCache.has(url)) { const im = new Image(); im.decoding = 'async'; im.src = url; posterCache.set(url, im.decode().then(() => im, () => im)); }
+  return posterCache.get(url);
+}
+// The stills are drawn for the wide layout. In the compact one each goes into its stage's .room (at the stage's rest):
+// the upright hero cropped round the product, the wider scenes whole, and the comparison, Story and FAQ ones cropped to
+// the left, where their product is.
+// [fit, focus, zoom]: a whole wide still has empty margins round the product, so it is shown a little larger, clipped to the room
+const POSTER_FIT = { explorer: ['cover', '50% 50%', 1], why: ['cover', '16% 55%', 1], story: ['cover', '20% 55%', 1], faq: ['cover', '20% 55%', 1], inside: ['contain', '50% 50%', 1.7], customize: ['contain', '50% 50%', 1.4], how: ['contain', '50% 50%', 1.25] };
+let posterKey = '';
+function placePoster() {
+  const key = `${state.stage}/${innerWidth}x${innerHeight}/${COMPACT.matches}/${worldReady}/${tops.join()}`; if (key === posterKey) return; posterKey = key;
+  const pic = $('[data-poster]'), img = $('[data-poster-img]'); if (!pic || !img) return;
+  const i = stages.findIndex((s) => s.dataset.product === state.stage), room = COMPACT.matches && !worldReady && tops.length ? stages[i]?.querySelector('.room') : null;
+  if (!room || room.offsetHeight < 24) { pic.style.cssText = ''; img.style.objectFit = ''; img.style.objectPosition = ''; img.style.transform = ''; return; }
+  const r = room.getBoundingClientRect(), top = pageTop(room) - Math.min(tops[i], Math.max(0, html.scrollHeight - innerHeight)), [fit, at, zoom] = POSTER_FIT[state.stage] || ['contain', '50% 50%', 1.3];
+  pic.style.cssText = `left:${Math.round(r.left)}px;top:${Math.round(top)}px;width:${Math.round(r.width)}px;height:${room.offsetHeight}px;right:auto;bottom:auto;overflow:clip`;
+  img.style.objectFit = fit; img.style.objectPosition = at; img.style.transform = zoom !== 1 ? `scale(${zoom})` : '';
+}
+function showPoster() {
+  if (worldReady) return;
+  placePoster();
+  const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`;
+  if (!img || img.src.endsWith(want) || posterWant === want) return;
+  posterWant = want;
+  decodedPoster(want).then(() => { if (posterWant === want) img.src = want; });   // a later pick wins
+  preloadNeighbours();
+}
+/** On the stills, the pictures one click away are decoded ahead (the stage's other states, and the next stage's first). */
+function preloadNeighbours() {
+  const st = state.stage, near = [];
+  if (st === 'explorer') near.push(...C.segments.items.map((a) => a.id));
+  if (st === 'how') near.push(...C.how.steps.map((_, i) => `how-${i}`));
+  if (st === 'inside') near.push('inside-loaded', ...C.inside.components.map((c) => `inside-${c.id}`));
+  if (st === 'customize') near.push(...C.customize.colors.map((c) => `customize-${c.id}-${state.size}`), ...C.customize.sizes.map((z) => `customize-${state.color}-${z.id}`));
+  if (st === 'why') near.push(...C.why.alternatives.map((m) => `why-${m.id}`));
+  const i = stages.findIndex((x) => x.dataset.product === st), next = stages[i + 1]?.dataset.product;
+  if (next) near.push({ how: 'how-0', inside: 'inside-apart', customize: `customize-${state.color}-${state.size}`, why: `why-${state.method}` }[next] || next);
+  (window.requestIdleCallback || setTimeout)(() => near.forEach((n) => decodedPoster(`assets/posters/${n}.webp`)));
+}
 addEventListener('scroll', () => onScroll(), { passive: true });
 // A resize moves every stage: the page goes with the place it was resting on, unless the visitor is working in a form or the FAQ.
+let lastW = innerWidth;
 addEventListener('resize', () => {
-  const on = snapOn() && !snapPaused() && !snap.animating, k = tops.findIndex((t) => Math.abs(t - scrollY) <= 2), free = scrollY > snap.end + 1;
+  const typing = document.activeElement?.closest?.('input, textarea, select'), y0 = typing ? typing.getBoundingClientRect().top : 0;
+  const widthChanged = innerWidth !== lastW; lastW = innerWidth;
+  // where the visitor is: which stage, and how far into it (a settle under way counts as already there)
+  const y = snap.animating && snap.target >= 0 ? snap.points[snap.target] : scrollY;
+  let k = 0; for (let i = 0; i < tops.length; i++) if (tops[i] <= y + 2) k = i;
+  const span = (i) => Math.max(1, (i + 1 < tops.length ? tops[i + 1] : Math.max(tops[i] + 1, html.scrollHeight - innerHeight)) - tops[i]);
+  const f = clamp((y - tops[k]) / span(k), 0, 1);
   measureStages();
-  if (!on || (free && k < 0)) return;     // scrolling freely, the visitor is wherever they scrolled to
-  snap.jump(free ? tops[k] : k >= 0 ? snap.points[snap.nearest(tops[k])] : snap.points[snap.nearest()]);
+  if (typing) { const d = typing.getBoundingClientRect().top - y0; if (Math.abs(d) > 1) snap.jump(scrollY + d); }   // a field being typed in stays where it is
+  else if (snapOn()) snap.jump(snap.points[snap.nearest(tops[k] + f * span(k))]);
+  else if (widthChanged) snap.jump(Math.round(tops[k] + f * span(k)));                                              // phones: a rotation, not the address bar coming and going
+  else return;
   suppressUntil = 0; lastKey = ''; onScroll(true); updateOverlayVisibility();
 });
 // Anything that changes the page's height (a form error, a sent form, an answer opening) moves the stages below it.
@@ -195,21 +282,19 @@ addEventListener('load', () => { measureStages(); landFirst(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measureStages(); fitStages(true); landFirst(); });
 
 // ------------------------------------------------------------------ snap --
-// Stage 1 through the pilot stage rest on a stage. One stage per gesture; the settle
-// is a timed scroll (SNAP_MS, ease-out) driven by Lenis, so trackpad momentum cannot
-// fight it. Tall stages get extra rest points one viewport apart. The last of these is
-// snap.end: below it the page is the browser's own, with no snap, no settle and nothing
-// intercepted, and a scroll that comes back up simply meets the snap again there.
+// Every stage is a rest point, first to last, and the page's end is the last one (so the footer is always
+// reachable). One rest point per gesture; the settle is a timed scroll (ease-out) driven by Lenis, so trackpad
+// momentum cannot fight it. A stage that cannot fit the window (a short window, the stacked layout) gets inner
+// rest points less than a view apart, so everything in it can be reached. ONE system owns snapping: this one.
+// There is no CSS scroll-snap on the page and Lenis only plays the tween.
 const QS = new URLSearchParams(location.search);
-const snapOn = () => !NARROW.matches;
-const LAST_SNAP = stages.findIndex((s) => s.dataset.product === 'bulk');
-/** Is a scroll from y in this direction (1 down, -1 up) the browser's to do? */
-const freeScroll = (y, dir) => y > snap.end + 1 || (dir > 0 && y >= snap.end - 1);
-/** Snapping stands aside while the visitor is working in a form or the FAQ, for as long as it is on screen. */
-function snapPaused() {
-  const zone = document.activeElement?.closest?.('form, .faq'); if (!zone) return false;
-  const r = zone.getBoundingClientRect(); return r.bottom > navH() && r.top < innerHeight;
-}
+// Phones only (they keep native scrolling): CSS scroll-snap, proximity, on each stage's start, if flags.phoneSnap is set in
+// content.json. `?phonesnap=1` (or 0) overrides it, to compare. styles.css applies it only to phones.
+if ((QS.get('phonesnap') ?? (C.flags?.phoneSnap ? '1' : '0')) === '1') html.classList.add('phone-snap');
+const snapOn = () => SNAPQ.matches;
+const HOW = stages.findIndex((s) => s.dataset.product === 'how');
+/** A long message scrolls itself: the one place a wheel or a swipe is not a step. */
+const scrollsItself = (el) => { const ta = el?.closest?.('textarea'); return !!ta && ta.scrollHeight > ta.clientHeight + 1; };
 const SNAP_MS = clamp(+QS.get('snap') || 600, 200, 1500);               // settle duration
 // Gesture-end debounce: a pause in wheel events longer than this ends a
 // gesture, so the next event starts a new one. Just long enough that the
@@ -222,17 +307,57 @@ let lenis = null;
 // Steps are queued, not dropped: a same-direction request during a settle is
 // remembered (at most one) and starts when the settle ends; an opposite
 // request reverses to the stage the settle came from.
+// What a rest point must never slice: lines of text and controls, and the groups that read as one (a field with its label,
+// a card, a table row, a question with its answer).
+const UNIT = 'h1, h2, h3, p, li, tr, label, legend, summary, .btn, button, input, select, textarea, img';
+const GROUP = '.field, .hs-card, tr, .faq__item, .path, .sheet__body, .form__actions, .step, .radio, .swatch, .size';
+/** The page-y spans [top, bottom] of a stage's units, as laid out (an arrival fade's transform plays no part). */
+function unitsOf(stage) {
+  const out = [], seen = new Set();
+  for (const e of stage.querySelectorAll(UNIT)) {
+    if (e.closest('[hidden], .hp, .vh, [aria-hidden="true"]')) continue;
+    const g = e.closest(GROUP) || e; if (seen.has(g)) continue; seen.add(g);
+    if (!g.getClientRects().length || g.offsetHeight < 2) continue;   // not rendered
+    const t = pageTop(g); out.push([t, t + g.offsetHeight]);
+  }
+  return out;
+}
 const snap = {
-  points: [], end: Infinity, target: -1, from: -1, dir: 0, queued: 0, run: 0, fallback: 0, animating: false, quiet: 0, tabbed: null,
+  points: [], spans: [], end: Infinity, target: -1, from: -1, dir: 0, queued: 0, run: 0, fallback: 0, animating: false, quiet: 0, tabbed: null, byKey: false,
   measure() {
-    const pts = [], maxY = Math.max(0, document.documentElement.scrollHeight - innerHeight), view = innerHeight - navH();
-    for (let i = 0; i <= LAST_SNAP; i++) {
-      const top = Math.min(tops[i], maxY), end = Math.min(tops[i + 1], maxY + view);
-      pts.push(top);
-      const extra = end - top - view;                        // part of a tall stage that does not fit under the nav
-      if (extra > (stages[i].classList.contains('stage--full') ? 30 : 16)) { const n = Math.ceil(extra / view); for (let k = 1; k <= n; k++) pts.push(top + (extra * k) / n); } // a full stage's bottom padding can stay cut off
+    const pts = [], maxY = Math.max(0, html.scrollHeight - innerHeight), view = innerHeight - navH();
+    this.spans = [];
+    for (let i = 0; i < stages.length; i++) {
+      const band = bands[stages[i].dataset.product] || 0, top = Math.min(tops[i], maxY), room = Math.max(120, view - band), cover = innerHeight - room;   // what the stage has under the nav (and, stacked, under the band)
+      pts.push(top); this.spans[i] = 0;
+      // A stage taller than its view gets inner rest points. Each one starts at the first line or control that was not yet
+      // whole at the rest before it, just under the nav (and band), so a rest never slices a line at the top. The last
+      // one puts the stage's end at the window's bottom when what is left fits.
+      const us = unitsOf(stages[i]), end = Math.min(maxY, pageTop(stages[i]) + stages[i].offsetHeight - innerHeight);
+      for (let y = top, k = 0; k < 16; k++) {
+        const left = us.filter(([, b]) => b > y + innerHeight + 1); if (!left.length) break;
+        // the line the next rest starts at: the top of the first unit not yet whole, moved up past any unit that crosses it,
+        // with up to 12px of air that never shows a sliver of the unit above
+        let L = Math.min(...left.map(([a]) => a));
+        for (let again = true; again;) { again = false; for (const [a, b] of us) if (a < L - 1 && b > L + 1 && a > y + cover) { L = a; again = true; } }
+        const above = us.reduce((m, [, b]) => (b <= L + 1 ? Math.max(m, b) : m), -Infinity);
+        const next = L - cover - clamp(L - above - 2, 0, 12);
+        if (end <= next + 1) {
+          // what is left fits with the stage's end at the window's bottom; a line already read that this rest would slice at
+          // the top is scrolled the rest of the way under the nav instead (the next stage's margin shows a little more)
+          let e = end; for (let again = true; again;) { again = false; for (const [a, b] of us) if (a < e + cover - 1 && b > e + cover + 1) { e = b - cover + 2; again = true; } }
+          e = Math.min(e, maxY); if (e > y + 40) { pts.push(e); this.spans[i] = e - top; } break;
+        }
+        y = next > y + 40 ? next : y + room * 0.85;   // a single unit taller than the view: step through it
+        if (y >= maxY) break;
+        pts.push(y); this.spans[i] = y - top;
+      }
     }
-    this.points = [...new Set(pts.map((p) => Math.round(clamp(p, 0, maxY))))].sort((a, b) => a - b);
+    pts.push(maxY);                                          // the end of the page: the footer is always a rest
+    const sorted = [...new Set(pts.map((p) => Math.round(clamp(p, 0, maxY))))].sort((a, b) => a - b);
+    // two rests closer than 40px are one (the later one), except the page's end: it always stays, and so does a rest just
+    // before it, or the last stage's heading would rest under the nav
+    this.points = sorted.filter((p, i, a) => i === a.length - 1 || a[i + 1] - p >= (i === a.length - 2 ? 12 : 40));
     this.end = this.points[this.points.length - 1];
   },
   nearest(y = scrollY) { let best = 0; for (let i = 1; i < this.points.length; i++) if (Math.abs(this.points[i] - y) < Math.abs(this.points[best] - y)) best = i; return best; },
@@ -256,22 +381,38 @@ const snap = {
       clearTimeout(this.fallback); this.animating = false;
       const q = this.queued; this.queued = 0;
       if (q) this.request(q);                         // the remembered step starts now
-      else this.showFocus();
+      else { this.showFocus(); this.keepFocus(); }
     };
-    clearTimeout(this.fallback); this.fallback = setTimeout(done, SNAP_MS + 400); // never stay stuck if a callback is lost
-    if (lenis && !RM.matches) lenis.scrollTo(y, { duration: SNAP_MS / 1000, easing: SNAP_EASE, lock: true, force: true, onComplete: done });
+    // A whole stage takes SNAP_MS. A shorter hop (an inner rest point, a short stacked stage) takes less, so it never feels
+    // like a stall. Hops beside Stage 3 keep the full curve: its way out of the shoe is paced on it (see onScroll).
+    const d = Math.abs(y - scrollY), view = Math.max(1, innerHeight - navH()), lo = Math.min(y, scrollY), hi = Math.max(y, scrollY);
+    const besideHow = !NARROW.matches && HOW > 0 && hi > tops[HOW - 1] + 1 && lo < (tops[HOW + 1] ?? Infinity) - 1;
+    const ms = besideHow ? SNAP_MS : clamp(SNAP_MS * Math.sqrt(d / view), 240, SNAP_MS);
+    clearTimeout(this.fallback); this.fallback = setTimeout(done, ms + 400); // never stay stuck if a callback is lost
+    if (lenis && !RM.matches) { lenisAwake(); lenis.scrollTo(y, { duration: ms / 1000, easing: SNAP_EASE, lock: true, force: true, onComplete: done }); }
     else { scrollTo({ top: y, behavior: 'auto' }); requestAnimationFrame(done); }
   },
   /** A Tab pressed during a settle loses its scroll: when the page stops, go where the focused control can be seen. */
-  showFocus() {
-    const a = this.tabbed; this.tabbed = null; if (!a || a !== document.activeElement) return;
-    const r = a.getBoundingClientRect(); if (!r.width || (r.bottom > navH() && r.top < innerHeight)) return;
-    const want = scrollY + r.top - navH(); if (want > this.end) { a.scrollIntoView({ block: 'center' }); return; }
-    let i = 0; this.points.forEach((p, k) => { if (p <= want) i = k; });
+  showFocus() { const a = this.tabbed; this.tabbed = null; if (a && a === document.activeElement) this.reveal(a); },
+  /** Rest where a focused control can be seen: the last rest point at or above it. Does nothing if it already shows at a rest point. */
+  reveal(a) {
+    if (this.animating) { this.tabbed = a; return; }
+    const r = a.getBoundingClientRect(); if (!r.width) return;
+    const cover = navH() + (bands[a.closest('[data-product]')?.dataset.product] || 0), at = this.nearest();
+    if (Math.abs(this.points[at] - scrollY) <= 2 && r.top >= cover - 1 && r.bottom <= innerHeight + 1) return;
+    const want = scrollY + r.top - cover - 12; let i = 0; this.points.forEach((p, k) => { if (p <= want + 1) i = k; });
+    if (scrollY + r.bottom - this.points[i] > innerHeight && i + 1 < this.points.length) i++;   // it would still hang off the bottom: the next rest shows it
     if (Math.abs(this.points[i] - scrollY) > 2) this.to(i);
   },
-  settle() { if (this.animating || performance.now() < this.quiet || scrollY > this.end + 1) return; const i = this.nearest(); if (Math.abs(this.points[i] - scrollY) > 2) this.to(i); },
-  jump(y) { this.run++; clearTimeout(this.fallback); this.animating = false; this.queued = 0; this.target = -1; this.quiet = performance.now() + 500; if (lenis) lenis.scrollTo(y, { immediate: true, force: true }); if (Math.abs(scrollY - y) > 1) scrollTo({ top: y, behavior: 'auto' }); }, // Lenis skips a target it already holds, even if the browser has since moved the page
+  /** A key moved the page and left the focused control behind: focus goes with the page, to the stage's heading. */
+  keepFocus() {
+    if (!this.byKey) return; this.byKey = false;
+    const a = document.activeElement; if (!a || a === document.body) return;
+    const r = a.getBoundingClientRect(); if (r.bottom > navH() && r.top < innerHeight) return;
+    const h = stages.find((s) => s.dataset.product === state.stage)?.querySelector('h1, h2'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+  },
+  settle() { if (this.animating || performance.now() < this.quiet) return; const i = this.nearest(); if (Math.abs(this.points[i] - scrollY) > 2) this.to(i); },
+  jump(y) { this.run++; clearTimeout(this.fallback); this.animating = false; this.queued = 0; this.target = -1; this.quiet = performance.now() + 500; if (lenis) { lenisAwake(); lenis.scrollTo(y, { immediate: true, force: true }); } if (Math.abs(scrollY - y) > 1) scrollTo({ top: y, behavior: 'auto' }); }, // Lenis skips a target it already holds, even if the browser has since moved the page
 };
 // wheel and trackpad: one step request per gesture. A gesture starts when
 //  - no wheel event arrived for GESTURE_GAP_MS, or
@@ -282,12 +423,14 @@ const snap = {
 // Momentum alone only decays, and a mouse spin has flat deltas, so neither
 // produces a false rise.
 {
-  const g = { t: -1e9, dir: 0, acc: 0, fired: false, prev: 0, peak: 0, peakT: 0, low: Infinity };
+  const g = { t: -1e9, dir: 0, acc: 0, fired: false, prev: 0, peak: 0, peakT: 0, low: Infinity, slow: 0 };
   const begin = (now, dir) => Object.assign(g, { dir, acc: 0, fired: false, prev: 0, peak: 0, peakT: now, low: Infinity });
   addEventListener('wheel', (e) => {
-    if (!snapOn() || e.ctrlKey || e.target.closest('.menu') || snapPaused()) return;
-    const now = performance.now(), dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
-    if (dy && !snap.animating && freeScroll(scrollY, Math.sign(dy))) return;   // past the snap: the browser scrolls, and nothing here touches the event
+    if (!snapOn() || e.ctrlKey || e.target.closest?.('.menu') || scrollsItself(e.target)) return;
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;                       // a sideways swipe is not a step
+    // The gesture clock is the event's own time stamp, not the time this handler got to run: a stalled main thread
+    // delivers a flick's events late and bunched, and on the handler's clock that read as two gestures (two stages).
+    const now = e.timeStamp || performance.now(), dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
     e.preventDefault(); e.stopImmediatePropagation();
     if (!dy) return;
     const dir = Math.sign(dy), mag = Math.abs(dy);
@@ -299,59 +442,77 @@ const snap = {
     g.t = now; g.prev = mag; g.acc += mag;
     if (lv > g.peak) { g.peak = lv; g.peakT = now; g.low = lv; } else if (lv < g.low) g.low = lv;
     if (!g.fired && g.acc >= 30) { g.fired = true; snap.request(dir); }
+    // a slow, small notch (a high-resolution wheel, one line at a time) never reaches 30px: it still means "next"
+    clearTimeout(g.slow); if (!g.fired) g.slow = setTimeout(() => { if (!g.fired && g.acc >= 4) { g.fired = true; snap.request(g.dir); } }, GESTURE_GAP_MS + 30);
   }, { capture: true, passive: false });
 }
 // keyboard: every press is a step request (queued like wheel steps); holding a key repeats nothing
 addEventListener('keydown', (e) => {
   if (!snapOn() || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
-  if (e.target.closest('input, textarea, select, [contenteditable="true"]') || snapPaused()) return;
+  if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;   // keys typed into a field are the field's
   const k = e.key; let dir = 0;
-  if (k === ' ' && e.target.closest('button, a[href], summary, [role="tab"], [role="button"]')) return; // Space presses a focused control
+  if (k === ' ' && e.target.closest('button, a[href], summary, [role="tab"], [role="button"], [data-drag]')) return; // Space presses a focused control
+  if ((k === 'ArrowDown' || k === 'ArrowUp') && e.target.closest('[role="tab"], [data-drag]')) return;                // arrows belong to a tab list or the turn control
   if (k === 'PageDown' || k === 'ArrowDown' || (k === ' ' && !e.shiftKey)) dir = 1;
   else if (k === 'PageUp' || k === 'ArrowUp' || (k === ' ' && e.shiftKey)) dir = -1;
-  else if (k === 'Home') { e.preventDefault(); snap.toIndex(0); return; }
-  if (!dir || freeScroll(scrollY, dir)) return;   // End and everything past the snap are the browser's
-  e.preventDefault(); if (!e.repeat) snap.request(dir);
+  else if (k === 'Home') { e.preventDefault(); if (snap.nearest() > 2) land(0, stages[0].dataset.product); else snap.toIndex(0); return; } // from far away it jumps, as the nav links do, instead of flying through every stage
+  else if (k === 'End') { e.preventDefault(); const n = snap.points.length - 1; if (n - snap.nearest() > 2) land(snap.points[n], stages[stages.length - 1].dataset.product); else snap.toIndex(n); return; }
+  if (!dir) return;
+  e.preventDefault(); if (!e.repeat) { snap.byKey = true; snap.request(dir); }
 });
 // touch: a swipe (the finger moved) moves one stage in its direction; a tap is just a tap
 {
-  let y0 = 0, y1 = 0, t0 = 0, tracking = false;
-  addEventListener('touchstart', (e) => { if (e.touches.length !== 1) { tracking = false; return; } tracking = true; y0 = y1 = e.touches[0].clientY; t0 = performance.now(); }, { passive: true });
-  addEventListener('touchmove', (e) => { if (tracking && e.touches.length === 1) y1 = e.touches[0].clientY; }, { passive: true });
+  let y0 = 0, y1 = 0, x0 = 0, x1 = 0, t0 = 0, i0 = -1, tracking = false;
+  addEventListener('touchstart', (e) => { if (e.touches.length !== 1) { tracking = false; return; } tracking = true; y0 = y1 = e.touches[0].clientY; x0 = x1 = e.touches[0].clientX; t0 = e.timeStamp; i0 = snap.animating ? -1 : snap.nearest(); if (snapOn()) lenisAwake(); }, { passive: true });   // i0: the rest the finger went down on
+  addEventListener('touchmove', (e) => { if (tracking && e.touches.length === 1) { y1 = e.touches[0].clientY; x1 = e.touches[0].clientX; } }, { passive: true });
   addEventListener('touchend', (e) => {
     if (!tracking) return; tracking = false;
-    if (!snapOn() || snapPaused() || e.target.closest('.who__list, textarea, select, input')) return;   // horizontal lists and fields scroll themselves
-    const dy = y0 - y1, fast = performance.now() - t0 < 320;
-    if (freeScroll(scrollY, Math.sign(dy) || 1)) return;
-    if (Math.abs(dy) > (fast ? 24 : 60)) snap.request(dy > 0 ? 1 : -1); else if (Math.abs(dy) > 4) snap.settle();
+    if (!snapOn() || e.target.closest?.('.who__list, .menu') || scrollsItself(e.target)) return;   // a sideways list, the menu and a long message scroll themselves
+    const dy = y0 - y1, fast = e.timeStamp - t0 < 320;
+    if (Math.abs(x0 - x1) > Math.abs(dy) * 1.2) { snap.settle(); return; }                           // a sideways swipe is not a step
+    // One rest point per swipe, counted from where the finger went down: the page moves with the finger, and a long drag
+    // must not count the rests it passed over as already done.
+    const dir = dy > 0 ? 1 : -1;
+    if (Math.abs(dy) > (fast ? 24 : 60)) { if (i0 >= 0 && !snap.animating) snap.toIndex(i0 + dir); else snap.request(dir); } else if (Math.abs(dy) > 4) snap.settle();
   }, { passive: true });
 }
 // any other scroll source (scrollbar drag, find-in-page): settle when it stops
 {
   let timer = 0;
-  addEventListener('scroll', () => { if (!snapOn() || snap.animating) return; clearTimeout(timer); timer = setTimeout(() => { if (snapOn() && !snapPaused()) snap.settle(); }, 180); }, { passive: true });
+  addEventListener('scroll', () => { if (!snapOn() || snap.animating) return; clearTimeout(timer); timer = setTimeout(() => { if (snapOn()) snap.settle(); }, 180); }, { passive: true });
 }
-{ let tab = 0; addEventListener('keydown', (e) => { if (e.key === 'Tab') tab = performance.now(); }, true); addEventListener('focusin', (e) => { if (snap.animating && performance.now() - tab < 200) snap.tabbed = e.target; }); }
-// leaving a form hands the page back to the snap
-addEventListener('focusout', () => setTimeout(() => { if (snapOn() && !snapPaused() && !snap.animating && !document.activeElement?.closest?.('form, .faq')) snap.settle(); }, 0));
+// Focus moved by the keyboard (Tab, a skip link) scrolls the page natively: the page then rests where that control can be seen.
+addEventListener('focusin', (e) => {
+  if (!snapOn() || e.target === document.body || e.target.closest?.('.nav, .menu, .skip')) return;
+  const a = e.target; requestAnimationFrame(() => { if (a === document.activeElement) snap.reveal(a); });
+});
 // Lenis drives the settle on wide screens only; phones keep the browser's own scrolling
-let lenisRaf = 0;
+let lenisRaf = 0, lenisIdle = 0;
+/** Lenis only needs frames while a settle or a finger drag is under way: its loop runs then, and stops half a second after the page is still. */
+function lenisAwake() {
+  if (!lenis) return; lenisIdle = performance.now() + 500;
+  if (lenisRaf) return;
+  lenis.raf(document.timeline?.currentTime ?? performance.now());   // its clock stood still while it slept: start it from now, or the first frame would swallow a whole tween
+  const raf = (t) => { lenisRaf = 0; if (!lenis) return; lenis.raf(t); if (snap.animating || lenis.isScrolling) lenisIdle = t + 500; if (t < lenisIdle) lenisRaf = requestAnimationFrame(raf); };
+  lenisRaf = requestAnimationFrame(raf);
+}
 function setLenis(on) {
   if (on === !!lenis) return;
-  if (on) {
-    lenis = new Lenis({ smoothWheel: false, syncTouch: true, syncTouchLerp: 0.1, touchInertiaExponent: 1.3, anchors: false, autoRaf: false, virtualScroll: ({ deltaY }) => !freeScroll(scrollY, Math.sign(deltaY) || 1) }); // past the snap, a drag is the browser's too
-    const raf = (t) => { if (!lenis) return; lenis.raf(t); lenisRaf = requestAnimationFrame(raf); };
-    lenisRaf = requestAnimationFrame(raf);
-  } else { cancelAnimationFrame(lenisRaf); lenis.destroy(); lenis = null; }
+  if (on) { lenis = new Lenis({ smoothWheel: false, syncTouch: true, syncTouchLerp: 0.1, touchInertiaExponent: 1.3, anchors: false, autoRaf: false }); lenisAwake(); }
+  else { cancelAnimationFrame(lenisRaf); lenisRaf = 0; lenis.destroy(); lenis = null; }
 }
 setLenis(snapOn() && !RM.matches);
-NARROW.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); bandNow = -1; setOrientation(); measureStages(); });
+NARROW.addEventListener('change', () => { snap.jump(scrollY); bandNow = -1; setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
 SIDE.addEventListener('change', () => { bandNow = -1; measureStages(); });
+COMPACT.addEventListener('change', () => { snap.jump(scrollY); setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
+SNAPQ.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); measureStages(); if (snapOn()) snap.settle(); });
+addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native scroll (a key in a field, the scrollbar): Lenis keeps its own position in step
 
 // ---------------------------------------------------------- stage 1 --
-const thumbs = Object.fromEntries(C.segments.items.map((a) => [a.id, a.photo || drawThumb(a.venue)]));
+// A venue thumbnail is drawn the first time it is asked for (a hover), not at load: drawing all five cost about 300ms of the first second.
+const thumbCache = {}, thumbOf = (id) => (thumbCache[id] ||= ((a) => a.photo || drawThumb(a.venue))(C.segments.items.find((x) => x.id === id)));
 const tabs = $$('.who__item'), panel = $('#panel'), thumb = $('[data-thumb]'), thumbImg = $('[data-thumb-img]');
-function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches ? 'horizontal' : 'vertical'); }
+function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches || COMPACT.matches ? 'horizontal' : 'vertical'); }
 setOrientation();
 function select(id, { focus = false, animate = true } = {}) {
   const a = C.segments.items.find((x) => x.id === id); if (!a) return;
@@ -361,7 +522,7 @@ function select(id, { focus = false, animate = true } = {}) {
   if (NARROW.matches && changed) { const t = tabs.find((x) => x.dataset.aud === id), l = t.parentElement; l.scrollTo({ left: t.offsetLeft - (l.clientWidth - t.offsetWidth) / 2, behavior: RM.matches ? 'auto' : 'smooth' }); } // the picked audience comes fully into view
   const apply = () => {
     $('[data-panel-for]').textContent = `For ${a.name.toLowerCase()}`; $('[data-panel-line]').textContent = a.line;
-    $('[data-panel-org]').hidden = !a.org; $('[data-panel-ind]').hidden = a.org; $('[data-panel-thumb]').src = thumbs[id];
+    $('[data-panel-org]').hidden = !a.org; $('[data-panel-ind]').hidden = a.org;
     panel.classList.remove('is-swapping');
   };
   if (changed && animate && !RM.matches) { panel.classList.add('is-swapping'); setTimeout(apply, 120); } else apply();
@@ -369,14 +530,14 @@ function select(id, { focus = false, animate = true } = {}) {
   showPoster();
 }
 tabs.forEach((t, i) => {
-  t.addEventListener('click', () => select(t.dataset.aud));
+  t.addEventListener('click', () => { audiencePicked = true; select(t.dataset.aud); });
   t.addEventListener('keydown', (e) => {
     const k = e.key; let j = -1;
     if (k === 'ArrowDown' || k === 'ArrowRight') j = (i + 1) % tabs.length; else if (k === 'ArrowUp' || k === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
     else if (k === 'Home') j = 0; else if (k === 'End') j = tabs.length - 1;
-    if (j < 0) return; e.preventDefault(); select(tabs[j].dataset.aud, { focus: true });
+    if (j < 0) return; e.preventDefault(); audiencePicked = true; select(tabs[j].dataset.aud, { focus: true });
   });
-  const show = () => { if (!FINE.matches && !t.matches(':focus-visible')) return; thumbImg.src = thumbs[t.dataset.aud]; thumb.style.setProperty('--y', `${t.offsetTop - t.parentElement.offsetTop + t.offsetHeight / 2 - 60}px`); thumb.classList.add('is-on'); };
+  const show = () => { if (!FINE.matches && !t.matches(':focus-visible')) return; thumbImg.src = thumbOf(t.dataset.aud); thumb.style.setProperty('--y', `${t.offsetTop - t.parentElement.offsetTop + t.offsetHeight / 2 - 60}px`); thumb.classList.add('is-on'); };
   const hide = () => thumb.classList.remove('is-on');
   t.addEventListener('pointerenter', show); t.addEventListener('pointerleave', hide); t.addEventListener('focus', show); t.addEventListener('blur', hide);
 });
@@ -385,6 +546,7 @@ tabs.forEach((t, i) => {
 // Projected from the product each rendered frame, at rest: Stage 2's dots and leader lines.
 const overlay = $('[data-overlay]'), sets = $$('.overlay__set');
 const whatEl = $('#what'), hsDots = C.what.hotspots.map((h) => $(`.mk[data-hs="${h.id}"]`)), hsLines = C.what.hotspots.map((h) => $(`[data-line="${h.id}"]`)), hsCards = C.what.hotspots.map((h) => $(`[data-hs-card="${h.id}"]`));
+const inTags = C.inside.components.filter((c) => c.part !== 'pull_cord').map((c) => [$(`.mk[data-in="${c.id}"]`), c.part]);
 let stage2Rest = false;
 /** Stage 2's leader lines end on cards that scroll with the page, so they only show with the page at rest on the stage. */
 function onStage2Rest() { return state.stage === 'what' && !NARROW.matches && Math.abs(whatEl.getBoundingClientRect().top - navH()) < 2; }
@@ -395,6 +557,8 @@ function updateOverlayVisibility() {
 }
 function placeMarkers(w) {
   if (!worldReady) return;
+  const showIn = state.stage === 'inside' && !html.dataset.travel && !NARROW.matches && !state.inside.part;
+  for (const [el, part] of inTags) { if (!showIn) { el.style.opacity = '0'; continue; } const p = w.partDot(part, part === 'scent_beads' ? [0, 0, 0] : part === 'carbon_sachet' ? [0.12, 0, 0] : [-0.6, 0, 0]); /* the two pouches lie one over the other once loaded: their names sit at different heights */ el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`; el.style.opacity = '1'; }
   const showWhat = !html.dataset.travel && onStage2Rest();
   C.what.hotspots.forEach((h, i) => {
     const line = hsLines[i]; line.style.opacity = showWhat ? '1' : '0'; if (!showWhat) { hsDots[i].style.opacity = '0'; return; }
@@ -413,10 +577,10 @@ let fitKey = '';
 function fitStages(force = false) {
   if (!worldReady) return;
   // on phones the address bar coming and going changes innerHeight but none of the bands: nothing to redo mid-scroll
-  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}`;
+  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}/${COMPACT.matches}`;
   if (key === fitKey && !force) return; fitKey = key;
   if (world.W !== worldEl.clientWidth || world.H !== worldEl.clientHeight) world.resize(); // the window's resize event comes before the canvas's own
-  const fitted = ['what', 'customize', 'why', 'story', 'close'], centred = { center: true }, all = stages.map((s) => s.dataset.product);
+  const centred = { center: true }, all = stages.map((s) => s.dataset.product);
   if (NARROW.matches) {
     all.forEach((st) => { world.fitStage(st, null); world.frameStage(st, null); });
     // each section in its own space: its band, or beside the text the whole canvas. The band's foot has a soft fade, so the picture stays above it.
@@ -426,13 +590,30 @@ function fitStages(force = false) {
   all.forEach((st) => world.frameStage(st, null));
   const maxY = Math.max(0, html.scrollHeight - innerHeight), rest = (st) => Math.min(tops[stages.findIndex((s) => s.dataset.product === st)], maxY);
   const top = (el, st) => pageTop(el) - rest(st), bottom = (el, st) => top(el, st) + el.offsetHeight, nh = navH();
+  // The rack behind the pilot form is drawn for a wide window: in a narrower one the whole picture zooms out until it fits.
+  world.frameStage('bulk', { left: 0, right: worldEl.clientWidth, top: nh, bottom: innerHeight }, { shrinkOnly: true });
+  if (COMPACT.matches) {
+    // Each stage's product in its .room, at the stage's rest. The upright poses are centred and may grow to fill it; How
+    // frames the shoes and every step as it plays (a zoom of the whole picture, so the product stays true to the shoes).
+    for (const s of stages) {
+      const st = s.dataset.product, room = s.querySelector('.room'); if (!room || room.offsetHeight < 24) { world.fitStage(st, null); continue; }
+      const r = room.getBoundingClientRect(), box = { left: r.left + 4, right: r.right - 4, top: top(room, st) + 4, bottom: bottom(room, st) - 4 };
+      if (st === 'customize') box.bottom -= 52;   // the turn buttons sit at the foot of the room
+      if (st === 'how') { world.fitStage(st, null); world.frameStage(st, box, { grow: 1.3, balance: 0.6 }); }
+      else world.fitStage(st, box, { center: true, grow: 1.6 });
+    }
+    world.fitsChanged(); return;
+  }
+  // How: the shoes and every step as it plays keep to the space between the heading and the steps (zoomed out only if they must)
+  world.frameStage('how', { left: 8, right: worldEl.clientWidth - 8, top: bottom($('.how__head'), 'how') + 8, bottom: top($('.how__bar'), 'how') - 8 }, { shrinkOnly: true });
   const left = (el) => el.getBoundingClientRect().left, right = (el) => el.getBoundingClientRect().right, g = $('.what__low').offsetLeft;
   world.fitStage('explorer', { left: right($('.explorer__left')) + 16, right: left($('.panel')) - 16, top: nh + 8, bottom: innerHeight - 10 }, centred);
   world.fitStage('what', { left: g, right: innerWidth - g, top: bottom($('.what__head'), 'what') + 10, bottom: top($('.what__low'), 'what') - 18 });
-  world.fitStage('inside', { left: right($('.inside__list')) + 16, right: left($('.sheet')) - 16, top: bottom($('.inside__head'), 'inside') + 8, bottom: innerHeight - 14 }, centred);
+  world.fitStage('inside', { left: Math.max(right($('.inside__list')), g) + 16, right: left($('.sheet')) - 16, top: bottom($('.inside__head'), 'inside') + 8, bottom: top($('.inside__note'), 'inside') - 8 }, centred);
   world.fitStage('customize', { left: right($('.customize__side--color')) + 16, right: left($('.customize__side--size')) - 16, top: bottom($('.customize__head'), 'customize') + 8, bottom: top($('.customize__note'), 'customize') - 8 });
-  world.fitStage('why', { left: 8, right: left($('.why__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
+  world.fitStage('why', { left: Math.max(8, g - 24), right: left($('.why__panel')) - 24, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('story', { left: 8, right: left($('.story__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
+  world.fitStage('faq', { left: 8, right: left($('.faq__panel')) - 16, top: nh + 8, bottom: innerHeight - 8 });
   world.fitStage('close', { left: g, right: innerWidth - g, top: bottom($('.close h2'), 'close') + 8, bottom: top($('.paths'), 'close') - 8 });
   world.fitsChanged();
 }
@@ -443,8 +624,9 @@ const steps = $$('.step');
 function setStep(i, { focus = false, play = true } = {}) {
   state.step = i;
   steps.forEach((b, k) => { b.setAttribute('aria-selected', String(k === i)); b.tabIndex = k === i ? 0 : -1; if (k === i && focus) b.focus(); });
-  $('[data-step-caption]').textContent = C.how.steps[i].caption;
+  const cap = $('[data-step-caption]'); cap.textContent = C.how.steps[i].caption; cap.setAttribute('aria-labelledby', `step-${i}`);
   if (play && world && state.stage === 'how') world.playStep(i);
+  showPoster();
 }
 function onStepProgress(i, p, done) {
   if (i < 0) { // the stage was left: back to Step 1 (only touching the DOM where something changed, as this runs mid-scroll)
@@ -470,37 +652,108 @@ steps.forEach((b, i) => {
 });
 
 // ---------------------------------------------------------- stage 4 --
+// "Load the housing". The stage arrives with the stack open and the three fills out beside the housing (0 of 3).
+// Load all three: they go in one after another, the housing closes and turns see-through (3 of 3): one insert holds all
+// three. Refill: one fill comes out, a fresh one goes in, and the housing never moves: the housing stays, the fills change.
+// A chip (or a part on the model) opens the insert on that one part and says what it is. Every control teaches one thing.
+// inside.optional in content.json ("odor", "scent" or null) names the one fill that can be left out: it gets the word
+// "optional" and an in/out switch on its card. With null, nothing on the page says optional.
+const PARTS = ['shell_bottom', 'carbon_sachet', 'silica_sachet', 'scent_beads', 'shell_top', 'pull_cord'];   // keep in step with src/product-slot.js
+const IN = C.inside, COMPS = IN.components, FILL_PARTS = COMPS.filter((c) => c.part !== 'pull_cord').map((c) => c.part);
+const OPTIONAL = COMPS.find((c) => c.id === IN.optional && c.part !== 'pull_cord') || null;
 const sheet = $('[data-sheet]'), sheetClose = $('[data-sheet-close]');
-let sheetOpener = null;                // the layer button that opened the sheet: closing it returns focus there
-function selectLayer(i) {
-  const held = sheet.contains(document.activeElement);
-  state.layer = i;
-  $$('[data-layer]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.layer === i)));
-  const L = C.inside.layers[i];
-  sheet.classList.toggle('is-open', !!L);
-  $('[data-sheet-prompt]').hidden = !!L; $('[data-sheet-detail]').hidden = !L; $('[data-inside-prompt]').style.visibility = L ? 'hidden' : ''; // it keeps its line, so the part list does not jump
-  if (L) { $('[data-sheet-name]').textContent = L.name; $('[data-sheet-role]').textContent = L.role; }
-  if (world && (state.stage === 'inside' || i < 0)) world.selectLayer(i); // a deselect always reaches the product (leaving Inside calls it after the stage has changed)
-  if (!L && held) sheetOpener?.focus({ preventScroll: true });
+let sheetOpener = null, insideTimers = [], refillTurn = 0, insideDirty = false;
+const later = (ms, fn) => insideTimers.push(setTimeout(fn, RM.matches ? 0 : ms));
+const clearLater = () => { insideTimers.forEach(clearTimeout); insideTimers = []; };
+const leftOut = () => (OPTIONAL && state.inside.without ? [OPTIONAL.part] : []);            // the optional fill, when the visitor has left it out
+const fillsWanted = () => FILL_PARTS.filter((p) => !leftOut().includes(p));
+function renderInside() {
+  const st = state.inside, comp = COMPS.find((c) => c.id === st.part) || null;
+  $$('[data-comp]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.comp === st.part)));
+  const count = $('[data-load-count]'); count.textContent = IN.count.replace('{n}', st.n).replace('{total}', fillsWanted().length); count.hidden = !!comp;
+  const mine = !!comp && comp === OPTIONAL;
+  const card = comp ? { title: comp.title, body: mine && st.without ? IN.optionalOut : comp.body, foot: comp.foot } : st.refilled ? IN.refilled : st.loaded ? IN.loaded : IN.rest;
+  $('[data-sheet-name]').textContent = card.title; $('[data-sheet-role]').textContent = card.body;
+  const foot = $('[data-sheet-foot]'); foot.textContent = card.foot || ''; foot.hidden = !card.foot;
+  $('[data-load]').hidden = !!comp || st.loaded; $('[data-refill]').hidden = !!comp || !st.loaded;
+  $('[data-compare]').hidden = !!comp || !st.loaded; sheetClose.hidden = !comp;
+  const opt = $('[data-opt]'); opt.hidden = !mine; if (mine) { opt.setAttribute('aria-pressed', String(!st.without)); opt.textContent = (st.without ? IN.optionalToggle.out : IN.optionalToggle.in).replace('{name}', comp.chip); }
+  sheet.classList.toggle('is-open', !!comp);
+  state.layer = comp ? PARTS.indexOf(comp.part) : -1;
+  showPoster();
 }
-$$('[data-layer]').forEach((b) => b.addEventListener('click', () => {
-  const i = +b.dataset.layer, open = i !== state.layer;
-  if (open) sheetOpener = b;
-  selectLayer(open ? i : -1);
-}));
-sheetClose.addEventListener('click', () => selectLayer(-1));
-// The parts themselves are the targets: a click on one pops it out as its list button does; on the part that is out, or on
-// empty space, it goes back. The list stays the keyboard's way in, and where focus returns.
+/** At rest on the stage, nothing chosen yet: the fills come out beside the housing. */
+function insideArrive() {
+  const st = state.inside; if (state.stage !== 'inside' || html.dataset.travel || st.part || st.loaded) return;
+  clearLater(); st.n = 0; insideDirty = true; if (world) world.setOut(FILL_PARTS); renderInside();
+}
+/** A scroll away puts everything back first, and the stage starts over the next time it arrives. */
+function insideLeave() {
+  if (!insideDirty) return; insideDirty = false;
+  clearLater(); Object.assign(state.inside, { loaded: false, part: null, refilled: false, busy: false, n: 0 });
+  if (world) { world.selectLayer(-1); world.setOut([]); world.setLoaded(false); }
+  renderInside();
+}
+function loadAll() {
+  const st = state.inside; if (st.loaded || st.busy) return;
+  clearLater(); Object.assign(st, { busy: true, part: null, refilled: false }); insideDirty = true;
+  const want = fillsWanted();
+  if (world) { world.selectLayer(-1); world.setOut(leftOut()); }                                  // the fills go in, one after another
+  want.forEach((_, k) => later(260 + 120 * k, () => { st.n = k + 1; renderInside(); }));         // and are counted as they land
+  later(420 + 120 * want.length, () => {                                                        // then the housing closes round them
+    // the Load button is about to hide: if the visitor's focus is still on it (or in the card), it goes on to Refill, which
+    // is what the card now offers. If they have moved on (Tab, a chip, another stage), focus stays where they took it.
+    const held = !!document.activeElement && sheet.contains(document.activeElement);
+    Object.assign(st, { loaded: true, busy: false, n: want.length }); if (world) world.setLoaded(true); renderInside();
+    if (held && state.stage === 'inside') $('[data-refill]').focus({ preventScroll: true });
+  });
+  renderInside();
+}
+function refill() {
+  const st = state.inside; if (!st.loaded || st.busy) return;
+  clearLater(); Object.assign(st, { busy: true, part: null });
+  const order = ['scent_beads', 'silica_sachet', 'carbon_sachet'].filter((p) => fillsWanted().includes(p)), part = order[refillTurn++ % order.length];
+  if (world) world.setLoaded(false);                                                              // the housing opens where it stands
+  later(640, () => world && world.setOut([part, ...leftOut()], 0));                               // one fill comes out
+  later(1180, () => { if (world) world.blinkPart(part); st.refilled = true; st.n = fillsWanted().length - 1; renderInside(); });   // a fresh one takes its place
+  later(1640, () => { if (world) world.setOut(leftOut(), 0); });                                  // and goes in
+  later(2060, () => { st.busy = false; st.n = fillsWanted().length; if (world) world.setLoaded(true); renderInside(); });
+  renderInside();
+}
+/** A chip, or a part on the model: open the insert on that one part. The same one again goes back. */
+function inspect(id) {
+  const st = state.inside, comp = COMPS.find((c) => c.id === id); if (!comp) return;
+  if (st.part === id) { back(); return; }
+  clearLater(); const first = !st.part; Object.assign(st, { busy: false, part: id, refilled: false }); insideDirty = true; renderInside();
+  const i = PARTS.indexOf(comp.part); if (!world) return;
+  if (first && st.loaded) { world.setLoaded(false); later(520, () => world.selectLayer(i)); } else world.selectLayer(i);   // selecting one puts every other part back
+}
+function back() {
+  const st = state.inside; if (!st.part) return;
+  const held = sheet.contains(document.activeElement);
+  clearLater(); st.part = null; st.n = st.loaded ? fillsWanted().length : 0; renderInside();
+  if (held) sheetOpener?.focus({ preventScroll: true });
+  if (!world) return;
+  world.selectLayer(-1);
+  if (st.loaded) later(360, () => { world.setOut(leftOut(), 0); world.setLoaded(true); }); else later(220, () => world.setOut(FILL_PARTS));
+}
+$$('[data-comp]').forEach((b) => b.addEventListener('click', () => { sheetOpener = b; inspect(b.dataset.comp); }));
+sheetClose.addEventListener('click', back);
+$('[data-load]').addEventListener('click', loadAll);   // focus follows to Refill once it shows (see loadAll)
+$('[data-refill]').addEventListener('click', refill);
+$('[data-opt]').addEventListener('click', () => { const st = state.inside; st.without = !st.without; renderInside(); });   // it takes effect the next time the housing is loaded
+// The parts themselves are targets too. Before loading, a press on any of them loads the housing; after, a press on a
+// fill opens the insert on it, and a press on the part that is out, or on empty space, goes back.
 const layerAt = (e) => { if (!worldReady || state.stage !== 'inside' || html.dataset.travel) return -1; const r = worldEl.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return x < 0 || y < 0 || x > r.width || y > (bandNow > 0 ? bandNow : r.height) ? -1 : world.pickLayer(x, y); };
 document.addEventListener('click', (e) => {
   if (state.stage !== 'inside' || e.target.closest('a, button, input, select, textarea, label, summary, .sheet, .nav, .menu')) return;
-  const i = layerAt(e), open = i >= 0 && i !== state.layer;
-  if (i < 0 && state.layer < 0) return;
-  if (open) sheetOpener = $(`.layer-btn[data-layer="${i}"]`);
-  selectLayer(open ? i : -1);
+  const st = state.inside, i = layerAt(e), comp = COMPS.find((c) => c.part === PARTS[i]);
+  if (st.part) { if (comp && comp.id !== st.part) inspect(comp.id); else back(); return; }
+  if (i < 0) return;
+  if (!st.loaded) loadAll(); else if (comp) { sheetOpener = $(`[data-comp="${comp.id}"]`); inspect(comp.id); }
 });
 if (FINE.matches) { let q = 0, last = null; addEventListener('pointermove', (e) => { last = e; if (state.stage !== 'inside' && !html.classList.contains('over-layer')) return; q ||= requestAnimationFrame(() => { q = 0; html.classList.toggle('over-layer', !last.target.closest?.('a, button, .sheet, .nav') && layerAt(last) >= 0); }); }, { passive: true }); }
-addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.stage === 'inside' && state.layer >= 0) selectLayer(-1); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.stage === 'inside' && state.inside.part) back(); });
 
 // -------------------------------------------------------- customize --
 // A colour changes only the shell (shell_top, shell_bottom). A size is a real
@@ -513,6 +766,7 @@ function setColor(id) {
   $$('.swatch[data-color]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.color === id)));
   $('[data-color-name]').textContent = sw.name;
   if (world) world.setColors({ shell: sw.hex }, 300);
+  showPoster();
 }
 const sizeButtons = $$('.size[data-size]'), sizeLabel = $('[data-size-label]');
 const outside = (id) => { const [l, w, h] = MODEL.sizes[id].outsideMm.map(Math.round); return cz.sizeOutside.replace('{l}', l).replace('{w}', w).replace('{h}', h); };
@@ -520,7 +774,7 @@ async function setSizeId(id) {
   const sz = cz.sizes.find((s) => s.id === id); if (!sz) return;
   state.size = id;
   sizeButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.size === id)));
-  if (!worldReady || world.slot.sizeId === id) { sizeLabel.textContent = outside(id); sizeLabel.classList.remove('is-loading'); return; }
+  if (!worldReady || world.slot.sizeId === id) { sizeLabel.textContent = outside(id); sizeLabel.classList.remove('is-loading'); showPoster(); return; }
   sizeLabel.textContent = cz.sizeLoading.replace('{size}', sz.label); sizeLabel.classList.add('is-loading');
   try {
     await world.setModel(id);
@@ -534,7 +788,7 @@ async function setSizeId(id) {
   }
 }
 $$('.swatch[data-color]').forEach((b) => b.addEventListener('click', () => setColor(b.dataset.color)));
-sizeButtons.forEach((b) => b.addEventListener('click', () => setSizeId(b.dataset.size)));
+sizeButtons.forEach((b) => { b.addEventListener('click', () => setSizeId(b.dataset.size)); b.addEventListener('pointerenter', prefetchSizes); b.addEventListener('focus', prefetchSizes); });
 {
   const area = $('[data-drag]'); let down = null;
   const grab = (e) => { if (state.stage !== 'customize' || !world) return; down = { x: e.clientX, y: e.clientY, id: e.pointerId, axis: null }; area.classList.add('is-dragging'); };
@@ -553,6 +807,9 @@ sizeButtons.forEach((b) => b.addEventListener('click', () => setSizeId(b.dataset
   area.addEventListener('keydown', (e) => { if (!world || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return; e.preventDefault(); world.dragBy(e.key === 'ArrowLeft' ? -36 : 36, 0); });
   area.addEventListener('keyup', (e) => { if (world && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) world.releaseDrag(); });
   area.addEventListener('blur', () => world && world.releaseDrag());
+  // the keyboard's and the screen reader's way to turn it: a quarter turn a press, easing back when focus leaves
+  let turned = 0;
+  $$('[data-turn-by]').forEach((b) => { b.addEventListener('click', () => { if (!world) return; turned += +b.dataset.turnBy; world.dragBy(+b.dataset.turnBy * 196, 0); }); b.addEventListener('blur', (e) => { if (!e.relatedTarget?.closest?.('[data-turn]') && world) { turned = 0; world.releaseDrag(); } }); });
 }
 
 // ---------------------------------------------------------- forms --
@@ -561,13 +818,15 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const validEmail = (v) => { const e = (v || '').trim(); return e.length <= 254 && EMAIL.test(e); };
 const tooLong = (v, n) => (v || '').trim().length > n;   // the same limits as api/bulk.js: a long paste gets a message, never a silent cut
 const SUBMIT_TIMEOUT_MS = 10000;
-const withEmail = (s) => s.replace('{email}', C.brand.contactEmail);
+const HAS_CONTACT = (C.brand.contactEmail || '').includes('@');
+const withEmail = (s) => (typeof s === 'string' ? s : HAS_CONTACT ? s.withEmail : s.noEmail).replace('{email}', C.brand.contactEmail);   // with no address set, the message simply does not offer one
 function wireForm(form, { validate, offline }) {
   const status = $('.form__status', form), btn = $('button[type=submit]', form), done = $('[data-done]', form);
   const controls = (name) => { const f = form.elements[name]; return !f ? [] : f instanceof RadioNodeList ? [...f] : [f]; };
   const setErr = (name, msg) => { const p = $(`[data-err="${name}"]`, form); if (p) p.textContent = msg || ''; controls(name).forEach((c) => (msg ? c.setAttribute('aria-invalid', 'true') : c.removeAttribute('aria-invalid'))); };
   const showErrors = (errors) => { $$('[data-err]', form).forEach((p) => setErr(p.dataset.err, errors[p.dataset.err])); Object.keys(errors).flatMap(controls)[0]?.focus(); };
-  const fail = (msg) => { status.textContent = msg; status.classList.add('is-err'); };
+  // a result the visitor must not miss: it is said, shown above the button, and focused (which also brings it into view)
+  const fail = (msg) => { status.textContent = msg; status.classList.add('is-err'); status.focus({ preventScroll: true }); if (snapOn()) snap.reveal(status); else status.scrollIntoView({ block: 'nearest' }); };
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); if (form.dataset.busy) return;
     status.textContent = ''; status.className = 'form__status';
@@ -580,7 +839,7 @@ function wireForm(form, { validate, offline }) {
       const res = await fetch(form.action, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(data), signal: stop.signal });
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.ok) { status.textContent = ''; form.classList.add('is-done'); done.hidden = false; done.focus(); measureStages(); }
-      else if (res.status === 400) { status.textContent = C.forms.invalid; status.classList.add('is-err'); if (body.errors) showErrors(body.errors); }
+      else if (res.status === 400) { status.textContent = C.forms.invalid; status.classList.add('is-err'); if (body.errors) showErrors(body.errors); else status.focus({ preventScroll: true }); }
       else if (res.status === 429) fail(C.forms.rateLimited);
       else if (body.code === 'not_connected' || res.status === 404 || res.status === 405) fail(withEmail(offline));  // no webhook set, or no API behind this page
       else fail(C.forms.temporary);
@@ -591,40 +850,36 @@ function wireForm(form, { validate, offline }) {
 }
 wireForm($('[data-form="bulk"]'), {
   // the pairs range is optional, here and in api/bulk.js
-  validate: (d) => { const er = {}; if (!d.organization?.trim()) er.organization = 'Enter your organization.'; if (!d.type) er.type = 'Choose an organization type.'; if (!d.name?.trim()) er.name = 'Enter your name.'; if (!validEmail(d.email)) er.email = 'Enter a valid email address.'; for (const [k, n] of [['organization', 200], ['name', 200], ['phone', 40], ['message', 2000]]) if (tooLong(d[k], n)) er[k] = `Keep this under ${n} characters.`; return er; },
+  validate: (d) => { const er = {}; if (!d.organization?.trim()) er.organization = 'Enter your organization.'; if (!d.type) er.type = 'Choose an organization type.'; if (!d.name?.trim()) er.name = 'Enter your name.'; if (!validEmail(d.email)) er.email = 'Enter a valid email.'; for (const [k, n] of [['organization', 200], ['name', 200], ['phone', 40], ['message', 2000]]) if (tooLong(d[k], n)) er[k] = `Keep this under ${n} characters.`; return er; },
   offline: C.bulk.form.offline,
 });
-wireForm($('[data-form="waitlist"]'), { validate: (d) => (validEmail(d.email) ? {} : { email: 'Enter a valid email address.' }), offline: C.close.ind.offline });
+wireForm($('[data-form="waitlist"]'), { validate: (d) => (validEmail(d.email) ? {} : { email: 'Enter a valid email.' }), offline: C.close.ind.offline });
 function preselectOrgType() {
   let t = ''; try { t = sessionStorage.getItem('sf-org-type') || ''; } catch {}
-  if (!t) { const seg = C.segments.items.find((x) => x.id === state.audience); t = seg?.orgType || ''; }
-  const sel = $('#b-type'); if (t && sel && !sel.value) sel.value = t;
+  if (audiencePicked) { const seg = C.segments.items.find((x) => x.id === state.audience); t = seg?.orgType || t; }
+  const sel = $('#b-type'); if (!t || !sel) return;
+  if (!sel.value || sel.dataset.auto) { sel.value = t; sel.dataset.auto = '1'; }   // ours to change until the visitor chooses one
 }
+$('#b-type').addEventListener('change', (e) => { delete e.target.dataset.auto; });
 new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) preselectOrgType(); }, { threshold: 0.3 }).observe($('[data-product="bulk"]'));
 
 // ---------------------------------------------------------- why --
-// What each routine involves day to day. The same mark every day: no coverage, and no schedule that implies a lifespan.
-const ICON = {
-  spray: `<svg viewBox="0 0 32 32"><path d="M11 12h8v14a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z"/><path d="M13 12V8h4v4M15 5v3"/><circle cx="24" cy="9" r="1.1"/><circle cx="27" cy="12" r="1.1"/><circle cx="25" cy="15" r="1.1"/></svg>`,
-  sachet: `<svg viewBox="0 0 32 32"><path d="M9 7h14l1 20H8z"/><path d="M12 7l2-3h4l2 3"/><path d="M12 16h8"/></svg>`,
-  pack: `<svg viewBox="0 0 32 32"><rect x="7" y="8" width="18" height="16" rx="3"/><path d="M16 12c-2 2.5-3 4-3 5.5a3 3 0 0 0 6 0c0-1.5-1-3-3-5.5z"/></svg>`,
-  sole: `<svg viewBox="0 0 32 32"><rect x="4" y="11" width="24" height="10" rx="5"/><path d="M4 16h24"/></svg>`,
-};
-const dayEls = $$('.day'), legendEl = $('[data-legend]');
-function setMethod(id) {
-  const m = C.why.methods.find((x) => x.id === id); if (!m) return;
+// "Versus your shelf". The visitor picks what they use now; the card compares how each is handled (never how well it
+// works: nothing has been measured, and the rows nobody has measured say so for every option alike), one line says the
+// difference, and the product beside the card lights the part that answers it. One pick, one thing learned.
+const WHY = C.why;
+function setAlt(id) {
+  const m = WHY.alternatives.find((x) => x.id === id); if (!m) return;
   state.method = id;
-  $$('.method').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.method === id)));
-  legendEl.textContent = m.legend;
-  $('[data-week-mark]').textContent = m.mark; $('[data-week-icon]').innerHTML = ICON[m.icon];
-  dayEls.forEach((d, i) => {
-    $('[data-day-icon]', d).innerHTML = ICON[m.icon]; $('[data-day-mark]', d).textContent = m.mark;
-    d.style.setProperty('--i', i);
-    d.classList.remove('is-anim'); void d.offsetWidth; d.classList.add('is-anim');
-  });
+  $$('.method[data-alt]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.alt === id)));
+  $('[data-alt-name]').textContent = m.label;
+  for (const r of WHY.rows) $(`[data-alt-cell="${r.id}"]`).textContent = m[r.id] ?? WHY.unmeasured;
+  $('[data-alt-take]').textContent = m.takeaway;
+  focusWhy(); showPoster();
 }
-$$('.method').forEach((b) => b.addEventListener('click', () => setMethod(b.dataset.method)));
-setMethod('solefresh');
+/** The part of the product that answers the picked option, lit while the stage is on screen. */
+function focusWhy() { if (world) world.setFocus(state.stage === 'why' ? WHY.alternatives.find((x) => x.id === state.method)?.parts || null : null); }
+$$('.method[data-alt]').forEach((b) => b.addEventListener('click', () => setAlt(b.dataset.alt)));
 
 // ---------------------------------------------------------- story --
 $$('[data-ms]').forEach((b) => b.addEventListener('click', () => {
@@ -633,17 +888,38 @@ $$('[data-ms]').forEach((b) => b.addEventListener('click', () => {
   $('[data-ms-text]').textContent = C.story.milestones.find((m) => m.id === b.dataset.ms).text;
 }));
 const faqItems = $$('.faq__item');
-faqItems.forEach((d) => d.addEventListener('toggle', () => { if (d.open) faqItems.forEach((o) => { if (o !== d) o.open = false; }); measureStages(); })); // an open answer moves everything below it
+faqItems.forEach((d) => d.addEventListener('toggle', () => { if (d.open) faqItems.forEach((o) => { if (o !== d) o.open = false; }); measureStages(); })); // an open answer can make its stage taller: the rest points follow
 
 // ---------------------------------------------------------- 3D --
-function canWebGL() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } }
-html.dataset.stage = state.stage;
+// The 3D starts on the tier src/tier.js guesses for this device, and steps down if the frames it gets say so. The last step
+// is no 3D at all: the still pictures, which follow every control (showPoster).
+let tier = pickTier();
+function toPosters(why) {
+  if (why) console.warn(why);
+  html.classList.remove('gl-live'); html.classList.add('gl-off');
+  tier = 'poster'; html.dataset.tier = tier;
+  if (world) { world.dispose(); world = null; } worldReady = false; window.__sf.world = null;
+  // a still cannot be turned: the turn buttons go (they only ever showed once the 3D was live), and if one of them had the
+  // focus it moves to the colour picked, the nearest control that still does something
+  const turn = $('[data-turn]');
+  if (turn && !turn.hidden) { const had = turn.contains(document.activeElement); turn.hidden = true; if (had) $('.swatch[aria-pressed="true"]')?.focus({ preventScroll: true }); }
+  showPoster(); updateOverlayVisibility();
+}
+function onSlow(times) {
+  const next = tierBelow(tier, times); if (!next) return;
+  tier = next; rememberTier(tier); html.dataset.tier = tier;
+  if (tier === 'poster') toPosters('3D too slow on this device: showing stills.'); else if (world) { world.setQuality(TIERS[tier]); fitStages(true); }
+}
+html.dataset.stage = state.stage; html.dataset.tier = tier;
 addEventListener('load', () => setTimeout(() => $('.warm')?.remove(), 2500)); // paint warm-up has done its job
 select(state.audience, { animate: false });
-measureStages(); landFirst(); setStep(0, { play: false }); selectLayer(-1); setColor(state.color); setSizeId(state.size);
-if (canWebGL()) {
+measureStages(); landFirst(); setStep(0, { play: false }); renderInside(); setColor(state.color); setSizeId(state.size);
+if (tier !== 'poster') {
   import('./world.js').then(async ({ World }) => {
-    world = new World(worldEl, { reduced: () => RM.matches, narrow: () => NARROW.matches });
+    world = new World(worldEl, { reduced: () => RM.matches, narrow: () => NARROW.matches, quality: TIERS[tier], onSlow });
+    // now that there is a context, the graphics chip can be read from it (see src/tier.js)
+    const refined = refineTier(tier, world.renderer.getContext());
+    if (refined !== tier) { tier = refined; html.dataset.tier = tier; if (tier === 'poster') { toPosters('WebGL is drawn in software here: showing stills.'); return; } world.setQuality(TIERS[tier]); }
     world.setVenue(C.segments.items.find((a) => a.id === state.audience).venue, { animate: false });
     world.onFrame(placeMarkers);
     world.onStep = onStepProgress;
@@ -652,16 +928,16 @@ if (canWebGL()) {
     world.setColors({ shell: cz.colors.find((c) => c.id === state.color).hex }, 0);
     if (state.size !== world.slot.sizeId) setSizeId(state.size);   // picked while the 3D was still loading
     fitStages(true); landFirst();
-    lastKey = ''; onScroll(true); updateOverlayVisibility();
+    lastKey = ''; onScroll(true); updateOverlayVisibility(); insideArrive();
     html.classList.add('gl-live');
-    { const a = $('[data-drag]'); a.tabIndex = 0; a.removeAttribute('aria-hidden'); a.setAttribute('role', 'group'); a.setAttribute('aria-label', cz.dragHint.keys); } // a keyboard stop only where there is a product to turn
+    $('[data-turn]').hidden = false;   // the turn buttons exist only where there is a product to turn
     window.__sf.world = world;
-  }).catch((err) => {
-    console.warn('3D unavailable, poster fallback in use.', err);
-    html.classList.add('gl-off'); if (world) world.frameCbs.length = 0; $('canvas', worldEl)?.remove(); world = null; worldReady = false; showPoster(); updateOverlayVisibility();
-  });
+  }).catch((err) => { toPosters(); console.warn('3D unavailable, poster fallback in use.', err); });
 } else html.classList.add('gl-off');
 
 // Verification hooks. Inert unless called.
-window.__sf = { state, select, setStep, selectLayer, setColor, setSizeId, setMethod, measureStages, snap, snapPaused, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+window.__sf = { get tier() { return tier; }, COMPACT, NARROW, state, select, setStep, inside: { loadAll, refill, inspect, back }, setColor, setSizeId, setAlt, measureStages, snap, snapOn, SNAP_MS, GESTURE_GAP_MS, get tops() { return [...tops]; }, get lenis() { return lenis; }, C, MODEL };
+// Entrance fades exist only once this script has run to its end (styles.css keys them on .sf-ready): if it fails to
+// load, or throws on the way, every stage simply stays visible. Whatever is on screen now is marked in first, so it does not blink.
+stages.forEach((s) => { const r = s.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) s.classList.add('is-in'); });
 html.classList.add('sf-ready');

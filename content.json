@@ -4,7 +4,7 @@
     "tagline": "Fresh Shoes. Every Day.",
     "support": "A reusable shoe-care product designed to manage odor and moisture and keep footwear fresher between wears.",
     "program": "Developed through INCubatoredu",
-    "contactEmail": "shrey.shah.608@k12.friscoisd.org",
+    "contactEmail": "",
     "copyright": "SoleFresh. All rights reserved."
   },
   "nav": {
@@ -27,16 +27,11 @@
       },
       {
         "id": "customize",
-        "label": "Customize"
-      },
-      {
-        "id": "bulk",
-        "anchor": "pilot",
-        "label": "Facility pilot"
+        "label": "Sizes and colors"
       },
       {
         "id": "why",
-        "label": "Why SoleFresh"
+        "label": "Compare"
       },
       {
         "id": "story",
@@ -47,17 +42,17 @@
         "label": "FAQ"
       }
     ],
-    "bulk": "Join the facility pilot",
-    "bulkShort": "Join pilot",
-    "waitlist": "Join waitlist"
+    "bulk": "Ask about a facility pilot",
+    "bulkShort": "Ask about a pilot",
+    "waitlist": "Join the waitlist"
   },
   "segments": {
     "label": "Who it's for",
-    "orgNote": "Designed for shared and high-use footwear.",
+    "orgNote": "In development. Facility pilots are how we test it.",
     "functions": [
-      "Odor management",
-      "Moisture management",
-      "Fragrance"
+      "Moisture",
+      "Odor",
+      "Scent"
     ],
     "items": [
       {
@@ -66,7 +61,7 @@
         "org": true,
         "orgType": "Bowling center",
         "name": "Bowling centers",
-        "line": "Rental shoe inventories used by many customers daily.",
+        "line": "Rental shoes worn by many customers a day. One insert goes in each shoe while the pair is on the shelf.",
         "photo": null
       },
       {
@@ -75,7 +70,7 @@
         "org": true,
         "orgType": "Skating rink",
         "name": "Skating rinks",
-        "line": "Shared rental skates, ice and roller.",
+        "line": "Rental skates sit deep. The pull cord is there to lift the insert out of a laced skate.",
         "photo": null
       },
       {
@@ -84,7 +79,7 @@
         "org": true,
         "orgType": "School or athletic department",
         "name": "Schools and athletic departments",
-        "line": "Equipment rooms and team footwear.",
+        "line": "Equipment rooms and team footwear. One insert per shoe, instead of separate products for moisture, odor and scent.",
         "photo": null
       },
       {
@@ -93,7 +88,7 @@
         "org": true,
         "orgType": "Sports team or club",
         "name": "Sports teams and clubs",
-        "line": "Training and competition footwear.",
+        "line": "Training and competition footwear. Three housing sizes; which fits cleats and court shoes is part of what a pilot checks.",
         "photo": null
       },
       {
@@ -102,19 +97,19 @@
         "org": false,
         "orgType": null,
         "name": "Athletes and everyday wearers",
-        "line": "Gym-goers, runners, students, and sneaker enthusiasts.",
+        "line": "Gym-goers, runners, students. One insert in each shoe between wears.",
         "photo": null
       }
     ]
   },
   "what": {
     "heading": "What it does.",
-    "lede": "Three functions in one reusable product.",
+    "lede": "Three jobs in one reusable insert.",
     "hotspots": [
       {
         "id": "odor",
         "label": "Odor",
-        "text": "Designed to help manage the odors that build up in shoes through repeated use.",
+        "text": "An activated-carbon pouch, for the odor that builds up with wear.",
         "part": "carbon_sachet",
         "at": [
           -0.5,
@@ -125,7 +120,7 @@
       {
         "id": "moisture",
         "label": "Moisture",
-        "text": "Designed to help address dampness from sweat and everyday activity.",
+        "text": "A silica-gel pouch, for dampness from sweat.",
         "part": "silica_sachet",
         "at": [
           0.25,
@@ -135,8 +130,8 @@
       },
       {
         "id": "fragrance",
-        "label": "Fragrance",
-        "text": "A fragrance component intended to leave shoes smelling fresher between wears.",
+        "label": "Scent",
+        "text": "Scent beads in a bay at the heel end.",
         "part": "scent_beads",
         "at": [
           0,
@@ -146,75 +141,103 @@
       }
     ],
     "note": {
-      "lead": "Reusable.",
-      "text": "Built for repeated use, not thrown away."
-    }
+      "lead": "Not measured yet.",
+      "text": "How well each part works is what our pilot tests."
+    },
+    "more": "See inside"
   },
   "how": {
     "heading": "How it works.",
     "steps": [
       {
         "id": "finish",
-        "title": "Finish wearing your shoes",
-        "caption": "Take them off after practice, a shift, or a session."
+        "title": "Shoes come off",
+        "caption": "After a game, a session, practice or a shift."
       },
       {
         "id": "place",
         "title": "Place SoleFresh inside",
-        "caption": "Set it inside the shoe while the shoe is not being worn."
+        "caption": "Drop one in each shoe, narrow end first."
       },
       {
         "id": "work",
-        "title": "Let it work between wears",
-        "caption": "It stays inside while the shoes rest."
+        "title": "Leave it in between wears",
+        "caption": "It stays inside while the shoes sit."
       },
       {
         "id": "remove",
-        "title": "Remove and reuse",
-        "caption": "Take it out before the next wear. Put it back after."
+        "title": "Pull it out and reuse it",
+        "caption": "Pull it out by the cord before the next wear. Put it back after."
       }
     ]
   },
   "inside": {
-    "heading": "What's inside.",
-    "note": "Current prototype design (v3.2). Materials are still being tested.",
-    "prompt": "Select a part to see what it does.",
-    "layers": [
+    "heading": "Three jobs. One refillable insert.",
+    "lede": "One SoleFresh goes in each shoe between wears. Load it to see what's inside.",
+    "note": "Prototype. Drying, odor and scent performance haven't been measured yet.",
+    "count": "{n} of {total} in the housing",
+    "load": "Load all three",
+    "refill": "Refill",
+    "back": "Back",
+    "compare": "Compare with what you use now",
+    "optional": null,
+    "optionalTag": "optional",
+    "optionalToggle": {
+      "in": "{name} pouch: in",
+      "out": "{name} pouch: out"
+    },
+    "optionalOut": "Without it, the housing holds the other two. Same housing, same sizes.",
+    "rest": {
+      "title": "Moisture, odor, scent.",
+      "body": "Covering all three can mean separate products to buy, place and replace. SoleFresh is designed to hold all three in one housing."
+    },
+    "loaded": {
+      "title": "One insert. Place it, pull it, refill it.",
+      "body": "Drop it in narrow end first when the shoes come off. Pull it out by the cord before the next wear. The 3D-printed housing is kept; the fills inside are replaced."
+    },
+    "refilled": {
+      "title": "Same housing, fresh fill.",
+      "body": "One fill comes out and a new one goes in. The housing stays in use.",
+      "foot": "How often each fill needs replacing hasn't been measured yet. Our pilot measures it."
+    },
+    "components": [
       {
-        "id": "shell_bottom",
-        "name": "Shell bottom",
-        "role": "3D-printed PETG. Holds the divider and the scent bay."
+        "id": "moisture",
+        "part": "silica_sachet",
+        "chip": "Moisture",
+        "title": "Moisture: silica-gel pouch",
+        "body": "Silica-gel beads in a sealed, breathable pouch, on top of the stack.",
+        "foot": "How it's recharged or replaced is being tested."
       },
       {
-        "id": "carbon_sachet",
-        "name": "Carbon sachet",
-        "role": "Activated carbon in a sealed fabric pouch, facing the insole. For odor."
+        "id": "odor",
+        "part": "carbon_sachet",
+        "chip": "Odor",
+        "title": "Odor: activated-carbon pouch",
+        "body": "Activated carbon in a sealed pouch, on the insole side, under the silica.",
+        "foot": "Designed as a replaceable refill pouch."
       },
       {
-        "id": "silica_sachet",
-        "name": "Silica sachet",
-        "role": "Silica gel beads in a sealed fabric pouch. For moisture."
+        "id": "scent",
+        "part": "scent_beads",
+        "chip": "Scent",
+        "title": "Scent: aroma beads",
+        "body": "Scented beads in their own bay at the heel end. Small holes let the scent out and keep the beads in. Refill by pouring in new beads.",
+        "foot": "Scent options are still to be announced."
       },
       {
-        "id": "scent_beads",
-        "name": "Scent beads",
-        "role": "Pre-scented aroma beads at the heel end. For fragrance."
-      },
-      {
-        "id": "shell_top",
-        "name": "Shell top",
-        "role": "3D-printed PETG. Snaps onto the bottom half."
-      },
-      {
-        "id": "pull_cord",
-        "name": "Pull cord",
-        "role": "Lets you pull it out of the shoe."
+        "id": "cord",
+        "part": "pull_cord",
+        "chip": "Pull cord",
+        "title": "Pull cord",
+        "body": "Lifts the insert out of footwear where it sits deep, like laced skates.",
+        "foot": ""
       }
     ]
   },
   "customize": {
-    "heading": "Make it yours.",
-    "lede": "Preview colors and sizes.",
+    "heading": "Sizes and colors.",
+    "lede": "Three housing sizes and four prototype colors.",
     "dragHint": {
       "fine": "Drag the product to turn it.",
       "touch": "Drag the product sideways to turn it.",
@@ -252,28 +275,33 @@
     "sizeOutside": "{l} × {w} × {h} mm including the cord loop",
     "sizeLoading": "Loading size {size}…",
     "sizeError": "Couldn't load size {size}. Try again.",
-    "fit": "Fit by shoe size is still unknown.",
+    "fit": "One per shoe, two per pair. Which size fits which footwear is being checked with real shoes.",
     "sizes": [
       {
         "id": "S",
-        "label": "S"
+        "label": "S",
+        "name": "Small"
       },
       {
         "id": "M",
-        "label": "M"
+        "label": "M",
+        "name": "Medium"
       },
       {
         "id": "L",
-        "label": "L"
+        "label": "L",
+        "name": "Large"
       }
-    ]
+    ],
+    "turnLeft": "Turn left",
+    "turnRight": "Turn right"
   },
   "bulk": {
-    "heading": "Join the facility pilot.",
+    "heading": "Pilot SoleFresh at your facility.",
     "lines": [
-      "SoleFresh is in development.",
-      "We're looking for bowling centers, rinks, schools and teams to help test the between-wear workflow.",
-      "After you submit, we'll reach out to talk about your inventory and what a pilot could look like.",
+      "SoleFresh is a prototype, still in development.",
+      "A pilot means trying prototype inserts in some of your footwear and telling us what works: fit, handling at the counter or in the locker room, and upkeep.",
+      "After you send this, we'll email you to talk about your footwear and what a pilot could look like.",
       "No commitment."
     ],
     "form": {
@@ -290,10 +318,14 @@
         "200 to 500",
         "500+"
       ],
-      "button": "Join the facility pilot",
-      "done": "Thanks. We'll reach out to talk about your inventory and what a pilot could look like.",
-      "offline": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. You can reach us at {email}."
-    }
+      "button": "Send pilot request",
+      "done": "Thanks. We'll email you to talk about your footwear and what a pilot could look like.",
+      "offline": {
+        "withEmail": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. You can reach us at {email}.",
+        "noEmail": "The pilot form isn't connected yet, so this wasn't sent. What you typed is still here. Please try again later."
+      }
+    },
+    "anchor": "pilot"
   },
   "forms": {
     "note": "We'll only use this to contact you about SoleFresh.",
@@ -305,78 +337,148 @@
     "rateLimited": "Too many tries in a row, so this wasn't sent. What you typed is still here. Please wait a minute and try again."
   },
   "why": {
-    "heading": "One week of shoe care.",
-    "lede": "Four routines. Pick one to see what it involves day to day.",
-    "days": [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
+    "heading": "Versus what you use now.",
+    "lede": "Pick yours. This compares how each is used, not how well it works.",
+    "groupLabel": "What you use now",
+    "compareLabel": "Compared on",
+    "rows": [
+      {
+        "id": "what",
+        "label": "What it is"
+      },
+      {
+        "id": "between",
+        "label": "How it's used"
+      },
+      {
+        "id": "usedUp",
+        "label": "What runs out"
+      },
+      {
+        "id": "power",
+        "label": "Needs power"
+      }
     ],
-    "methods": [
+    "unmeasured": "Not measured yet",
+    "solefresh": {
+      "label": "SoleFresh",
+      "what": "A 3D-printed insert holding a moisture pouch, an odor pouch and scent beads. One per shoe.",
+      "between": "Dropped in, pulled out by its cord.",
+      "usedUp": "Only the fills. The housing is kept.",
+      "power": "No"
+    },
+    "alternatives": [
       {
         "id": "spray",
-        "label": "Spray",
-        "icon": "spray",
-        "mark": "Spray",
-        "legend": "Sprayed into the shoes each day."
+        "label": "Sprays",
+        "what": "A liquid sprayed into the shoe.",
+        "between": "Each pair, every time.",
+        "usedUp": "The can.",
+        "power": "No",
+        "parts": [
+          "scent_beads"
+        ],
+        "takeaway": "Scent comes from a refillable bead bay. Nothing is sprayed."
+      },
+      {
+        "id": "soda",
+        "label": "Baking soda",
+        "what": "A loose powder.",
+        "between": "Sprinkled in, shaken out.",
+        "usedUp": "The powder.",
+        "power": "No",
+        "parts": [
+          "carbon_sachet",
+          "silica_sachet"
+        ],
+        "takeaway": "The fills are sealed in pouches. Nothing loose goes in the shoe."
+      },
+      {
+        "id": "charcoal",
+        "label": "Charcoal bags",
+        "what": "A fabric bag of charcoal.",
+        "between": "Put in, taken out.",
+        "usedUp": "Varies by product.",
+        "power": "No",
+        "parts": [
+          "carbon_sachet",
+          "silica_sachet",
+          "scent_beads"
+        ],
+        "takeaway": "Carbon too, plus a moisture pouch and scent, in one housing."
+      },
+      {
+        "id": "cedar",
+        "label": "Cedar inserts",
+        "what": "Shaped cedar wood.",
+        "between": "Put in, taken out.",
+        "usedUp": "Varies by product.",
+        "power": "No",
+        "parts": [
+          "shell_top",
+          "shell_bottom"
+        ],
+        "takeaway": "One housing in three sizes. Only its fills are replaced."
       },
       {
         "id": "disposable",
-        "label": "Disposable freshener",
-        "icon": "sachet",
-        "mark": "In use",
-        "legend": "A disposable is used, then replaced."
+        "label": "Disposables",
+        "what": "A single-use insert.",
+        "between": "Left in until replaced.",
+        "usedUp": "The whole insert.",
+        "power": "No",
+        "parts": [
+          "shell_top",
+          "shell_bottom"
+        ],
+        "takeaway": "The housing is kept. Only the fills are replaced."
       },
       {
-        "id": "moisture",
-        "label": "Moisture pack",
-        "icon": "pack",
-        "mark": "In shoe",
-        "legend": "A moisture pack sits in the shoe."
-      },
-      {
-        "id": "solefresh",
-        "label": "SoleFresh",
-        "icon": "sole",
-        "mark": "Place in",
-        "legend": "Placed in after wear and reused."
+        "id": "dryer",
+        "label": "UV or heated dryers",
+        "what": "A powered device.",
+        "between": "Plugged in or charged.",
+        "usedUp": "Electricity.",
+        "power": "Yes",
+        "parts": [
+          "pull_cord"
+        ],
+        "takeaway": "No power needed. The cord is for pulling it out."
       }
     ],
-    "fine": "Shows intended routines. SoleFresh performance is still being tested."
+    "start": "spray",
+    "takeawayLabel": "The difference",
+    "fine": "SoleFresh is a prototype. Its performance, cost per use and staff time aren't measured yet: the facility pilot measures them."
   },
   "story": {
     "heading": "Our story.",
-    "line": "SoleFresh is a student-founded startup developed through the INCubatoredu program.",
+    "line": "SoleFresh is a student-founded startup, developed through INCubatoredu, a high school entrepreneurship program.",
     "currentLabel": "Current stage",
     "milestones": [
       {
         "id": "concept",
         "title": "Concept",
-        "text": "A reusable product that handles odor, moisture and freshness in one."
+        "text": "One reusable insert that handles moisture, odor and scent together."
       },
       {
         "id": "research",
         "title": "Customer research",
-        "text": "Surveyed high school athletes about shoe odor, current solutions and what they'd pay."
+        "text": "An informal survey of 50 high school athletes: 35 said shoe odor had bothered them at least once in the previous two weeks, and 36 were moderately to extremely interested in a product like this. Interest is not a purchase; pilots are how we find out."
       },
       {
         "id": "prototype",
         "title": "First prototype",
-        "text": "Built an early physical prototype to test the concept."
+        "text": "Built an early physical prototype to test the idea."
       },
       {
         "id": "learned",
         "title": "What we learned",
-        "text": "Found challenges in moisture-management speed, fragrance interaction and construction."
+        "text": "The first prototype showed us what to work on: how quickly it handles moisture, how the scent sits alongside the other parts, and how it is built."
       },
       {
         "id": "refining",
         "title": "Refining now",
-        "text": "Improving materials, effectiveness, cost and durability.",
+        "text": "Improving materials, effectiveness, cost and durability. Facility pilots are the next test.",
         "current": true
       }
     ],
@@ -384,31 +486,31 @@
     "faq": [
       {
         "q": "What is SoleFresh?",
-        "a": "A reusable shoe-care product being developed to help manage shoe odor, moisture and freshness."
-      },
-      {
-        "q": "Who is it for?",
-        "a": "Organizations that manage shared or high-use footwear, plus individual athletes and everyday wearers."
+        "a": "A reusable insert you place in a shoe between wears. One 3D-printed housing is designed to hold a moisture pouch, an odor pouch and scent beads."
       },
       {
         "q": "How do you use it?",
-        "a": "Place it inside your shoes when they aren't being worn. Remove it before wearing them again."
+        "a": "Drop one in each shoe, narrow end first, when the shoes aren't being worn. Pull it out by its cord before they're worn again."
       },
       {
         "q": "Is it reusable?",
-        "a": "Yes. Lifespan and care instructions are still being determined."
+        "a": "Yes. The 3D-printed housing is kept, and the fills inside are replaced. How often each fill needs replacing hasn't been measured yet."
       },
       {
-        "q": "Does it have a fragrance?",
-        "a": "Yes. Specific scents and the fragrance system haven't been announced."
+        "q": "What does a facility pilot involve?",
+        "a": "Trying prototype inserts in some of your footwear and telling us what works. The details (how many, for how long) are worked out with each facility. Nothing is being sold."
       },
       {
-        "q": "How long does it take to work?",
-        "a": "Performance testing is still needed before we can give a reliable estimate."
+        "q": "Does it work?",
+        "a": "We don't have performance results yet. Drying, odor and scent tests, and facility pilots, come first."
+      },
+      {
+        "q": "Does it have a scent?",
+        "a": "Yes, from scent beads in the housing. Specific scents haven't been announced."
       },
       {
         "q": "How much does it cost?",
-        "a": "Final pricing hasn't been set, and there's nothing to buy yet. Affordability is a development priority. Facilities and teams can join the pilot to help test it."
+        "a": "Pricing hasn't been set, and there's nothing to buy yet."
       },
       {
         "q": "When will it be available?",
@@ -417,18 +519,22 @@
     ]
   },
   "close": {
-    "heading": "Fresh Shoes. Every Day.",
+    "heading": "Want to try SoleFresh?",
     "org": {
       "label": "For organizations",
-      "text": "Facilities, schools, rinks and teams that manage shared footwear.",
-      "button": "Join the facility pilot"
+      "text": "Bowling centers, rinks, schools and teams that manage shared footwear: help us test it.",
+      "button": "Ask about a facility pilot"
     },
     "ind": {
       "label": "For individuals",
-      "text": "Be first to hear when early access opens.",
+      "text": "For your own shoes: be first to hear when early access opens.",
       "button": "Join the waitlist",
       "done": "You're on the list. We'll email you when early access opens.",
-      "offline": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. You can reach us at {email}."
+      "offline": {
+        "withEmail": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. You can reach us at {email}.",
+        "noEmail": "The waitlist isn't connected yet, so this wasn't saved. What you typed is still here. Please try again later."
+      },
+      "emailLabel": "Your email"
     }
   },
   "footer": {
@@ -437,7 +543,7 @@
   "privacy": {
     "title": "Privacy",
     "back": "Back to SoleFresh",
-    "intro": "SoleFresh is a student-founded startup developed through the INCubatoredu program. This page covers what you send us through the forms on this site.",
+    "intro": "SoleFresh is a student-founded startup developed through INCubatoredu, a high school entrepreneurship program. This page covers what you send us through the forms on this site.",
     "sections": [
       {
         "heading": "What we collect",
@@ -453,12 +559,25 @@
       },
       {
         "heading": "This site",
-        "text": "This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type. Its fonts load from Google Fonts, so Google receives your IP address. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel."
+        "text": "This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type, and the level of 3D detail your device handles. Its fonts are served from this site. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel."
       },
       {
         "heading": "Your choices",
-        "text": "To see, change or delete what you've sent us, email {email}."
+        "text": {
+          "withEmail": "To see, change or delete what you've sent us, email {email}.",
+          "noEmail": "To see, change or delete what you've sent us, reply to any email we've sent you, or send a request through the message box on the facility pilot form. We'll act on it and confirm by email."
+        }
       }
     ]
+  },
+  "hero": {
+    "chip": "Prototype · Looking for pilot facilities",
+    "heading": "One reusable insert. Built for shared footwear.",
+    "lede": "SoleFresh goes in each shoe between wears. One 3D-printed housing is designed to hold a moisture pouch, an odor pouch and scent beads. The housing is kept and the fills are replaced.",
+    "individuals": "Not a facility? Join the waitlist",
+    "pictured": "Pictured: the SoleFresh insert, a vented capsule about 11 cm long with a pull-cord loop at one end."
+  },
+  "flags": {
+    "phoneSnap": false
   }
 }

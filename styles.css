@@ -1,5 +1,8 @@
 /* SoleFresh. Cobalt on bone. Two families, one accent, a 4px spacing scale.
-   Fonts are provisional (owner may change them): swap the two font tokens. */
+   Fonts are provisional (owner may change them): swap the two font tokens. They are served from this site (assets/fonts/,
+   the latin subsets of the variable fonts, SIL Open Font License), so the first paint does not wait on another origin. */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/inter-latin.woff2) format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 500 600; font-display: swap; src: url(assets/fonts/space-grotesk-latin.woff2) format("woff2"); }
 :root {
   --top: calc(var(--nav-h) + env(safe-area-inset-top, 0px));
   --bone: #F1EFEA; --bone-2: #E9E6DF; --surface: #FFFFFF; --ink: #15171C; --ink-2: #2A2D35; --ink-soft: #565B66;
@@ -9,7 +12,10 @@
   --font-display: "Space Grotesk", "Archivo", system-ui, sans-serif;
   --font-text: "Inter", system-ui, sans-serif;
   --s1: .25rem; --s2: .5rem; --s3: .75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem; --s8: 4rem;
-  --gutter: max(clamp(1rem, 4vw, 3.5rem), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --gutter: max(clamp(1rem, 4vw, 3.5rem), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px), (100vw - 120rem) / 2); /* on very wide screens the content keeps to the middle 120rem */
+  --field-line: color-mix(in oklab, var(--ink) 50%, transparent); /* 3:1 against the page and a white field: an input must be findable by its edge */
+  --stage-top: clamp(1.75rem, 7vh, 4.5rem); --stage-bottom: clamp(1.5rem, 6vh, 4rem); /* where every stage's heading starts and its bottom row ends */
+  --view: calc(100svh - var(--top));
   --nav-h: 4rem;
   --r-sm: 8px; --r-md: 14px; --r-pill: 999px;
   --e1: 0 1px 2px hsl(40 12% 30% / .10), 0 1px 1px hsl(40 12% 30% / .06);
@@ -53,7 +59,7 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 .layer-btn[aria-pressed="true"], .method[aria-pressed="true"] { background: var(--ink); color: var(--bone); border-color: var(--ink); }
 
 /* ------------------------------------------------------------------ nav -- */
-.nav { position: fixed; inset: 0 0 auto 0; z-index: 50; height: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) var(--gutter) 0; display: flex; align-items: center; gap: var(--s5); background: hsl(43 18% 93% / .94); border-bottom: 1px solid var(--hair); }
+.nav { position: fixed; inset: 0 0 auto 0; z-index: 50; height: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) var(--gutter) 0; display: flex; align-items: center; gap: var(--s5); background: var(--bone); border-bottom: 1px solid var(--hair); }
 .nav__logo, .footer__logo { font: 600 1.25rem/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
 .nav__logo span, .footer__logo span { color: var(--cobalt); }
 .nav__links { display: flex; gap: clamp(.75rem, 1.4vw, 1.4rem); margin: 0 auto; }
@@ -86,7 +92,7 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 .gl-live .world__gl { opacity: 1; }
 .gl-live .world__poster { visibility: hidden; }
 /* Bulk: the rack sits softened behind the content (a bone veil, no blur filter) */
-@media (min-width: 900px) and (min-height: 521px) { html[data-stage="bulk"] .world__gl, html[data-stage="bulk"] .world__poster { opacity: .85; } }
+@media (min-width: 768px) and (min-height: 561px), (min-width: 480px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (min-height: 561px) and (pointer: none) { html[data-stage="bulk"] .world__gl, html[data-stage="bulk"] .world__poster { opacity: .85; } }
 .overlay { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
 .overlay__lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .overlay__lines line { stroke: var(--cobalt); stroke-width: 1.5; opacity: 0; transition: opacity 160ms var(--ease); }
@@ -103,14 +109,20 @@ h3 { font-size: 1.35rem; letter-spacing: -.02em; }
 
 /* --------------------------------------------------------------- stages -- */
 main { position: relative; z-index: 1; padding-top: var(--top); }
-.stage { position: relative; background: transparent; min-height: calc(100vh - var(--top)); min-height: calc(100svh - var(--top)); }
-.stage--full { height: calc(100vh - var(--top)); height: calc(100svh - var(--top)); min-height: 600px; overflow: clip; }
-/* arrival: one short fade and rise, never scroll-linked */
-.stage__in { opacity: 0; transform: translateY(10px); transition: opacity var(--in-ms) var(--ease), transform var(--in-ms) var(--ease); }
-.stage.is-in .stage__in { opacity: 1; transform: none; }
-.stage.is-in .stage__in:nth-child(2) { transition-delay: 40ms; }
-.stage.is-in .stage__in:nth-child(3) { transition-delay: 80ms; }
-.no-js .stage__in, .no-js .day { opacity: 1; transform: none; }
+/* Every stage is at least one view tall (the window less the nav). The first five are exactly one view: their content is
+   placed in it. The later ones (.stage without --full) are one view when their content fits, and grow when it cannot (a
+   short or narrow window): src/main.js then gives them inner rest points, each starting at a line that was not yet whole.
+   The floor is the smallest view the full-screen layout is drawn for: a window 561px tall (see NARROW), less the nav. */
+.stage { position: relative; background: transparent; min-height: calc(100vh - var(--top)); min-height: var(--view); }
+.stage--full { height: calc(100vh - var(--top)); height: var(--view); min-height: 496px; overflow: clip; }
+.room { display: none; } /* the product's space in the compact layout (see there) */
+/* arrival: one short fade and rise, never scroll-linked. It exists only once src/main.js has run to its end and added
+   .sf-ready: without the script, or if it fails, everything is simply visible. The first stage never fades: it is the first
+   thing painted. */
+.sf-ready .stage__in { opacity: 0; transform: translateY(10px); transition: opacity var(--in-ms) var(--ease), transform var(--in-ms) var(--ease); }
+.sf-ready .stage.is-in .stage__in, .sf-ready .explorer .stage__in { opacity: 1; transform: none; }
+.sf-ready .stage.is-in .stage__in:nth-child(2) { transition-delay: 40ms; }
+.sf-ready .stage.is-in .stage__in:nth-child(3) { transition-delay: 80ms; }
 .no-js .warm { display: none; }
 /* no live product: nothing to turn */
 .gl-off .fine-only, .gl-off .touch-only, .no-js .fine-only, .no-js .touch-only { display: none; }
@@ -118,12 +130,14 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 /* ============================================================== STAGE 1 == */
 .explorer { }
 .explorer__cta { display: none; } /* wide screens have the panel beside the product; phones get the next step right after the intro */
-.explorer__left { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; bottom: 6vh; width: min(25rem, 30vw); display: flex; flex-direction: column; justify-content: space-between; gap: var(--s6); pointer-events: none; }
+.explorer__left { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); bottom: var(--stage-bottom); width: min(27rem, 32vw); display: flex; flex-direction: column; justify-content: space-between; gap: var(--s6); pointer-events: none; }
 .explorer__left > * { pointer-events: auto; }
-.explorer h1 { font-size: clamp(2.5rem, 1.2rem + 3.4vw, 4.5rem); letter-spacing: -.04em; line-height: .98; }
-.explorer__lede { margin: var(--s4) 0 0; max-width: 34ch; font-size: 1.05rem; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.explorer__chip { display: inline-flex; margin: 0 0 var(--s4); padding: .38rem .75rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); background: var(--bone); font: 600 .75rem/1 var(--font-display); letter-spacing: .02em; color: var(--ink); }
+.explorer h1 { font-size: clamp(2rem, 1rem + 2.35vw, 3.5rem); letter-spacing: -.04em; line-height: 1; }
+.explorer__alt { display: none; }
+.explorer__lede { margin: var(--s4) 0 0; max-width: 40ch; font-size: 1rem; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
 .who { position: relative; }
-.who__label { margin: 0 0 var(--s3); font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.who__label { margin: 0 0 var(--s3); font: 600 .75rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
 .who__list { display: grid; }
 .who__item { position: relative; display: flex; align-items: center; min-height: 2.75rem; padding: .55rem 0 .55rem 1.1rem; border: 0; border-top: 1px solid var(--hair); background: transparent; text-align: left; font: 500 1rem/1.25 var(--font-display); letter-spacing: -.01em; color: var(--ink-soft); cursor: pointer; transition: color 140ms var(--ease); }
 .who__item:last-child { border-bottom: 1px solid var(--hair); }
@@ -135,10 +149,10 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .who__thumb { position: absolute; left: calc(100% + var(--s5)); top: 0; width: 11.5rem; margin: 0; border-radius: var(--r-sm); overflow: hidden; box-shadow: var(--e2); background: var(--bone-2); opacity: 0; transform: translate3d(-6px, var(--y, 0px), 0) scale(.97); transition: opacity 160ms var(--ease), transform 200ms var(--ease); pointer-events: none; }
 .who__thumb.is-on { opacity: 1; transform: translate3d(0, var(--y, 0px), 0) scale(1); }
 .who__thumb img { width: 100%; height: auto; aspect-ratio: 3 / 2; }
-.panel { position: absolute; z-index: 2; right: var(--gutter); bottom: 6vh; width: min(21rem, 26vw); padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); display: grid; gap: var(--s3); }
+.panel { position: absolute; z-index: 2; right: var(--gutter); bottom: var(--stage-bottom); width: min(21rem, 26vw); padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); display: grid; gap: var(--s3); }
 .panel__thumb { display: none; margin: 0; border-radius: var(--r-sm); overflow: hidden; background: var(--bone-2); }
 .panel__thumb img { width: 100%; height: auto; aspect-ratio: 3 / 2; }
-.panel__for { margin: 0; font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
+.panel__for { margin: 0; font: 600 .75rem/1.2 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
 .panel__line { margin: 0; font: 600 1.15rem/1.3 var(--font-display); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
 .panel__note { margin: 0 0 var(--s3); color: var(--ink-soft); font-size: .92rem; }
 .panel__org, .panel__ind { display: grid; }
@@ -153,7 +167,7 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 /* Three bands at any width: the heading, the product (the world fits it between them), the cards. Everything is
    open at all times and plain HTML; only the dots and leader lines come from the 3D. */
 .what.stage--full { min-height: 0; }
-.what__head { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; max-width: 30rem; }
+.what__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); max-width: 30rem; }
 .what__lede { margin: var(--s3) 0 0; color: var(--ink-2); font-size: 1rem; line-height: 1.55; }
 .what__low { position: absolute; z-index: 2; left: var(--gutter); right: var(--gutter); top: calc(58vh - var(--top)); display: grid; gap: var(--s4); }
 .what__low > * { width: min(72rem, 100%); margin-inline: auto; }
@@ -163,11 +177,13 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .hs-card__text { margin: 0; font-size: .92rem; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .what__note { margin-block: 0; color: var(--ink-soft); font-size: .92rem; line-height: 1.5; }
 .what__note b { color: var(--ink); font-family: var(--font-display); font-weight: 600; }
+.what__more { margin-left: .5rem; font: 600 .9rem/1.3 var(--font-display); color: var(--cobalt); text-decoration: none; white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) { .what__more:hover { text-decoration: underline; } }
 
 /* ============================================================== STAGE 3 == */
 .how { }
-.how__head { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; }
-.how__bar { position: absolute; z-index: 2; left: var(--gutter); right: var(--gutter); bottom: 6vh; display: grid; gap: var(--s4); }
+.how__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); }
+.how__bar { position: absolute; z-index: 2; left: var(--gutter); right: var(--gutter); bottom: var(--stage-bottom); display: grid; gap: var(--s4); }
 .how__caption { margin: 0; font: 500 1.1rem/1.4 var(--font-display); color: var(--ink); max-width: 40ch; min-height: 1.5em; }
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s3); }
 .step { position: relative; overflow: hidden; display: flex; align-items: center; gap: .8rem; min-height: 3.25rem; padding: .6rem 1rem; border-radius: var(--r-md); border: 1px solid var(--hair-strong); background: hsl(0 0% 100% / .88); box-shadow: var(--e1); font: 600 .95rem/1.2 var(--font-display); color: var(--ink); text-align: left; cursor: pointer; transition: border-color 140ms var(--ease), background-color 140ms var(--ease), color 140ms var(--ease); }
@@ -187,31 +203,41 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 @keyframes step-sheen { to { transform: translateX(520%); } }
 /* ============================================================== STAGE 4 == */
 .inside { }
-.inside__head { position: absolute; z-index: 2; left: var(--gutter); top: 7vh; max-width: 22rem; }
-.inside__note { margin: var(--s4) 0 0; color: var(--ink-soft); font-size: .92rem; }
-.inside__prompt { display: none; margin: var(--s2) 0 0; font: 600 .95rem/1.3 var(--font-display); color: var(--cobalt); } /* wide screens say it once, in the panel */
-.inside__list { position: absolute; z-index: 2; left: var(--gutter); bottom: 6vh; display: grid; gap: .4rem; }
+.inside__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); max-width: 22rem; }
+.inside__lede { margin: var(--s3) 0 0; color: var(--ink-2); font-size: 1rem; line-height: 1.55; }
+.inside__note { position: absolute; z-index: 2; right: var(--gutter); bottom: var(--stage-bottom); margin: 0; max-width: min(22rem, 28vw); text-align: right; color: var(--ink-soft); font-size: .85rem; }
+.inside__list { position: absolute; z-index: 2; left: var(--gutter); bottom: var(--stage-bottom); display: grid; gap: .4rem; }
 .layer-btn { min-height: 2.5rem; font-size: .86rem; justify-self: start; }
-.sheet { position: absolute; z-index: 2; right: var(--gutter); top: 50%; translate: 0 -50%; width: min(20rem, 26vw); }
+.sheet { position: absolute; z-index: 2; right: var(--gutter); top: 46%; translate: 0 -50%; width: min(21rem, 27vw); }
 .sheet__body { padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); display: grid; gap: var(--s3); }
-.sheet__prompt { margin: 0; color: var(--ink-soft); }
-.sheet__name { margin: 0; font: 600 1.2rem/1.2 var(--font-display); color: var(--ink); letter-spacing: -.015em; }
+.sheet__count { margin: 0; font: 600 .78rem/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--cobalt); font-variant-numeric: tabular-nums; }
+.sheet__detail { display: grid; gap: var(--s2); }
+.sheet__name { margin: 0; font: 600 1.2rem/1.2 var(--font-display); color: var(--ink); letter-spacing: -.015em; text-wrap: balance; }
 .sheet__role { margin: 0; color: var(--ink-2); }
-.sheet__close { display: none; }
+.sheet__foot { margin: 0; color: var(--ink-soft); font-size: .86rem; line-height: 1.45; }
+.sheet__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); margin-top: var(--s1); }
+.sheet__link { font: 600 .9rem/1.3 var(--font-display); color: var(--cobalt); text-decoration: none; padding-block: .5rem; }
+@media (hover: hover) and (pointer: fine) { .sheet__link:hover { text-decoration: underline; } }
+/* the names that ride on the three fills */
+.mk--tag .mk__tag { position: absolute; left: 0; top: 0; translate: -50% -50%; padding: .28rem .6rem; border-radius: var(--r-pill); background: var(--ink); color: var(--bone); font: 600 .75rem/1 var(--font-display); letter-spacing: .01em; white-space: nowrap; box-shadow: var(--e1); }
 
 /* ============================================================ CUSTOMIZE == */
 .customize { }
-.customize__head { position: absolute; z-index: 2; left: var(--gutter); top: 6vh; max-width: 24rem; }
+.customize__head { position: absolute; z-index: 2; left: var(--gutter); top: var(--stage-top); max-width: 24rem; }
 .customize__lede { margin: var(--s3) 0 0; color: var(--ink-2); font-size: 1rem; line-height: 1.55; max-width: 32ch; }
 .customize__drag { position: absolute; z-index: 1; left: 30%; right: 30%; top: 22%; bottom: 18%; cursor: grab; touch-action: pan-y; }
 .customize__drag.is-dragging { cursor: grabbing; }
-.customize__side { position: absolute; z-index: 2; top: 50%; translate: 0 -50%; width: min(17rem, 24vw); display: grid; gap: var(--s3); }
+.customize__turn { position: absolute; z-index: 2; left: 50%; bottom: var(--stage-bottom); translate: -50% 0; display: flex; gap: .5rem; }
+.turn { width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid var(--hair-strong); background: var(--surface); box-shadow: var(--e1); font: 600 1rem/1 var(--font-display); color: var(--ink); cursor: pointer; transition: border-color 140ms var(--ease), transform 120ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { .turn:hover { border-color: var(--cobalt); } }
+.turn:active { transform: scale(.95); }
+.customize__side { position: absolute; z-index: 2; top: 44%; width: min(17rem, 24vw); display: grid; gap: var(--s3); align-content: start; }
 .customize__side--color { left: var(--gutter); }
 .customize__side--size { right: var(--gutter); }
-.eyebrow { margin: 0; font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.eyebrow { margin: 0; font: 600 .75rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
 .swatches { display: grid; grid-template-columns: repeat(4, 3rem); gap: .4rem; }
 .swatch { width: 3rem; height: 3rem; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; display: grid; place-items: center; transition: transform 120ms var(--ease); }
-.swatch__chip { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--sw1); box-shadow: inset 0 0 0 1px hsl(220 10% 10% / .18), var(--e1); transition: box-shadow 160ms var(--ease), transform 160ms var(--ease); }
+.swatch__chip { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--sw1); box-shadow: inset 0 0 0 1px hsl(220 10% 10% / .45), var(--e1); transition: box-shadow 160ms var(--ease), transform 160ms var(--ease); }
 .swatch[aria-pressed="true"] .swatch__chip { box-shadow: inset 0 0 0 1px hsl(220 10% 10% / .18), 0 0 0 3px var(--bone), 0 0 0 5px var(--cobalt); }
 @media (hover: hover) and (pointer: fine) { .swatch:hover .swatch__chip { transform: scale(1.06); } }
 .swatch:active { transform: scale(.95); }
@@ -223,62 +249,73 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 @media (hover: hover) and (pointer: fine) { .size:hover { border-color: var(--cobalt); } }
 .size:active { transform: scale(.98); }
 .customize__fit { margin: 0; color: var(--ink-soft); font-size: .85rem; }
-.customize__note { position: absolute; z-index: 2; left: var(--gutter); bottom: 6vh; margin: 0; color: var(--ink-soft); font-size: .85rem; }
+.customize__note { position: absolute; z-index: 2; left: var(--gutter); bottom: var(--stage-bottom); margin: 0; color: var(--ink-soft); font-size: .85rem; }
 
 /* ============================================================== STAGE 5 == */
-.bulk { display: grid; place-items: center; padding: var(--s7) var(--gutter) var(--s8); }
-.bulk__card { position: relative; z-index: 2; width: min(56rem, 100%); display: grid; grid-template-columns: 1fr 1.25fr; gap: var(--s7); padding: var(--s7); border-radius: var(--r-md); background: hsl(0 0% 100% / .86); border: 1px solid var(--hair); box-shadow: var(--e2); }
-.bulk__lines { list-style: none; margin: var(--s5) 0 0; padding: 0; display: grid; gap: var(--s3); }
+.bulk { display: grid; place-items: center; padding: var(--s5) var(--gutter); }
+.bulk__card { position: relative; z-index: 2; width: min(66rem, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.75fr); gap: var(--s6); padding: var(--s6); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e2); }
+.bulk__lines { list-style: none; margin: var(--s4) 0 0; padding: 0; display: grid; gap: var(--s2); font-size: .95rem; line-height: 1.5; }
 .bulk__lines li { padding-left: 1.1rem; position: relative; color: var(--ink-2); }
 .bulk__lines li::before { content: ""; position: absolute; left: 0; top: .65em; width: 6px; height: 6px; border-radius: 50%; background: var(--cobalt); }
-.form { display: grid; gap: var(--s4); grid-template-columns: 1fr 1fr; }
+/* Six columns: two fields a row, or three. An error line hangs under its field in the row gap, so a message never moves the form. */
+.form { display: grid; gap: 1.2rem var(--s4); grid-template-columns: repeat(6, minmax(0, 1fr)); align-content: start; }
 .form > * { grid-column: 1 / -1; }
-.field { display: grid; gap: .35rem; }
-.field--half { grid-column: auto; }
+.field { position: relative; display: grid; gap: .3rem; min-width: 0; }
+.form > .field--half { grid-column: span 3; }
+.form > .field--third { grid-column: span 2; }
 .field label, .field legend { font: 600 .82rem/1.2 var(--font-display); color: var(--ink); }
-.field input, .field select, .field textarea { min-height: 2.75rem; padding: .5rem .9rem; border-radius: var(--r-sm); border: 1px solid var(--hair-strong); background: var(--surface); color: var(--ink); width: 100%; transition: border-color 140ms var(--ease); }
-.field textarea { resize: vertical; min-height: 5rem; }
+.field input, .field select, .field textarea { min-height: 2.75rem; padding: .5rem .9rem; border-radius: var(--r-sm); border: 1px solid var(--field-line); background: var(--surface); color: var(--ink); width: 100%; transition: border-color 140ms var(--ease); scroll-margin: calc(var(--top) + 2.5rem) 0 2.5rem; }
+.field textarea { resize: vertical; min-height: 3.6rem; display: block; }
 .customize__drag:focus-visible { outline: 2px solid var(--cobalt); outline-offset: -6px; border-radius: var(--r-md); }
 .field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 1px; border-color: transparent; border-radius: var(--r-sm); }
 .field [aria-invalid="true"] { border-color: #C4321C; }
 .field--radios { border: 0; padding: 0; margin: 0; }
 .radios { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .25rem; }
-.radio { position: relative; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); font: 500 .9rem/1 var(--font-display); color: var(--ink); cursor: pointer; transition: border-color 140ms var(--ease), background-color 140ms var(--ease); }
+.radio { position: relative; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--field-line); font: 500 .9rem/1 var(--font-display); color: var(--ink); cursor: pointer; transition: border-color 140ms var(--ease), background-color 140ms var(--ease); }
 .radio input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .radio:has(input:checked) { background: var(--ink); color: var(--bone); border-color: var(--ink); }
 .radio:has(input:focus-visible) { outline: 2px solid var(--cobalt); outline-offset: 3px; }
-.field__err { margin: 0; min-height: 1.2em; font-size: .82rem; color: #B42318; }
+.field__err { position: absolute; left: 0; right: 0; top: 100%; margin: 2px 0 0; font-size: .75rem; line-height: 1.25; color: #B42318; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form--inline .field__err { position: static; white-space: normal; min-height: 1.2em; }
 .form__actions { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
-.form__status { margin: 0; font-size: .9rem; color: var(--ink-2); }
-.form__status.is-err { color: #B42318; }
+/* what happened to a submission, said right above the button, where it cannot be missed (it has its line whether or not it is speaking) */
+.form__status { margin: 0; min-height: 1.35em; font-size: .9rem; line-height: 1.35; color: var(--ink-2); scroll-margin: calc(var(--top) + 1rem) 0 5rem; }
+.form__status:focus { outline: none; }
+.form__status.is-err { color: #B42318; font-weight: 500; }
 .form__note { margin: 0; font-size: .82rem; line-height: 1.4; color: var(--ink-soft); }
 .form__done:focus { outline: none; }
 .form__done { padding: var(--s4) var(--s5); border-radius: var(--r-sm); background: color-mix(in oklab, var(--cobalt) 8%, var(--surface)); border: 1px solid color-mix(in oklab, var(--cobalt) 30%, transparent); color: var(--ink); font: 500 1rem/1.5 var(--font-display); }
 .form__done p { margin: 0; }
+.form.is-done { align-content: center; }
 .form.is-done > :not(.form__done) { display: none; }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 /* ============================================================== STAGE 6 == */
-.why { display: grid; align-items: center; justify-items: end; padding: var(--s6) var(--gutter) var(--s7); }
-.why__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s4); }
-.why__lede { margin: 0; color: var(--ink-2); max-width: 44ch; }
-.methods { display: flex; flex-wrap: wrap; gap: .5rem; }
-.method { min-height: 2.5rem; font-size: .88rem; }
-.why__legend { margin: 0; min-height: 1.5em; font: 500 .95rem/1.4 var(--font-display); color: var(--ink); }
-.week__action { display: none; } /* phones say the routine's action once, above the days */
-.week { list-style: none; margin: 0; padding: var(--s4); display: grid; grid-template-columns: repeat(7, 1fr); gap: .4rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); position: relative; }
-.day { display: grid; justify-items: center; gap: .35rem; padding: .5rem .2rem .4rem; border-radius: var(--r-sm); background: var(--bone); text-align: center; opacity: 0; transform: translateY(6px); }
-.day.is-anim { animation: day-in 240ms var(--ease) forwards; animation-delay: calc(var(--i) * 32ms); }
-@keyframes day-in { to { opacity: 1; transform: none; } }
-.day__icon { width: 30px; height: 30px; }
-.day__icon svg { width: 100%; height: 100%; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.day__mark { font: 600 .66rem/1.2 var(--font-display); color: var(--ink-soft); min-height: 1.2em; letter-spacing: .02em; }
-.day__name { font: 500 .78rem/1 var(--font-text); color: var(--ink-2); }
-.why__fine { margin: 0; color: var(--ink-soft); font-size: .82rem; }
+.why { display: grid; align-items: center; justify-items: end; padding: var(--s5) var(--gutter); }
+.why h2 { font-size: clamp(1.7rem, 1rem + 1.6vw, 2.7rem); }
+.why__panel { position: relative; z-index: 2; width: min(47rem, 66%); display: grid; gap: var(--s3); }
+.why__lede { margin: 0; color: var(--ink-2); max-width: 62ch; font-size: .95rem; line-height: 1.5; }
+.methods { display: flex; flex-wrap: wrap; gap: .4rem; }
+.method { min-height: 2.4rem; padding: 0 .85rem; font-size: .86rem; }
+/* the comparison: what you use now beside SoleFresh, row for row */
+.vs { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); overflow: hidden; font-size: .86rem; line-height: 1.4; color: var(--ink-2); }
+.vs th, .vs td { padding: .45rem .8rem; text-align: left; vertical-align: top; }
+.vs tbody th, .vs tbody td { border-top: 1px solid var(--hair); }
+.vs thead th { font: 600 .95rem/1.2 var(--font-display); color: var(--ink); padding-block: .6rem; }
+.vs th:first-child { width: 8.6rem; }
+.vs tbody th { font: 600 .78rem/1.35 var(--font-display); color: var(--ink-soft); }
+.vs .vs__us { background: color-mix(in oklab, var(--cobalt) 6%, var(--surface)); color: var(--ink); }
+.vs thead .vs__us { color: var(--cobalt); }
+.why__take { margin: 0; font: 500 .98rem/1.4 var(--font-display); color: var(--ink); min-height: 2.8em; }
+.why__take b { display: block; font: 600 .75rem/1.4 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--cobalt); }
+.why__foot { display: flex; align-items: center; gap: var(--s4); }
+.why__foot .btn { flex: none; }
+.why__fine { margin: 0; color: var(--ink-soft); font-size: .8rem; line-height: 1.4; }
 
 /* ============================================================== STAGE 7 == */
-.story { display: grid; justify-items: end; padding: var(--s6) var(--gutter) var(--s8); }
-.story__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s5); }
+.story, .faqs { display: grid; align-items: center; justify-items: end; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+.story__panel, .faq__panel { position: relative; z-index: 2; width: min(38rem, 60%); display: grid; gap: var(--s5); }
+.faq__panel { width: min(42rem, 62%); gap: var(--s4); align-self: start; }
 .story__line { margin: 0; font: 500 1.1rem/1.5 var(--font-display); color: var(--ink); max-width: 36ch; }
 .timeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; }
 .timeline::before { content: ""; position: absolute; left: 10%; right: 10%; top: 9px; height: 2px; background: var(--hair-strong); }
@@ -287,37 +324,37 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .milestone__btn[aria-pressed="true"] { color: var(--ink); }
 .milestone__btn[aria-pressed="true"] .milestone__dot { border-color: var(--cobalt); background: var(--cobalt); transform: scale(1.1); }
 .is-current .milestone__dot { border-color: var(--cobalt); }
-.milestone__now { font: 600 .62rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
+.milestone__now { font: 600 .75rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
 @media (hover: hover) and (pointer: fine) { .milestone__btn:hover { color: var(--ink); } }
 .milestone__text { margin: 0; min-height: 3em; padding: var(--s4) var(--s5); border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--hair); color: var(--ink-2); }
-.faq { display: grid; gap: 0; margin-top: var(--s3); }
-.faq h3 { margin-bottom: var(--s3); }
+.faq { display: grid; gap: 0; }
 .faq__item { border-top: 1px solid var(--hair); }
 .faq__item:last-child { border-bottom: 1px solid var(--hair); }
-.faq__item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--s4); padding: .9rem 0; font: 600 1rem/1.3 var(--font-display); color: var(--ink); }
+.faq__item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--s4); padding: .78rem 0; font: 600 1rem/1.3 var(--font-display); color: var(--ink); }
 .faq__item summary::-webkit-details-marker { display: none; }
-.faq__item summary::after { content: "+"; flex: none; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--hair-strong); font-weight: 500; transition: transform 160ms var(--ease), background-color 160ms var(--ease), color 160ms var(--ease); }
+.faq__item summary::after { content: "+"; content: "+" / ""; flex: none; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--hair-strong); font-weight: 500; transition: transform 160ms var(--ease), background-color 160ms var(--ease), color 160ms var(--ease); }
 .faq__item[open] summary::after { transform: rotate(45deg); background: var(--ink); color: var(--bone); border-color: var(--ink); }
 .faq__item summary:focus-visible { outline-offset: -2px; }
 .faq__item p { margin: 0 0 1rem; color: var(--ink-2); max-width: 60ch; }
 
 /* ============================================================== STAGE 8 == */
-.close { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto; padding-top: 6vh; }
-.close__wrap { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(34vh, 1fr) auto; gap: var(--s4); padding: 0 var(--gutter); }
+.close { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto; padding-top: var(--stage-top); }
+.close__wrap { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(7rem, 1fr) auto; gap: var(--s4); padding: 0 var(--gutter); }
 .close__wrap > h2 { align-self: start; }
 .close__wrap > .paths { grid-row: 3; align-self: end; }
-.close h2 { font-size: clamp(2.6rem, 1.4rem + 4vw, 5rem); text-align: center; }
+.close h2 { font-size: clamp(2rem, 1rem + 2.35vw, 3.5rem); text-align: center; }
 .paths { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5); max-width: 60rem; width: 100%; margin: 0 auto; }
-.path { display: grid; gap: var(--s3); align-content: start; padding: var(--s5); border-radius: var(--r-md); background: hsl(0 0% 100% / .9); border: 1px solid var(--hair); box-shadow: var(--e1); }
-.path__label { margin: 0; font: 600 .72rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
+.path { display: grid; gap: var(--s3); align-content: start; padding: var(--s5); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--e1); }
+.path__label { margin: 0; font: 600 .75rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--cobalt); }
 .path__text { margin: 0; color: var(--ink-2); }
+.path__field { font: 600 .82rem/1.2 var(--font-display); color: var(--ink); }
 .path .btn { justify-self: start; }
 .form--inline { grid-template-columns: 1fr; gap: .4rem; }
 .form__row { display: flex; gap: .5rem; flex-wrap: wrap; }
-.form__row input { flex: 1 1 12rem; min-width: 0; min-height: 2.75rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); background: var(--surface); color: var(--ink); }
+.form__row input { flex: 1 1 12rem; min-width: 0; min-height: 2.75rem; padding: 0 1rem; border-radius: var(--r-pill); border: 1px solid var(--field-line); background: var(--surface); color: var(--ink); }
 .form__row input:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-color: transparent; }
 .form--inline [aria-invalid="true"] { border-color: #C4321C; }
-.footer { position: relative; z-index: 2; margin-top: var(--s8); padding: var(--s5) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--hair); background: var(--bone); display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); align-items: center; font-size: .85rem; color: var(--ink-soft); }
+.footer { position: relative; z-index: 2; margin-top: var(--s5); padding: var(--s4) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--hair); background: var(--bone); display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); align-items: center; font-size: .85rem; color: var(--ink-soft); }
 .footer__contact { font-family: var(--font-display); color: var(--ink); }
 .footer__contact a { text-decoration: none; }
 .footer__link { color: var(--ink); }
@@ -333,24 +370,25 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 .doc p { margin: 0; color: var(--ink-2); text-wrap: pretty; }
 .doc__intro { margin-top: var(--s4) !important; font-size: 1.05rem; }
 
-/* ====================================================== phones, tablets == */
-/* Under 900px, and on short screens (keep in step with NARROW in src/main.js). The browser scrolls the page and each
+/* ================================================================ phones == */
+/* Phones (a coarse pointer under 768px wide), and any window under 480px wide or 561px tall (keep in step with NARROW in
+   src/main.js). A mouse or trackpad window keeps the full-screen website down to those sizes (see compact, below). This is the stacked layout: each
    section's height is its content's. The product is a band pinned under the nav by position: sticky while the stages that
    use it (.pin) scroll beneath it; it leaves with the end of .pin, so the form, the comparison, the Story and the FAQ have
    the whole screen. --band-* is how much of the screen each section gives it: bounded both ways, and held back by the
    width where a wide scene would only add empty space. The canvas keeps the tallest of them (the hero's) and --band-now
    shows as much as the section has, so nothing resizes during a scroll. src/world.js frames each section to its band. */
-@media (max-width: 899px), (max-height: 520px) {
+@media (max-width: 479px), (max-height: 560px), (pointer: coarse) and (max-width: 767px) {
   :root {
     --nav-h: 3.5rem;
-    --band-explorer: clamp(13rem, 43svh, 26rem);
+    --band-explorer: clamp(12rem, 37svh, 24rem);
     --band-what: clamp(9.5rem, min(26svh, 48vw), 20rem);
     --band-how: clamp(12rem, min(34svh, 60vw), 24rem);
     --band-inside: clamp(13rem, 36svh, 24rem);
     --band-customize: clamp(12rem, min(30svh, 58vw), 22rem);
   }
   html { scroll-padding-top: var(--top); }
-  .nav { gap: var(--s3); background: var(--bone); } /* the page scrolls freely under it here, so nothing may show through */
+  .nav { gap: var(--s3); }
   .nav__waitlist { display: none; }
   .nav__cta .btn { min-height: 2.75rem; padding: 0 1rem; font-size: .84rem; }
   h2 { font-size: clamp(1.9rem, 7.5vw, 2.5rem); }
@@ -359,16 +397,25 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .world__poster { bottom: auto; height: var(--band-now, 100%); }
   .overlay { display: none; }
   .stage, .stage--full { height: auto; min-height: 0; overflow: visible; }
-  .pin .stage { padding-block: var(--s4) var(--s7); scroll-margin-top: var(--band-explorer); }
-  .pin :is(a, button, input, select, textarea) { scroll-margin-top: calc(var(--band-explorer) + var(--s3)); }
-  .stage__in, .stage.is-in .stage__in { opacity: 1; transform: none; transition: none; }
+  .field__err { position: static; white-space: normal; }
+  .form > .field--half, .form > .field--third { grid-column: 1 / -1; }
+  .field textarea { min-height: 5rem; }
+  .story, .faqs { align-items: start; }
+  .faq__panel { align-self: auto; }
+  .explorer { --band-self: var(--band-explorer); } .what { --band-self: var(--band-what); } .how { --band-self: var(--band-how); } .inside { --band-self: var(--band-inside); } .customize { --band-self: var(--band-customize); }
+  .pin .stage { padding-block: var(--s4) var(--s7); scroll-margin-top: calc(var(--top) + var(--band-self, 0px)); }
+  .pin :is(a, button, input, select, textarea) { scroll-margin-top: calc(var(--top) + var(--band-self, 0px) + var(--s3)); }
+  .sf-ready .stage__in, .sf-ready .stage.is-in .stage__in { opacity: 1; transform: none; transition: none; }
   /* stage 1: the product, what it is, the next step. Who it's for comes after that. */
   .explorer { display: flex; flex-direction: column; }
   .explorer__left { display: contents; }
   .explorer__intro { order: 1; padding: 0 var(--gutter); }
-  .explorer h1 { font-size: clamp(2.2rem, 10vw, 3rem); }
+  .explorer h1 { font-size: clamp(1.9rem, 8.4vw, 2.6rem); }
   .explorer__lede { font-size: 1rem; margin-top: var(--s3); max-width: 40ch; }
   .explorer__cta { display: flex; width: min(100%, 24rem); min-height: 3rem; margin-top: var(--s4); font-size: 1rem; }
+  .explorer__alt { display: inline-block; margin-top: var(--s2); padding-block: .7rem; font: 600 .95rem/1.2 var(--font-display); color: var(--ink); text-underline-offset: .25em; }
+  .explorer__chip { margin-bottom: var(--s3); }
+  .customize__turn { position: static; translate: none; margin: 0 var(--gutter); }
   .who { order: 3; margin-top: var(--s6); }
   .who__label { padding: 0 var(--gutter); }
   .who__list { display: flex; gap: var(--s2); overflow-x: auto; padding: 2px var(--gutter) var(--s2); scroll-padding-inline: var(--gutter); scroll-snap-type: x proximity; scrollbar-width: none; }
@@ -400,19 +447,17 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   /* stage 4: the parts, and what the chosen one does, in the page */
   .inside { display: flex; flex-direction: column; gap: var(--s3); }
   .inside__head, .inside__list { position: static; margin: 0 var(--gutter); max-width: none; }
-  .inside__note { margin-top: var(--s2); }
+  .inside__lede { margin-top: var(--s2); }
   .inside__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
   .layer-btn { justify-content: center; justify-self: stretch; min-height: 2.75rem; padding: 0 .5rem; font-size: .9rem; }
   .sheet { position: static; translate: none; width: auto; margin: 0 var(--gutter); }
-  .sheet__body { grid-template-columns: minmax(0, 1fr) auto; align-items: start; min-height: 6.75rem; padding: var(--s4); box-shadow: none; }
-  .sheet__close { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .9rem; border-radius: var(--r-pill); border: 1px solid var(--hair-strong); background: transparent; font: 600 .86rem/1 var(--font-display); color: var(--ink); cursor: pointer; }
-  .sheet:not(.is-open) .sheet__close { display: none; }
+  .sheet__body { min-height: 11rem; align-content: start; padding: var(--s4); box-shadow: none; }
+  .inside__note { position: static; max-width: none; margin: 0 var(--gutter); text-align: left; }
   /* customize: the choices as one group, under the preview */
   .customize { display: flex; flex-direction: column; gap: var(--s4); }
   .customize__head, .customize__note { position: static; max-width: none; margin: 0 var(--gutter); }
   .customize { position: relative; }
-  .customize__drag { position: absolute; left: var(--gutter); right: var(--gutter); top: var(--s2); bottom: auto; height: 3rem; pointer-events: none; } /* the band itself is the finger's handle; this stays the keyboard's */
-  .customize__drag:focus-visible { outline-offset: 2px; }
+  .customize__drag { display: none; } /* the band itself is the finger's handle */
   .customize__side { position: static; translate: none; width: auto; margin: 0 var(--gutter); padding-top: var(--s4); border-top: 1px solid var(--hair); }
   .customize__pick { font-size: .98rem; }
   .swatches { grid-template-columns: repeat(4, 2.75rem); gap: .6rem; }
@@ -421,37 +466,33 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   /* the pilot form: no card round it, so the fields get the width */
   .bulk { display: block; padding: var(--s6) 0 var(--s7); }
   .bulk__card { width: auto; grid-template-columns: 1fr; gap: var(--s5); padding: 0 var(--gutter); border: 0; border-radius: 0; background: none; box-shadow: none; }
-  .bulk__lines { margin-top: var(--s4); gap: var(--s2); }
+  .bulk__lines { margin-top: var(--s4); gap: var(--s2); font-size: 1rem; }
   .form { grid-template-columns: 1fr; gap: var(--s3); }
-  .field--half { grid-column: 1 / -1; }
+  .radios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .radio { justify-content: center; }
   .field__err:empty { display: none; } /* the space comes when there is a message */
   .field label, .field legend { font-size: .86rem; }
   .radio { min-height: 2.75rem; }
   .form__actions .btn { width: min(100%, 24rem); min-height: 3rem; font-size: 1rem; }
   /* the comparison: the routine's action once, then the week */
-  .why, .story { display: block; justify-items: normal; padding: var(--s6) var(--gutter); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
-  .why__panel, .story__panel { width: auto; }
+  .why, .story, .faqs { display: block; justify-items: normal; padding: var(--s6) var(--gutter); } /* block layout honours justify-items now: without this the panel shrink-wraps to the right */
+  .why__panel, .story__panel, .faq__panel { width: auto; }
   .method { min-height: 2.75rem; }
-  .why__panel { gap: var(--s3); }
-  .week__action { display: flex; align-items: center; gap: var(--s3); margin: 0; font: 600 1.05rem/1.2 var(--font-display); color: var(--ink); }
-  .week__icon { flex: none; width: 2rem; height: 2rem; }
-  .week__icon svg { width: 100%; height: 100%; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .week { padding: var(--s2); gap: .25rem; }
-  .day { padding: .55rem 0; gap: 0; }
-  .day__icon { display: none; }
-  .day__mark { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* said once above; still read out with each day */
-  .day__name { font: 600 .82rem/1 var(--font-display); }
+  .why__foot { flex-direction: column; align-items: stretch; gap: var(--s3); }
+  .why__foot .btn { min-height: 3rem; }
+  .vs th:first-child { width: 6.2rem; }
+  .vs th, .vs td { padding: .5rem .6rem; }
   /* story */
   .timeline { grid-template-columns: 1fr; gap: 0; }
   .timeline::before { left: 9px; right: auto; top: 12px; bottom: 12px; width: 2px; height: auto; }
   .milestone__btn { grid-template-columns: 20px 1fr auto; justify-items: start; align-items: center; gap: .75rem; min-height: 2.75rem; padding: 0; text-align: left; font-size: .94rem; }
-  .milestone__now { font-size: .66rem; }
+  .milestone__now { font-size: .75rem; }
   .milestone__text { min-height: 0; padding: var(--s3) var(--s4); }
   /* close */
   .close { padding-top: var(--s6); }
+  .footer { margin-top: var(--s6); }
   .close__wrap { grid-template-rows: auto auto; gap: var(--s5); }
   .close__wrap > .paths { grid-row: 2; }
-  .close h2 { font-size: clamp(2.2rem, 10vw, 3rem); }
+  .close h2 { font-size: clamp(1.9rem, 8.4vw, 2.6rem); text-align: left; }
   .paths { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
   .path { padding: var(--s4); }
   .path .btn, .form__row .btn { width: 100%; }
@@ -459,19 +500,200 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   .footer > :last-child { margin-left: 0; }
   .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
 }
-/* tablets in portrait: the same order, with the room used */
-@media (min-width: 600px) and (max-width: 899px) and (min-height: 521px) {
+/* Short wide windows (a laptop window under about 700px tall): the wide layout, drawn tighter, so each of the first five
+   stages still fits its one view. The view here is 497px to 636px. */
+@media (min-width: 900px) and (min-height: 561px) and (max-height: 700px) {
+  :root { --stage-top: 1.5rem; --stage-bottom: 1.25rem; }
+  h2 { font-size: clamp(1.8rem, 1rem + 1.8vw, 2.6rem); }
+  .explorer h1 { font-size: clamp(1.7rem, 1rem + 1.5vw, 2.3rem); }
+  .explorer__chip { margin-bottom: var(--s2); }
+  .explorer__lede { margin-top: var(--s3); font-size: .95rem; line-height: 1.45; }
+  .explorer__left { gap: var(--s4); }
+  .who__label { margin-bottom: var(--s2); }
+  .who__item { min-height: 2.15rem; padding-block: .3rem; font-size: .94rem; }
+  .panel { padding: var(--s4); gap: var(--s2); }
+  .panel__line { font-size: 1.02rem; }
+  .how__bar { gap: var(--s3); }
+  .how__caption { font-size: 1rem; }
+  .step { min-height: 2.75rem; padding-block: .4rem; }
+  .inside__list { gap: .3rem; }
+  .layer-btn { min-height: 2.15rem; }
+  .what__low { top: calc(60vh - var(--top)); gap: var(--s3); }
+  .hs-card { padding: var(--s3) var(--s4); }
+  .bulk { padding-block: var(--s4); }
+  .bulk__card { padding: var(--s5); gap: var(--s5); }
+  .bulk__lines { font-size: .9rem; }
+  .form { gap: 1.05rem var(--s3); }
+  .field input, .field select, .field textarea { min-height: 2.5rem; padding-block: .35rem; }
+  .field textarea { min-height: 2.5rem; }
+  .radio { min-height: 2.25rem; }
+  .why { padding-block: var(--s3); }
+  .why__panel { gap: var(--s2); width: min(50rem, 66%); }
+  .why h2 { font-size: clamp(1.5rem, 1rem + 1.2vw, 2rem); }
+  .why__lede { font-size: .86rem; line-height: 1.4; }
+  .method { min-height: 2.05rem; font-size: .8rem; }
+  .vs { font-size: .8rem; line-height: 1.3; }
+  .vs th, .vs td { padding: .26rem .7rem; }
+  .vs thead th { padding-block: .35rem; font-size: .88rem; }
+  .why__take { min-height: 0; font-size: .9rem; }
+  .why__take b { display: inline; margin-right: .5rem; }
+  .why__foot .btn { min-height: 2.3rem; }
+  .why__fine { font-size: .74rem; line-height: 1.3; }
+  .faq { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s6); align-items: start; }
+  .faq__panel { width: min(60rem, 72%); }
+  .faq__item summary { padding: .6rem 0; font-size: .94rem; }
+  .close__wrap { grid-template-rows: auto minmax(4rem, 1fr) auto; gap: var(--s3); }
+  .close h2 { font-size: clamp(2rem, 1rem + 2.6vw, 3rem); }
+  .path { padding: var(--s4); gap: var(--s2); }
+  .footer { margin-top: var(--s3); padding-block: var(--s3); }
+}
+/* large phones and small tablets in the stacked layout: the same order, with the room used */
+@media (min-width: 600px) and (max-width: 767px) and (min-height: 561px) and (pointer: coarse) {
   .hs-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
   .hs-card, .hs-card:last-child { padding: var(--s3) 0; border-bottom: 0; }
   .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .inside__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .inside__list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .customize { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .customize__head, .customize__note { grid-column: 1 / -1; }
+  .customize__head, .customize__note, .customize__turn { grid-column: 1 / -1; }
   .customize__side--color { margin-right: 0; } .customize__side--size { margin-left: 0; }
   .paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .radios { display: flex; } .radio { justify-content: flex-start; }
+  .form { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .form > .field--half { grid-column: span 3; } .form > .field--third { grid-column: span 2; }
+}
+/* ============================================================= compact == */
+/* The full-screen website in a narrow or tall window: a mouse or trackpad window under 900px wide, a tablet in portrait.
+   Every stage is still one screen and one rest point. Its text sits above, below or beside a .room, and src/world.js
+   frames the product into that room for the window's shape (src/main.js measures it). Keep in step with COMPACT in
+   src/main.js. */
+@media (min-width: 768px) and (max-width: 899px) and (min-height: 561px), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: none) {
+  :root { --stage-top: clamp(1rem, 3.4vh, 2.5rem); --stage-bottom: clamp(.9rem, 3vh, 2.25rem); }
+  h2 { font-size: clamp(1.65rem, min(5.2vw, 4.4vh), 2.6rem); }
+  .room { display: block; min-width: 0; min-height: 0; }
+  .stage--full { display: grid; gap: var(--s3); padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+  .stage--full > * { position: static; inset: auto; translate: none; width: auto; max-width: none; margin: 0; }
+  /* stage 1: what it is above; who it's for; the product beside the audience's card */
+  .explorer { grid-template: "intro intro" auto "who who" auto "room panel" minmax(0, 1fr) / minmax(0, 1fr) minmax(0, 1fr); }
+  .explorer__left { display: contents; }
+  .explorer__intro { grid-area: intro; }
+  .explorer h1 { font-size: clamp(1.7rem, min(6.2vw, 5.2vh), 3rem); }
+  .explorer__chip { margin-bottom: var(--s2); }
+  .explorer__lede { margin-top: var(--s2); font-size: clamp(.88rem, 1.9vh, 1rem); line-height: 1.45; max-width: 52ch; }
+  .who { grid-area: who; }
+  .who__label { margin-bottom: var(--s2); }
+  .who__list { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .who__item, .who__item:last-child { min-height: 2.25rem; padding: 0 .85rem; border: 1px solid var(--hair-strong); border-radius: var(--r-pill); font-size: .86rem; }
+  .who__item::before { display: none; }
+  .who__item[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bone); }
+  .who__thumb { display: none; }
+  .explorer > .room { grid-area: room; }
+  .panel { grid-area: panel; align-self: end; padding: var(--s4); gap: var(--s2); }
+  .panel__line { font-size: 1rem; }
+  .panel__note { margin-bottom: var(--s2); font-size: .86rem; }
+  /* stage 2: heading, the product, the three cards */
+  .what { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .what__lede { margin-top: var(--s2); font-size: .95rem; }
+  .what__low { gap: var(--s3); }
+  .what__low > * { width: auto; }
+  .hs-cards { gap: var(--s3); }
+  .hs-card { padding: var(--s3) var(--s4); }
+  .hs-card__label { font-size: .98rem; }
+  .hs-card__text { font-size: .84rem; line-height: 1.4; }
+  .what__note { font-size: .84rem; line-height: 1.4; }
+  /* stage 3: heading, the shoes, the steps */
+  .how { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .how__bar { gap: var(--s3); }
+  .how__caption { font-size: 1rem; min-height: 2.8em; max-width: none; }
+  .step { min-height: 2.9rem; padding: .45rem .75rem; gap: .6rem; font-size: .88rem; }
+  /* stage 4: heading; the product beside the card; the chips */
+  .inside { grid-template: "head head" auto "room sheet" minmax(0, 1fr) "list list" auto "note note" auto / minmax(0, 1fr) minmax(0, 1fr); }
+  .inside__head { grid-area: head; }
+  .inside__lede { margin-top: var(--s2); font-size: .95rem; line-height: 1.45; }
+  .inside > .room { grid-area: room; }
+  .sheet { grid-area: sheet; align-self: center; }
+  .sheet__body { padding: var(--s4); gap: var(--s2); }
+  .sheet__role, .sheet__foot { font-size: .88rem; line-height: 1.4; }
+  .inside__list { grid-area: list; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
+  .layer-btn { justify-self: stretch; justify-content: center; min-height: 2.4rem; padding: 0 .5rem; }
+  .inside__note { grid-area: note; text-align: left; font-size: .8rem; }
+  /* sizes and colors: heading, the product (turn it there), the two choices */
+  .customize { grid-template: "head head" auto "room room" minmax(0, 1fr) "color size" auto "note note" auto / minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s5); }
+  .customize__head { grid-area: head; }
+  .customize__lede { margin-top: var(--s2); font-size: .95rem; line-height: 1.45; max-width: 52ch; }
+  .customize > .room, .customize__drag { grid-area: room; }
+  .customize__drag { position: relative; z-index: 1; }
+  .customize__turn { grid-area: room; align-self: end; justify-self: center; position: relative; z-index: 2; }
+  .customize__side { gap: var(--s2); }
+  .customize__side--color { grid-area: color; }
+  .customize__side--size { grid-area: size; }
+  .customize__fit { font-size: .82rem; }
+  .customize__note { grid-area: note; font-size: .8rem; }
+  /* the pilot form */
+  .bulk { padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+  .bulk__card { padding: var(--s5); gap: var(--s5); }
+  .bulk__lines { margin-top: var(--s3); gap: .35rem; font-size: .9rem; line-height: 1.45; }
+  .form { gap: 1.05rem var(--s3); }
+  .field input, .field select, .field textarea { min-height: 2.5rem; padding-block: .35rem; }
+  .field textarea { min-height: 2.6rem; }
+  .radio { min-height: 2.25rem; }
+  /* the comparison, the story, the questions: one column, the product beside the heading */
+  .why, .story, .faqs { justify-items: stretch; padding: var(--stage-top) var(--gutter) var(--stage-bottom); }
+  .why__panel, .story__panel, .faq__panel { width: auto; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); column-gap: var(--s4); }
+  .why__panel > *, .story__panel > *, .faq__panel > * { grid-column: 1 / -1; }
+  .why__panel > h2, .why__lede, .story__panel > h2, .story__line, .faq__panel > h2 { grid-column: 1; }
+  .why__panel > .room, .story__panel > .room { grid-column: 2; grid-row: 1 / span 2; min-height: 7rem; }
+  .faq__panel > .room { grid-column: 2; grid-row: 1; min-height: 6rem; }
+  .why__panel { gap: var(--s3); }
+  .why__lede { font-size: .92rem; }
+  .method { min-height: 2.25rem; padding: 0 .75rem; font-size: .82rem; }
+  .vs { font-size: .84rem; }
+  .vs th, .vs td { padding: .4rem .6rem; }
+  .vs th:first-child { width: 6.8rem; }
+  .why__take { min-height: 0; font-size: .92rem; }
+  .why__foot { flex-wrap: wrap; gap: var(--s3); }
+  .story__panel { gap: var(--s4); }
+  .faq__panel { gap: var(--s3); }
+  .faq__item summary { padding: .65rem 0; font-size: .95rem; }
+  /* the close */
+  .close__wrap { grid-template-rows: auto minmax(6rem, 1fr) auto; gap: var(--s3); }
+  .close__wrap > .room { grid-row: 2; }
+  .close h2 { font-size: clamp(1.8rem, min(6vw, 5vh), 3rem); }
+  .paths { gap: var(--s3); }
+  .path { padding: var(--s4); gap: var(--s2); }
+  .footer { margin-top: var(--s3); padding-block: var(--s3); gap: var(--s2) var(--s4); }
+  @media (max-width: 699px) {
+    .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+    .bulk__card { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 559px) { .paths { grid-template-columns: minmax(0, 1fr); } }
+  /* a short one (a laptop window): the comparison and the close drawn tighter, so each still fits one screen */
+  @media (max-height: 760px) {
+    .why__panel { gap: var(--s2); }
+    .why__lede { font-size: .86rem; line-height: 1.4; }
+    .methods { gap: .3rem; }
+    .method { min-height: 2rem; padding: 0 .6rem; font-size: .78rem; }
+    .vs { font-size: .8rem; line-height: 1.3; }
+    .vs th, .vs td { padding: .3rem .55rem; }
+    .vs thead th { padding-block: .4rem; font-size: .88rem; }
+    .why__take { font-size: .88rem; }
+    .why__take b { display: inline; margin-right: .4rem; }
+    .why__foot .btn { min-height: 2.4rem; }
+    .why__fine { font-size: .74rem; line-height: 1.3; }
+    .close__wrap { grid-template-rows: auto minmax(4rem, 1fr) auto; }
+    .path__text { font-size: .9rem; line-height: 1.45; }
+    .footer { margin-top: var(--s2); padding-block: var(--s2); }
+  }
+}
+/* Phones, with flags.phoneSnap in content.json (or ?phonesnap=1 to preview): the browser's own scroll-snap, proximity only,
+   on each stage's start. No script moves the page: a swipe that ends near a stage's start settles onto it, and anything
+   else (a long section, a slow drag) stays where the finger left it. */
+@media (pointer: coarse) and (max-width: 767px) {
+  html.phone-snap { scroll-snap-type: y proximity; }
+  html.phone-snap [data-product] { scroll-snap-align: start; }
+  html.phone-snap .pin .stage { scroll-margin-top: var(--band-self, 0px); } /* the page's scroll-padding already keeps the nav clear: a stage starts right under the band */
 }
 /* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
-@media (max-height: 520px) and (orientation: landscape) {
+@media (max-height: 560px) and (orientation: landscape) and (min-width: 600px) {
   :root { --nav-h: 3.25rem; --band-explorer: 0px; }
   .pin { display: grid; grid-template-columns: minmax(0, 42vw) minmax(0, 1fr); }
   .world { grid-column: 1; grid-row: 1 / span 5; align-self: start; height: calc(100svh - var(--top)); clip-path: none; }
@@ -484,6 +706,14 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
 /* the header's call to action shortens on the narrowest phones (the full label is in the menu) */
 @media (max-width: 479px) { .cta-long { display: none; } .cta-short { display: inline; } }
 @media (max-width: 380px) { .nav__logo { font-size: 1.1rem; } .nav__cta .btn { padding: 0 .85rem; } }
+/* Fingers (tablets, and phones): every control is at least 44px tall, whatever size a layout above drew it at. It is the
+   last layout rule in the file on purpose: the compact and short-window rules draw some controls smaller for a mouse, and
+   a rule of the same weight later in the file would win over this one. */
+@media (pointer: coarse) {
+  .layer-btn, .method, .size, .radio, .who__item, .who__item:last-child, .nav__cta .btn, .why__foot .btn, .field input, .field select, .faq__item summary { min-height: 2.75rem; }
+  .size { min-width: 2.75rem; justify-content: center; }
+  .footer__link, .footer__contact a { display: inline-block; padding-block: .75rem; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }

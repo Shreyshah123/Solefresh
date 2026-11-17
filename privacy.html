@@ -7,19 +7,18 @@
 <meta name="description" content="How SoleFresh handles what you send through the forms on this site.">
 <meta name="theme-color" content="#F1EFEA">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<link rel="preload" href="assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="doc-page">
 <header class="nav">
   <a class="nav__logo" href="./" aria-label="SoleFresh home">Sole<span>Fresh</span></a>
-  <a class="doc__back" href="./">Back to SoleFresh</a>
+  <a class="doc__back" href="./#close" data-back>Back to SoleFresh</a>
 </header>
 <main class="doc">
   <h1>Privacy</h1>
-  <p class="doc__intro">SoleFresh is a student-founded startup developed through the INCubatoredu program. This page covers what you send us through the forms on this site.</p>
+  <p class="doc__intro">SoleFresh is a student-founded startup developed through INCubatoredu, a high school entrepreneurship program. This page covers what you send us through the forms on this site.</p>
   <section>
     <h2>What we collect</h2>
     <p>The facility pilot form asks for your organization's name and type, your name and email, and optionally the approximate pairs of shoes you manage, a phone number and a message. The waitlist form asks for your email.</p>
@@ -34,12 +33,13 @@
   </section>
   <section>
     <h2>This site</h2>
-    <p>This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type. Its fonts load from Google Fonts, so Google receives your IP address. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel.</p>
+    <p>This site sets no cookies and runs no analytics. It remembers the audience you picked in your browser for the current visit, so the pilot form can fill in your organization type, and the level of 3D detail your device handles. Its fonts are served from this site. To stop repeat submissions, the server briefly holds your IP address in memory. The site is hosted on Vercel.</p>
   </section>
   <section>
     <h2>Your choices</h2>
-    <p>To see, change or delete what you've sent us, email <a href="mailto:shrey.shah.608@k12.friscoisd.org">shrey.shah.608@k12.friscoisd.org</a>.</p>
+    <p>To see, change or delete what you've sent us, reply to any email we've sent you, or send a request through the message box on the facility pilot form. We'll act on it and confirm by email.</p>
   </section>
 </main>
+<script>document.querySelector('[data-back]').addEventListener('click', (e) => { try { if (history.length > 1 && new URL(document.referrer).origin === location.origin) { e.preventDefault(); history.back(); } } catch {} });</script>
 </body>
 </html>

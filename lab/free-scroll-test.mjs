@@ -1,115 +1,77 @@
-// Past the pilot stage the page is the browser's own. From the pilot stage to the footer and back with a mouse wheel, a
-// trackpad stream with momentum, the keyboard and (--mobile) touch: every wheel event left alone, the page moving by what
-// was asked, no settle afterwards, the footer reached every time, FAQ items opened and closed along the way, the 6>7 and
-// 7>8 transitions following the scroll, and the way back into the snapped stages seamless.
-//   node lab/free-scroll-test.mjs [--mobile] [--w 1440 --h 900]
+// The late stages (pilot, comparison, story, FAQ, close and the footer) used to scroll freely. They snap now, like the
+// first five, and this file checks the things that used to go wrong there. The file name is kept so old commands still run.
+//   - each of those stages fits its one view, and at rest its controls are on screen (the submit button, the footer)
+//   - from the pilot to the footer and back, every gesture lands on a stage (mouse, trackpad flick, keys)
+//   - a form error does not switch snapping off, and neither does focus in a field
+//   - the result of a failed submission is on screen, above the button
+//   - a wheel over a long message scrolls the message, not the page
+//   - opening an FAQ answer keeps the page at rest on the FAQ
+//   - a stalled main thread does not turn one flick into two stages
+//   - Tab into the pilot form brings the pilot stage to rest
+//   node lab/free-scroll-test.mjs [--w 1366 --h 768]        SITE_URL=http://localhost:4520/ by default
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
-const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
-const MOBILE = process.argv.includes('--mobile'), W = +arg('--w', MOBILE ? 390 : 1440), H = +arg('--h', MOBILE ? 844 : 900);
-let bad = 0; const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) bad++; };
+const argv = process.argv.slice(2), arg = (n, d) => { const i = argv.indexOf(n); return i > -1 ? argv[i + 1] : d; };
+const W = +arg('--w', 1440), H = +arg('--h', 900);
 const b = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
-const ctx = await b.newContext({ viewport: { width: W, height: H }, isMobile: MOBILE, hasTouch: MOBILE });
-const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
-await p.goto('http://localhost:4520/', { waitUntil: 'load' });
-await p.waitForFunction(() => document.documentElement.classList.contains('gl-live'), null, { timeout: 30000 }); await p.waitForTimeout(1000);
-const cdp = await ctx.newCDPSession(p);
+const ctx = await b.newContext({ viewport: { width: W, height: H } });
+const p = await ctx.newPage();
+await p.route('**/api/**', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, code: 'not_connected' }) }));
+await p.goto(process.env.SITE_URL || 'http://localhost:4520/', { waitUntil: 'load' });
+await p.waitForFunction(() => document.documentElement.classList.contains('sf-ready') && (document.documentElement.classList.contains('gl-live') || document.documentElement.classList.contains('gl-off')), null, { timeout: 60000 });
+await p.waitForTimeout(1200);
+let fails = 0;
+const ok = (label, pass, detail = '') => { if (!pass) fails++; console.log(`  ${label.padEnd(66)} ${pass ? 'ok' : 'FAIL'} ${detail}`); };
+const S = () => p.evaluate(() => ({ points: window.__sf.snap.points, tops: window.__sf.tops, stages: [...document.querySelectorAll('[data-product]')].map((s) => s.dataset.product), maxY: document.documentElement.scrollHeight - innerHeight, view: innerHeight - document.querySelector('.nav').offsetHeight }));
+const idle = async () => { let y0 = -1, still = 0; for (let k = 0; k < 120; k++) { await p.waitForTimeout(50); const [y, an] = await p.evaluate(() => [Math.round(scrollY), window.__sf.snap.animating]); if (!an && y === y0) { if (++still >= 5) return y; } else still = 0; y0 = y; } return y0; };
+const goStage = async (name) => { await p.evaluate((n) => { const s = window.__sf, i = [...document.querySelectorAll('[data-product]')].findIndex((x) => x.dataset.product === n); document.activeElement && document.activeElement.blur(); s.snap.jump(s.tops[i]); dispatchEvent(new Event('scroll')); }, name); await p.waitForTimeout(800); };
+const stageNow = () => p.evaluate(() => document.documentElement.dataset.stage);
+const info = await S(), late = ['bulk', 'why', 'story', 'faq', 'close'];
+console.log(`${W}x${H}: ${info.points.length} rest points for ${info.stages.length} stages: ${info.points.join(' ')}`);
 
-await p.evaluate(() => { window.__w = { n: 0, stopped: 0 }; addEventListener('wheel', (e) => { const w = window.__w; w.n++; queueMicrotask(() => { if (e.defaultPrevented) w.stopped++; }); }, { passive: true }); });
-const info = () => p.evaluate(() => { const d = document.documentElement; return { y: Math.round(scrollY), end: window.__sf.snap.end, max: d.scrollHeight - innerHeight, stage: d.dataset.stage, foot: Math.round(document.querySelector('.footer').getBoundingClientRect().bottom - innerHeight) }; });
-const toBulkEnd = async () => { await p.evaluate(() => window.__sf.snap.jump(window.__sf.snap.end)); await p.waitForTimeout(700); };
-const stats = () => p.evaluate(() => { const w = window.__w, r = { ...w }; w.n = 0; w.stopped = 0; return r; });
-
-if (MOBILE) {
-  // a real finger on the page: dy < 0 moves the finger up, which scrolls down
-  const swipe = async (dy) => {
-    const y0 = dy < 0 ? H - 120 : 120, x = 12, steps = 8;
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] });
-    for (let k = 1; k <= steps; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y0 + (dy * k) / steps }] }); await p.waitForTimeout(12); }
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  };
-  await p.evaluate(() => window.scrollTo(0, window.__sf.tops[5])); await p.waitForTimeout(500);
-  let n = 0, i = await info();
-  while (i.y < i.max - 1 && n < 60) { await swipe(-650); await p.waitForTimeout(60); i = await info(); n++; }
-  check(i.y >= i.max - 1, `touch: pilot stage to the footer in ${n} swipes (y ${i.y} of ${i.max})`);
-  check(i.foot <= 1, `the footer is fully on screen (${i.foot}px past the bottom)`);
-  const h0 = i.max; await p.evaluate(() => { const d = document.querySelectorAll('.faq__item'); d[1].open = true; }); await p.waitForTimeout(300);
-  await p.evaluate(() => document.querySelector('#faq').scrollIntoView()); await p.waitForTimeout(300);
-  for (const k of [2, 4, 6]) { await p.evaluate((q) => { document.querySelectorAll('.faq__item summary')[q].click(); }, k); await p.waitForTimeout(120); await swipe(-140); await p.waitForTimeout(120); }
-  n = 0; i = await info(); while (i.y < i.max - 1 && n < 40) { await swipe(-650); await p.waitForTimeout(60); i = await info(); n++; }
-  check(i.y >= i.max - 1, `with FAQ items opened mid-scroll, the footer is still reached (y ${i.y} of ${i.max}, page ${i.max - h0}px longer)`);
-  n = 0; while (i.y > 2 && n < 80) { await swipe(650); await p.waitForTimeout(40); i = await info(); n++; }
-  check(i.y <= 2, `and back to the top in ${n} swipes`);
-} else {
-  // ------------------------------------------------------------------ mouse
-  await toBulkEnd(); await p.mouse.move(W / 2, H / 2); await stats();
-  let i0 = await info(), n = 0, i = i0;
-  const first = await (async () => { await p.mouse.wheel(0, 100); await p.waitForTimeout(250); return info(); })();
-  check(first.y - i0.y >= 95 && first.y - i0.y <= 105, `one mouse notch from the last rest moves the page by the notch (${first.y - i0.y}px)`);
-  const t0 = Date.now();
-  while (i.y < i.max - 1 && n < 200) { await p.mouse.wheel(0, 100); await p.waitForTimeout(16); i = await info(); n++; }
-  const ms = Date.now() - t0;
-  await p.waitForTimeout(500); const rest = await info();
-  let w = await stats();
-  check(i.y >= i.max - 1, `mouse: reaches the end in ${n} notches, ${ms} ms (y ${i.y} of ${i.max})`);
-  check(!w.stopped, `no wheel event intercepted (${w.n} events)`);
-  check(rest.y === i.y && rest.foot <= 1, `stays at the footer: no settle (${rest.y})`);
-  // stop anywhere: it stays there
-  for (const f of [0.15, 0.4, 0.62, 0.85]) {
-    const y = Math.round(i0.y + (i.max - i0.y) * f);
-    await p.evaluate((q) => scrollTo(0, q), y); await p.waitForTimeout(650);
-    const a = await info(); check(Math.abs(a.y - y) <= 1, `left at ${y}, it stays there (${a.y})`);
-  }
-  // ---------------------------------------------------------------- trackpad
-  await toBulkEnd(); await p.mouse.move(W / 2, H / 2); await stats();
-  const flick = async (dir) => { for (let k = 0; k < 42; k++) { await p.mouse.wheel(0, dir * Math.max(1, 60 * Math.exp(-k / 11))); await p.waitForTimeout(8); } };
-  n = 0; i = await info(); while (i.y < i.max - 1 && n < 60) { await flick(1); await p.waitForTimeout(40); i = await info(); n++; }
-  w = await stats();
-  check(i.y >= i.max - 1, `trackpad: reaches the end in ${n} flicks (y ${i.y} of ${i.max})`);
-  check(!w.stopped, `no wheel event intercepted (${w.n} events)`);
-  // FAQ open and close mid-scroll, then the end again
-  await p.evaluate(() => document.querySelector('#faq').scrollIntoView()); await p.waitForTimeout(300);
-  const h0 = (await info()).max;
-  for (const k of [0, 3, 5, 7]) { await p.evaluate((q) => document.querySelectorAll('.faq__item summary')[q].click(), k); await p.waitForTimeout(60); await p.mouse.wheel(0, 90); await p.waitForTimeout(160); }
-  const hOpen = (await info()).max;
-  n = 0; i = await info(); while (i.y < i.max - 1 && n < 60) { await flick(1); await p.waitForTimeout(40); i = await info(); n++; }
-  check(i.y >= i.max - 1 && hOpen !== h0, `FAQ items opened mid-scroll: the footer is reached (page height ${h0} to ${hOpen})`);
-  await p.evaluate(() => { const o = document.querySelector('.faq__item[open] summary'); if (o) o.click(); }); await p.waitForTimeout(300);
-  i = await info();
-  const cur = await p.evaluate(() => ({ tops: window.__sf.tops, sh: document.documentElement.scrollHeight }));
-  const real = await p.evaluate(() => { const e = document.querySelector('[data-product="close"]'); let y = 0; for (let n = e; n; n = n.offsetParent) y += n.offsetTop; return y - document.querySelector('.nav').getBoundingClientRect().height; });
-  check(Math.abs(cur.tops[8] - real) <= 1, `stage positions are recomputed after an FAQ item closes (${cur.tops[8]} against ${real})`);
-  n = 0; i = await info(); while (i.y < i.max - 1 && n < 60) { await flick(1); await p.waitForTimeout(40); i = await info(); n++; }
-  check(i.y >= i.max - 1, 'and the footer is still reached after it closes');
-  // back up with the trackpad, into the snapped stages
-  n = 0; i = await info(); while (i.y > i.end + 1 && n < 60) { await flick(-1); await p.waitForTimeout(40); i = await info(); n++; }
-  await p.waitForTimeout(1300); i = await info();
-  const pts = await p.evaluate(() => window.__sf.snap.points);
-  check(i.y <= i.end + 1 && pts.some((q) => Math.abs(q - i.y) <= 2), `trackpad back up: meets the snap and comes to rest on a stage (y ${i.y})`);
-  // ---------------------------------------------------------------- keyboard
-  for (const [key, label] of [['PageDown', 'PageDown'], ['Space', 'Space'], ['ArrowDown', 'ArrowDown']]) {
-    await toBulkEnd(); await p.evaluate(() => document.activeElement?.blur?.()); await p.mouse.click(8, H - 8);
-    n = 0; i = await info(); while (i.y < i.max - 1 && n < (key === 'ArrowDown' ? 140 : 30)) { await p.keyboard.press(key); await p.waitForTimeout(key === 'ArrowDown' ? 20 : 120); i = await info(); n++; }
-    check(i.y >= i.max - 1, `${label}: reaches the end in ${n} presses (y ${i.y} of ${i.max})`);
-  }
-  await toBulkEnd(); await p.keyboard.press('End'); await p.waitForTimeout(600); i = await info(); check(i.y >= i.max - 1, `End: goes to the end (y ${i.y})`);
-  await p.keyboard.press('PageUp'); await p.waitForTimeout(500); const up = await info(); check(up.y < i.y - 100, `PageUp: moves up natively (y ${up.y})`);
-  await p.keyboard.press('Home'); await p.waitForTimeout(1200); i = await info(); check(i.y === 0, `Home: back to the top (y ${i.y})`);
-  // -------------------------------------------- the product follows the scroll
-  const rows = await p.evaluate(async () => {
-    const { tops, snap } = window.__sf, w = window.__sf.world, out = [];
-    for (let y = snap.end; y <= tops[7]; y += 40) { scrollTo(0, y); await new Promise((z) => setTimeout(z, 34)); out.push(`${w.travel.from}>${w.travel.to}`); }
-    return [...new Set(out)];
-  });
-  check(rows.includes('bulk>why') && rows.includes('why>story'), `6>7 and 7>8 play on the scroll position (${rows.join(', ')})`);
-  // the snapped stages still snap
-  await p.evaluate(() => window.__sf.snap.jump(window.__sf.tops[1])); await p.waitForTimeout(700);
-  await p.mouse.wheel(0, 100); await p.waitForTimeout(1050);
-  const sn = await p.evaluate(() => ({ y: Math.round(scrollY), t: window.__sf.tops[2] }));
-  check(Math.abs(sn.y - sn.t) <= 2, `the stages up to the pilot still snap (y ${sn.y}, stage ${sn.t})`);
+// each late stage fits its one view, and its own controls are on screen at rest
+for (const st of late) {
+  await goStage(st);
+  const r = await p.evaluate((n) => { const el = document.querySelector(`[data-product="${n}"]`), nav = document.querySelector('.nav').getBoundingClientRect().bottom; const ctr = [...el.querySelectorAll('a[href], button, input:not([type=hidden]), select, textarea, summary')].filter((e) => { const r0 = e.getBoundingClientRect(), cs = getComputedStyle(e); return r0.width > 1 && cs.visibility !== 'hidden' && !e.closest('.hp'); }); return { h: el.offsetHeight, hidden: ctr.filter((e) => { const r0 = e.getBoundingClientRect(); return r0.bottom > innerHeight + 1 || r0.top < nav - 1; }).length, n: ctr.length }; }, st);
+  ok(`${st}: fits its view, every control on screen at rest`, r.h > info.view + 40 || r.hidden === 0, `height ${r.h} in a view of ${info.view}; ${r.hidden}/${r.n} controls off screen`);
 }
-check(!errs.length, `no page errors${errs.length ? `: ${errs[0]}` : ''}`);
-await b.close();
-console.log(bad ? `${bad} FAILED` : 'all free-scroll checks passed');
-process.exitCode = bad ? 1 : 0;
+// pilot -> footer -> pilot, a stage per gesture
+const flick = (dir) => p.evaluate(async (d) => { const el = document.elementFromPoint(innerWidth / 2, innerHeight * 0.4) || document.body; for (let k = 0; k < 40; k++) { el.dispatchEvent(new WheelEvent('wheel', { deltaY: d * Math.max(2, 70 * Math.exp(-k / 9)), bubbles: true, cancelable: true })); await new Promise((r) => setTimeout(r, 16)); } }, dir);
+for (const [name, act] of [['mouse tick', async (d) => { await p.mouse.move(W / 2, H * 0.4); await p.mouse.wheel(0, 100 * d); }], ['trackpad flick', flick], ['PageDown / PageUp', (d) => p.keyboard.press(d > 0 ? 'PageDown' : 'PageUp')]]) {
+  await goStage('bulk'); const seen = [await stageNow()], offRest = [];
+  for (const dir of [1, -1]) for (let n = 0; n < 12; n++) { const y0 = Math.round(await p.evaluate(() => scrollY)); await act(dir); const y = await idle(); if (y === y0) break; const cur = await S(); if (!cur.points.some((q) => Math.abs(q - y) <= 2)) offRest.push(y); seen.push(await stageNow()); if (dir < 0 && seen.at(-1) === 'bulk') break; }
+  const down = seen.slice(0, seen.indexOf('close') + 1).filter((s, i, a) => s !== a[i - 1]).join('>');
+  ok(`${name}: pilot to footer and back, always at rest on a stage`, !offRest.length && down === late.join('>') && seen.at(-1) === 'bulk', `${down}${offRest.length ? ' off rest at ' + offRest.join(',') : ''}`);
+}
+// a form error does not switch snapping off
+await goStage('bulk'); await p.click('[data-form="bulk"] button[type=submit]'); await p.waitForTimeout(400);
+const errs = await p.evaluate(() => [...document.querySelectorAll('[data-form="bulk"] .field__err')].filter((e) => e.textContent).length);
+const restIdx = async () => { const y = await idle(); return (await S()).points.findIndex((q) => Math.abs(q - y) <= 2); };
+const i0 = await restIdx(); await p.mouse.move(W / 2, H * 0.4); await p.mouse.wheel(0, -100); const i1 = await restIdx();
+// one rest point up: the stage above, or the form's own top when a small window gives the form an inner rest
+ok('after a form error (focus in a field), a tick still steps one rest point', i0 >= 0 && i1 === i0 - 1 && errs > 0, `${errs} error lines shown, rest ${i0} -> ${i1}, now on ${await stageNow()}`);
+// the result of a submission is on screen
+await goStage('bulk'); await p.fill('#b-org', 'Test Lanes'); await p.selectOption('#b-type', 'Bowling center'); await p.fill('#b-name', 'Test'); await p.fill('#b-email', 'test@example.com'); await p.click('[data-form="bulk"] button[type=submit]'); await p.waitForTimeout(900);
+const st = await p.evaluate(() => { const e = document.querySelector('[data-form="bulk"] .form__status'), r = e.getBoundingClientRect(); return { text: e.textContent.slice(0, 60), on: r.top >= document.querySelector('.nav').getBoundingClientRect().bottom && r.bottom <= innerHeight }; });
+ok('a failed submission says so on screen, above the button', st.on && st.text.length > 10, JSON.stringify(st));
+// a long message scrolls itself
+await p.fill('#b-msg', Array(40).fill('line').join('\n')); await p.hover('#b-msg'); const y0 = await p.evaluate(() => scrollY); await p.mouse.wheel(0, 100); await p.waitForTimeout(500);
+const m = await p.evaluate(() => ({ y: scrollY, ta: document.querySelector('#b-msg').scrollTop })); ok('a wheel over a long message scrolls the message, not the page', Math.abs(m.y - y0) < 2 && m.ta > 0, `page moved ${Math.round(m.y - y0)}, message scrolled ${m.ta}`);
+// an FAQ answer opening keeps the page at rest on the FAQ
+await goStage('faq'); await p.click('.faq__item:nth-of-type(7) summary'); await p.waitForTimeout(900); const yf = await idle(), cur = await S();
+ok('opening an FAQ answer keeps the page at rest on the FAQ', (await stageNow()) === 'faq' && cur.points.some((q) => Math.abs(q - yf) <= 2));
+// a stalled main thread: one flick is still one stage
+const cdp = await ctx.newCDPSession(p); let doubles = 0;
+for (let t = 0; t < 4; t++) {
+  await goStage('explorer');
+  await p.evaluate(() => setTimeout(() => { const t0 = performance.now(); while (performance.now() - t0 < 160); }, 250));
+  const sends = []; for (let k = 0; k < 42; k++) { sends.push(cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: W / 2, y: H / 2, deltaX: 0, deltaY: Math.max(1, 60 * Math.exp(-k / 11)) })); await new Promise((r) => setTimeout(r, 10)); }
+  await Promise.all(sends); const y = await idle(); if (Math.round(y / info.view) > 1) doubles++;
+}
+ok('a 160ms stall during a flick: still one stage', doubles === 0, `${doubles}/4 flicks moved two stages`);
+// Tab from the sizes into the form brings the pilot to rest
+await goStage('customize'); await p.focus('.size[data-size="L"]'); for (let k = 0; k < 6 && (await p.evaluate(() => document.activeElement.id)) !== 'b-org'; k++) await p.keyboard.press('Tab');
+const yt = await idle(), now = await S(); ok('Tab into the pilot form rests on the pilot stage', (await stageNow()) === 'bulk' && now.points.some((q) => Math.abs(q - yt) <= 2) && (await p.evaluate(() => document.activeElement.id)) === 'b-org', `stage ${await stageNow()}, y ${yt}`);
+console.log(fails ? `FAILURES: ${fails}` : 'all late-stage checks passed');
+await b.close(); process.exitCode = fails ? 1 : 0;

@@ -9,12 +9,13 @@
 // response to a click.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { ProductSlot, PARTS, POSES, TRAVEL_SIZE, VIEW_DOWN } from './product-slot.js';
+import { ProductSlot, PARTS, FILLS, POSES, TRAVEL_SIZE, VIEW_DOWN } from './product-slot.js';
 import { buildShoe, shoeSamples, SHOE, DRAW } from './shoe.js';
 import { drawFloor } from './venues.js';
 import { FX } from './fx.js';
 import { makeStage3, kf, ease, KEYS3, PRODUCT_KEYS, CORD } from './stage3.js';
 
+const ENV_URL = 'assets/env/room.bin', ENV_SIZE = 64;   // the baked light and the cube size it is baked at (every surface here is rough: it only ever reads the small, blurred levels)
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, u) => a + (b - a) * u;
 const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
@@ -29,7 +30,7 @@ const OPEN_A = 0.95;          // shoe opacity in Stage 3 (stage3.js sees through
 const EXIT_U = 0.3;           // share of a travel away from Stage 3 in which the product leaves the shoe
 const SWAP_MS = 250;          // the quick swap that sets up a skipped step (product shrinks out in 100 ms, regrows in 150 ms)
 const FADE_MS = 150;          // effects of an interrupted step fade out, never pop
-const LOOP_IDLE_S = 30;       // Step 3's loop: seconds with no input at all before it calms,
+const LOOP_IDLE_S = 10;       // Step 3's loop: seconds with no input at all before it calms (the tier can shorten it: see src/tier.js),
 const LOOP_CALM_S = 8;        // how long it takes to calm (motes thin out, the glow steadies) before the frame loop rests,
 const LOOP_WAKE_S = 0.8;      // and how long any input takes to bring it back to full life
 const NARROW_UP = 0.25;       // phone band (about 290 px tall): share of any rise above the hover point that is kept, so jumps and pops stay inside it
@@ -61,7 +62,8 @@ export const STATES = {
   customize: { ...CUSTOM, explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.relaxed, cordL: 0 },
   bulk:      { yaw: 0,    pitch: 0,     px: SEAT.x * UNIT, py: SEAT.y * UNIT, pz: 0,   scale: SEAT.scale * UNIT, explode: 0, wire: 0, shoeY: 0,             shoeA: 0.62,   pair: 0, rack: 1, unit: UNIT, floor: 0, shoeZ: 0, pairY: 0, pairZ: 0, shoeTilt: 0, pres: 1, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.droop, cordL: CORD.flat },
   why:       { ...WHY, explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.relaxed, cordL: 0 },
-  story:     { ...WHY, yaw: 1.15, pitch: 0.12, explode: 0, wire: 1, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.relaxed, cordL: 0 },
+  story:     { ...WHY, yaw: 1.15, pitch: 0.12, explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.relaxed, cordL: 0 },
+  faq:       { ...WHY, yaw: 0.72, pitch: 0.34, explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.relaxed, cordL: 0 },
   close:     { yaw: 0.3,  pitch: 0.42,  px: -0.04,         py: 0.2,           pz: 0,   scale: 0.95,              explode: 0, wire: 0, shoeY: SHOE_HIDDEN_Y, shoeA: 0,      pair: 0, rack: 0, unit: 1,    floor: 0, shoeZ: 0, pairY: SHOE_HIDDEN_Y, pairZ: 0, shoeTilt: 0, pres: 0, fitK: 1, fitX: 0, fitY: 0, ghost: 0, cordS: CORD.droop, cordL: CORD.flat },
 };
 for (const s of Object.values(STATES)) { s.roll ??= 0; s.face ??= 0; s.vk = 1; s.vx = 0; s.vy = 0; }
@@ -175,18 +177,23 @@ const _bb = new THREE.Box3(), _X = new THREE.Vector3(1, 0, 0), _qf = new THREE.Q
 const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _qg = new THREE.Quaternion(), _ea = new THREE.Euler(), _eb = new THREE.Euler(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _off = new THREE.Vector3(), _pp = new THREE.Vector3();
 
 export class World {
-  constructor(host, { reduced = () => false, narrow = () => false } = {}) {
+  /** quality: one of the tiers in src/tier.js. onSlow({ median, slowShare }): called when a minute's worth of animation frames came in slow. */
+  constructor(host, { reduced = () => false, narrow = () => false, quality = null, onSlow = null } = {}) {
     this.host = host; this.reduced = reduced; this.isNarrow = narrow;
-    const r = this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.q = quality || { dprCap: 1.5, maxPx: 3.2e6, aa: true, rack: 8, loopIdle: LOOP_IDLE_S, warm: ['bulk', 'how', 'inside'] };
+    this.onSlow = onSlow; this.samples = []; this.streak = 0; this.lastRaw = 0;
+    // Anti-aliasing multiplies the fill cost and cannot be changed after the context exists. At 1.5x pixel density and up the
+    // pixels are already finer than the eye resolves an edge at, so it is only asked for below that, and never on the low tier.
+    const r = this.renderer = new THREE.WebGLRenderer({ antialias: this.q.aa && (devicePixelRatio || 1) < 1.5, alpha: true, powerPreference: 'high-performance' });
+    r.debug.checkShaderErrors = false;   // a production page has no use for the shader logs, and asking for them waits on every link
     r.setClearColor(0x000000, 0); r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1.0; // Khronos PBR Neutral: made to keep a product's base colours true, which a colour picker needs
     r.domElement.className = 'world__gl'; r.domElement.setAttribute('aria-hidden', 'true');
     host.appendChild(r.domElement);
 
     const scene = this.scene = new THREE.Scene();
-    this.#environment();
     r.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
-    r.domElement.addEventListener('webglcontextrestored', () => { this.#environment(); this.kick(); });
+    r.domElement.addEventListener('webglcontextrestored', () => { this.#environment(); });
     scene.environmentIntensity = 0.85;
     scene.add(new THREE.HemisphereLight(0xffffff, 0xe4dfd5, 0.4));
     const key = new THREE.DirectionalLight(0xffffff, 1.35); key.position.set(2.5, 6, 4.5); scene.add(key);      // soft key, high and to the right
@@ -220,15 +227,18 @@ export class World {
     this.rack = new THREE.Group(); scene.add(this.rack); this.units = [];
 
     this.wider = {};      // phones: the frames for a popped part and a turned product (see frameStage)
+    this.pan = 0;         // the compact layout's scroll with a tall stage (see setPan)
     this.S = { ...STATES.explorer }; this.travel = { from: 'explorer', to: 'explorer', u: 0 };
     this.st3 = makeStage3();
     this.s3 = this.#freshS3(); this._P3 = { ...this.st3.REST, fxAlpha: 1 }; this._loopP = { ...this.st3.REST };
     this.emit = { A: 1, k: 1, add: (x, y, z, o) => { o.alpha *= this.emit.A; this.fx.add(x, this.#up(y), z, o); }, ring: (x, y, z, rad, o = {}) => { o.alpha = (o.alpha ?? 1) * this.emit.A; this.fx.ring(x, this.#up(y), z, rad, o); } };
     this.onStep = null;   // (stepIndex, progress 0..1, done) progress callback for the UI
     this.jump = null; this.frameCbs = [];
+    this.housing = { to: 0, k: 0 };   // Inside: the housing loaded (1: the stack closed and the shell see-through) or open (0)
     this.visible = true; this.running = false; this.last = 0; this.clock = 0;
+    this.live = false;    // no frame is drawn until load() has compiled everything off the main thread: a frame before that would compile it on it
     // any input counts as the visitor being about (Step 3's loop calms after a long spell without, and wakes on the next)
-    this.lastInput = 0; this.loopIdle = LOOP_IDLE_S; this.loopCalm = LOOP_CALM_S;
+    this.lastInput = 0; this.loopIdle = this.q.loopIdle ?? LOOP_IDLE_S; this.loopCalm = LOOP_CALM_S;
     const seen = () => { this.lastInput = performance.now(); if (this.s3.loop && !this.running) this.kick(); };
     for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, seen, { passive: true, capture: true });
     new IntersectionObserver(([e]) => { this.visible = e.isIntersecting; this.kick(); }, { threshold: 0 }).observe(host);
@@ -237,16 +247,40 @@ export class World {
     this.resize();
   }
 
-  /** The GPU can drop the canvas (sleep, driver reset, a tab evicted on a phone). The image-based light does not survive that, so it is made again. */
-  #environment() { const pm = new THREE.PMREMGenerator(this.renderer); this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); }
+  /**
+   * The image-based light. Making it in the browser (PMREMGenerator on a RoomEnvironment) compiles a heavy blur shader and
+   * blocks the page for most of a second on Windows, on every load. So it is made once, by tools/bake-env.mjs, and kept in
+   * assets/env/room.bin: the same pre-filtered texture, read back and stored gzipped as half floats (8 bytes of width and
+   * height, then RGBA). Here it is only downloaded, unpacked and uploaded. If the file is missing the light is made the slow way, as before.
+   * The GPU can drop the canvas (sleep, driver reset, a tab evicted on a phone): this runs again when it comes back.
+   */
+  async #environment() {
+    try {
+      if (!this._env) { const res = await fetch(ENV_URL); if (!res.ok) throw new Error(`environment ${res.status}`); this._env = await new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(); }   // gzipped in the file itself: hosts do not compress a .bin on their own
+      const [w, h] = new Uint32Array(this._env, 0, 2), tex = new THREE.DataTexture(new Uint16Array(this._env, 8, w * h * 4), w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+      tex.mapping = THREE.CubeUVReflectionMapping; tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.LinearSRGBColorSpace; tex.needsUpdate = true;
+      this.scene.environment?.dispose?.(); this.scene.environment = tex;
+    } catch (err) { console.warn('baked environment unavailable, making it here.', err); const env = this.bakeEnvironment(256, false); this.scene.environment = env.texture; }
+    this.kick();
+  }
+  /** The light as PMREM makes it. keep: false returns the live texture (the fallback); true reads it back for tools/bake-env.mjs. */
+  bakeEnvironment(size = ENV_SIZE, read = true) {
+    const pm = new THREE.PMREMGenerator(this.renderer), rt = pm.fromScene(new RoomEnvironment(), 0.04, 0.1, 100, { size }); pm.dispose();
+    if (!read) return rt;
+    const px = new Uint16Array(rt.width * rt.height * 4); this.renderer.readRenderTargetPixels(rt, 0, 0, rt.width, rt.height, px); rt.dispose();
+    return { w: rt.width, h: rt.height, px };
+  }
 
   async load() {
-    await this.slot.load('M');
+    const breath = () => new Promise((done) => setTimeout(done, 0));
+    const model = this.slot.load('M');          // the two downloads run together
+    model.catch(() => {});                      // a failed download is reported where it is awaited, below
+    await Promise.all([model, this.#environment()]);   // the light is a download too now (see #environment), not a second of shader work
     this.#measure();
-    this.#buildRack();
-    await this.#precompile();
+    await breath(); this.#buildRack();
+    await breath(); await this.#precompile();
     this.onStep && this.onStep(-1, 0, true); // a step pressed while the model was on its way did not play
-    this.applyState(); this.kick();
+    this.live = true; this.applyState(); this.kick();
   }
   /** Stage 3 is built around the product's real measurements in the shoe, and where the travel up to Stage 2 has it at u 0.70 (the climb-out ends there). */
   #measure() {
@@ -261,16 +295,16 @@ export class World {
     await this.slot.useSize(id);
     const s = this.s3, inHow = this.travel.from === 'how' && this.travel.to === 'how', step = inHow && s.touched ? (s.tl?.step ?? (s.loop ? 2 : -1)) : -1;
     if (s.touched && step < 0) this.onStep && this.onStep(-1, 0, true);
-    this.#measure(); this.#fillRack(); this.slot.prepareWires();
+    this.#measure(); this.#fillRack();
     if (step >= 0) this.playStep(step); // arrived during a step: Stage 3 is rebuilt round the new size, and the step carries on in it
     this.applyState(); this.kick();
   }
 
   // Compile every material once up front, so nothing stalls the first frame it appears in.
   async #precompile() {
-    const S0 = { ...this.S };
-    Object.assign(this.S, STATES.bulk, { wire: 0.5, explode: 0.5, pair: 1 }); this.applyState();
-    this.slot.setWire(0.5); this.slot.apply();
+    const breath = () => new Promise((done) => setTimeout(done, 0));   // each heavy step is its own task, so a scroll or a click gets in between them
+    Object.assign(this.S, STATES.bulk, { explode: 0.5, pair: 1 }); this.applyState();
+    this.slot.apply();
     this.shoe2.userData.setOpacity(0.5);
     this.floors.forEach((f) => { f.visible = true; f.material.map = f.material.map || this.texture('bowling'); });
     this.fx.warm();
@@ -279,20 +313,22 @@ export class World {
     // Compiling is not drawing: the driver finishes pipeline work on the first
     // draw of each state. Draw the heavy states once now, while the canvas is
     // still hidden behind the poster, so no transition pays for it later.
-    for (const st of ['bulk', 'how', 'inside', 'story']) {
+    for (const st of this.q.warm) {
+      await breath();
       Object.assign(this.S, STATES[st], st === 'how' ? { pair: 1 } : {}); this.applyState();
       if (st === 'how') { this.glow.intensity = 0.9; this.shoe.userData.setOpacity(0.5, 0.95); this.fx.warm(); this.halo.visible = true; this.halo.material.opacity = 0.15; }
       this.slot.update(0.016, false); this.renderer.render(this.scene, this.camera);
     }
     this.glow.intensity = 0; this.fx.clear();
-    Object.assign(this.S, S0); this.slot.setWire(S0.wire); this.applyState();
+    // back to wherever the page is NOW (the visitor may have scrolled while this ran), not to where it was when this began
+    const t = this.travel; evalState(t.from, t.to, this.reduced() ? (t.u < 0.5 ? 0 : 1) : t.u, this.S, this.narrow); this.applyState();
   }
 
   // Rack clones share geometry and materials with the real shoe and product
   // (so the chosen colour carries over). Three shelves of three.
   #buildRack() {
     const spots = [], SX = 2.15, SY = 1.05;
-    for (const dy of [1, 0, -1]) for (const dx of [-1, 0, 1]) if (dx || dy) spots.push([dx, dy]);
+    for (const dy of [1, 0, -1]) for (const dx of [-1, 0, 1]) if ((dx || dy) && (this.q.rack >= 8 || Math.abs(dx) + Math.abs(dy) === 1)) spots.push([dx, dy]);   // the low tier draws four neighbours, not eight
     const boardMat = new THREE.MeshStandardMaterial({ color: 0xd3cfc7, roughness: 0.9 });
     for (const dy of [1, 0, -1]) {
       const board = new THREE.Mesh(new THREE.BoxGeometry(SX * 3 + 0.3, 0.05, 1.3), boardMat);
@@ -317,7 +353,9 @@ export class World {
   resize() {
     const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
     this.W = w; this.H = h;
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+    // A pixel budget, not just a density cap: the canvas covers the whole window, so on a large high-density screen 1.5x is
+    // 4.6 megapixels a frame. The tier says how many it may draw; the density follows from the window's size.
+    this.renderer.setPixelRatio(Math.max(0.75, Math.min(devicePixelRatio || 1, this.q.dprCap, Math.sqrt(this.q.maxPx / (w * h)))));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.narrow = this.isNarrow();
@@ -509,6 +547,13 @@ export class World {
   }
   // -------------------------------------------------------------- stage 4
   selectLayer(i) { this.slot.selectLayer(i); this.kick(); }
+  /** Which fills are out beside the housing (see ProductSlot.setOut). */
+  setOut(names, stagger) { this.slot.setOut(names, stagger); this.kick(); }
+  /** Load the housing (the open stack closes round its fills and the shell goes see-through) or open it again. */
+  setLoaded(on) { this.housing.to = on ? 1 : 0; this.kick(); }
+  blinkPart(name) { this.slot.blink(name); this.kick(); }
+  /** The comparison stage: light these parts (names), or none (null). */
+  setFocus(names) { this.slot.setFocus(names); this.kick(); }
   /** The layer under a point on the canvas (px), or -1. */
   pickLayer(x, y) {
     if (!this.slot.ready) return -1;
@@ -556,7 +601,8 @@ export class World {
     slot.scale.set(Math.max(0.001, sv * P.sqx), Math.max(0.001, sv * P.sqy), Math.max(0.001, sv * P.sqz));
     _d.set(0, sv * P.sqy * h / 2, 0).applyQuaternion(slot.quaternion);
     slot.position.set(cx - _d.x, cy - _d.y, cz - _d.z);
-    slot.setExplode(S.explode); slot.setWire(S.wire); slot.setGhost(S.ghost); slot.setCord(S.cordS + P.cs, S.cordL + P.cl);
+    const lk = this.housing.k, open = clamp(S.explode);   // the load is Inside's own: its weight is how open the travel has the stack
+    slot.setExplode(S.explode * (1 - easeInOut(clamp(lk / 0.6)))); slot.setWire(S.wire); slot.setGhost(Math.max(S.ghost, open * easeInOut(clamp((lk - 0.6) / 0.4)))); slot.setCord(S.cordS + P.cs, S.cordL + P.cl);
     // shoes: settle hops and squashes about the sole, see-through while the product is inside, footbed tint
     const aw = 1 / Math.sqrt(P.aSq), bw = 1 / Math.sqrt(P.bSq);
     this.shoe.scale.set(S.unit * aw, S.unit * P.aSq, S.unit * aw); this.shoe.userData.setOpacity(S.shoeA * P.aRel, S.shoeA);
@@ -584,20 +630,37 @@ export class World {
     const S = this.S, c = this.camera, slot = this.slot;
     // a part out of the stack, or the product turned, eases the view out to the frame measured for it
     const out = Math.min(1, Math.max(...slot.parts.map((L) => L.pop.p), 0)), turned = Math.min(1, Math.abs(Math.sin(slot.drag.yaw)) * 1.8), f = out > 0 ? this.wider.inside : turned > 0 ? this.wider.customize : null, w = f ? (out > 0 ? easeInOut(out) : turned) : 0;
-    const k = lerp(S.vk, f?.k ?? S.vk, w), x = lerp(S.vx, f?.x ?? S.vx, w), y = lerp(S.vy, f?.y ?? S.vy, w), key = `${k.toFixed(4)},${x.toFixed(2)},${y.toFixed(2)}`;
+    const k = lerp(S.vk, f?.k ?? S.vk, w), x = lerp(S.vx, f?.x ?? S.vx, w), y = lerp(S.vy, f?.y ?? S.vy, w) + this.pan, key = `${k.toFixed(4)},${x.toFixed(2)},${y.toFixed(2)}`;
     if (key === this.viewNow) return; this.viewNow = key;
     c.zoom = k;
     if (Math.abs(x) > 0.01 || Math.abs(y) > 0.01) c.setViewOffset(this.W, this.H, -x, -y, this.W, this.H); else c.clearViewOffset();
     c.updateProjectionMatrix();
     this.fx.setScale(this.fxScale * k, this.renderer.getPixelRatio());
   }
-  kick() { if (this.running || !this.visible || document.hidden) return; this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
+  /** The compact layout: the picture moves with the page (px, up is negative) while a tall stage scrolls between its rests. */
+  setPan(px) { const v = Math.round(px * 2) / 2; if (v === this.pan) return; this.pan = v; this.kick(); }
+  /** Step to another tier while running (density, rack and idle time follow; anti-aliasing is fixed when the context is made). */
+  setQuality(q) { this.q = { ...q, aa: this.q.aa }; this.loopIdle = q.loopIdle ?? this.loopIdle; this.samples.length = 0; this.resize(); }
+  /**
+   * Frame times, taken only while something is animating (a frame after a rest says nothing). Sixty of them make a verdict:
+   * a median over 22ms, or more than a fifth over 33ms, is a device that cannot keep up at this tier.
+   */
+  #sample(ms) {
+    if (!this.onSlow || ms > 400) return;                       // a tab that slept, a debugger: not a frame time
+    this.samples.push(ms); if (this.samples.length < 60) return;
+    const a = this.samples.sort((x, y) => x - y), median = a[30], slowShare = a.filter((v) => v > 33).length / a.length; this.samples = [];
+    if (median > 22 || slowShare > 0.2) this.onSlow({ median, slowShare });
+  }
+  /** Give the context back (the page is falling back to still pictures). */
+  dispose() { this.running = false; this.visible = false; this.frameCbs.length = 0; try { this.renderer.dispose(); this.renderer.forceContextLoss(); } catch {} this.renderer.domElement.remove(); }
+  kick() { if (this.running || !this.live || !this.visible || document.hidden) return; this.running = true; this.streak = 0; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
   frame(now) {
     // a frame that throws must not leave the loop marked as running, or nothing would ever draw again
     try { this.#frame(now); } catch (err) { this.running = false; throw err; }
   }
   #frame(now) {
     if (!this.visible || document.hidden) { this.running = false; return; }
+    if (++this.streak > 3) this.#sample(now - this.last);       // the first frames after a rest carry the wake-up, not the pace
     const dt = Math.min(0.05, Math.max(0.0005, (now - this.last) / 1000)); this.last = now; this.clock += dt; // never 0: a 0 dt turns ratios into NaN
     let moving = false, dirty = false;
     const s3 = this.s3, st = this.st3;
@@ -630,6 +693,7 @@ export class World {
       if (L.amp > 0) moving = true;
     }
     if ((S3.tail && !S3.frozen) || S3.fades.length || (S3.still && S3.still.i === 0 && now - S3.still.start < 1100)) moving = true; // effects still finishing
+    if (this.housing.k !== this.housing.to) { const L = this.housing, step = this.reduced() ? 1 : dt / 0.85; L.k = L.to > L.k ? Math.min(L.to, L.k + step) : Math.max(L.to, L.k - step); moving = true; dirty = true; }
     if (dirty) this.applyState();
     moving = this.slot.update(dt, this.reduced()) || moving;
     this.#view();
@@ -692,6 +756,8 @@ export class World {
     if (!box || !this.slot.ready) return;
     const S = this.S, s3 = this.s3, deg = THREE.MathUtils.degToRad(this.camera.fov / 2), turn = this.slot.turn, rx = turn.rotation.x, ry = turn.rotation.y;
     this.s3 = this.#freshS3(); this.#aim(); turn.rotation.set(0, 0, 0);      // the pose itself, not however it is dragged right now
+    const lk = this.housing.k, pops = this.slot.parts.map((L) => ({ ...L.pop }));
+    if (stage === 'inside') { this.housing.k = 0; for (const L of this.slot.parts) if (FILLS.includes(L.name)) { L.pop.p = 1; L.pop.side = POSES.inside_upright.fan[L.name]; } }   // Inside is measured as it arrives: its fills out beside it
     for (let i = 0; i < 16; i++) {
       this.S = { ...T, wire: 0 }; this.applyState(); this.slot.apply();   // the sketch look plays no part in where it sits, and is not free to build
       const b = this.#screenBox(), room = Math.min((box.right - box.left) / (b.x1 - b.x0), (box.bottom - box.top) / (b.y1 - b.y0));
@@ -703,23 +769,28 @@ export class World {
       const ppu = this.H / (2 * Math.tan(deg) * this.camera.position.distanceTo(this.slot.position));
       T.fitX += sx / ppu; T.fitY -= sy / ppu;
     }
+    this.housing.k = lk; this.slot.parts.forEach((L, i) => Object.assign(L.pop, pops[i]));
     this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0);
   }
   /**
-   * Phones: frame a stage in the part of the canvas it has (px), from what it really puts on screen: the cord, the shoes and
-   * every Stage 3 step as it plays. The whole picture is zoomed and panned so that just fits. A zoom cannot change anything's
-   * size relative to anything else, so the product stays true to the shoes, and the values ease through the travels like any
-   * other key, so no section's scale jumps. Inside and Customize also measure what a click or a drag can do (each part
-   * popped out, the product turned all the way round): that is a second, wider frame the view eases to only while it happens,
-   * so at rest the product fills its space. null: no framing, as on wide screens.
+   * Frame a stage in the part of the canvas it has (px), from what it really puts on screen: the cord, the shoes and every
+   * Stage 3 step as it plays, the rack. The whole picture is zoomed and panned so that just fits. A zoom cannot change
+   * anything's size relative to anything else, so the product stays true to the shoes, and the values ease through the
+   * travels like any other key, so no section's scale jumps. Inside and Customize also measure what a click or a drag can
+   * do (each part popped out, the product turned all the way round): that is a second, wider frame the view eases to only
+   * while it happens, so at rest the product fills its space. Options: grow, the most it may enlarge (phones: 5); shrinkOnly,
+   * zoom out only if it must and move only as far as it must (a full-screen stage whose picture is drawn for the window);
+   * balance, how far (0 to 1) the frame aims at the picture at rest rather than at everything it does: How's steps lift the
+   * product well above the shoes, and centring all of that leaves the resting shoes low in the frame. null: no framing.
    */
-  frameStage(stage, box) {
+  frameStage(stage, box, { grow = 5, shrinkOnly = false, balance = 0 } = {}) {
     const T = STATES[stage]; T.vk = 1; T.vx = 0; T.vy = 0; delete this.wider[stage];
     if (!box || !this.slot.ready) return;
     const S = this.S, s3 = this.s3, slot = this.slot, turn = slot.turn, rx = turn.rotation.x, ry = turn.rotation.y, st = this.st3;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     const at = (v) => { const q = this.project(v); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); };
     const product = () => { this.applyState(); slot.apply(); slot.corners(at); };
+    const lk = this.housing.k; this.housing.k = 0;       // measured open, as it arrives
     this.s3 = this.#freshS3(); this.S = { ...T, wire: 0 }; this.#aim(); turn.rotation.set(0, 0, 0);
     product();
     if (stage === 'how') {
@@ -727,17 +798,34 @@ export class World {
         _bb.setFromObject(o);
         for (let i = 0; i < 8; i++) at(_lo.set(i & 1 ? _bb.max.x : _bb.min.x, i & 2 ? _bb.max.y : _bb.min.y, i & 4 ? _bb.max.z : _bb.min.z));
       }
+    }
+    const r0 = { x0, x1, y0, y1 };   // the picture at rest
+    if (stage === 'how') {
       for (let i = 0; i < st.steps.length; i++) { const from = st.startOf(i, st.REST); for (let t = 0; t <= 1.001; t += 0.1) { st.evalStep(i, t, from, this.s3.P); product(); } }
     }
+    if (stage === 'bulk' && this.units.length) {
+      this.rack.updateMatrixWorld(true); _bb.setFromObject(this.rack);
+      for (let i = 0; i < 8; i++) at(_lo.set(i & 1 ? _bb.max.x : _bb.min.x, i & 2 ? _bb.max.y : _bb.min.y, i & 4 ? _bb.max.z : _bb.min.z));
+    }
     const frame = () => {
-      const k = clamp(Math.min((box.right - box.left) / (x1 - x0), (box.bottom - box.top) / (y1 - y0)), 0.3, 5), cx = this.W / 2, cy = this.H / 2;
-      return { k, x: (box.left + box.right) / 2 - (cx + k * ((x0 + x1) / 2 - cx)), y: (box.top + box.bottom) / 2 - (cy + k * ((y0 + y1) / 2 - cy)) };
+      const k = clamp(Math.min((box.right - box.left) / (x1 - x0), (box.bottom - box.top) / (y1 - y0)), 0.3, shrinkOnly ? 1 : grow), cx = this.W / 2, cy = this.H / 2;
+      if (!shrinkOnly && balance > 0) {
+        // aim between everything and the picture at rest; the zoom is the largest that keeps everything in the box around that aim
+        const ax = lerp((x0 + x1) / 2, (r0.x0 + r0.x1) / 2, balance), ay = lerp((y0 + y1) / 2, (r0.y0 + r0.y1) / 2, balance);
+        const bx = (box.left + box.right) / 2, by = (box.top + box.bottom) / 2, lim = (lo, hi, m, a, b, c) => Math.min(a < m ? (c - lo) / (m - a) : Infinity, b > m ? (hi - c) / (b - m) : Infinity);
+        const kb = clamp(Math.min(lim(box.left, box.right, ax, x0, x1, bx), lim(box.top, box.bottom, ay, y0, y1, by)), 0.3, grow);
+        return { k: kb, x: bx - (cx + kb * (ax - cx)), y: by - (cy + kb * (ay - cy)) };
+      }
+      if (!shrinkOnly) return { k, x: (box.left + box.right) / 2 - (cx + k * ((x0 + x1) / 2 - cx)), y: (box.top + box.bottom) / 2 - (cy + k * ((y0 + y1) / 2 - cy)) };
+      // as drawn where it fits; otherwise zoomed out about the centre and moved the least that brings it inside
+      const into = (a, b, lo, hi) => (a < lo ? lo - a : b > hi ? hi - b : 0), c = (v, m) => m + k * (v - m);
+      return { k, x: into(c(x0, cx), c(x1, cx), box.left, box.right), y: into(c(y0, cy), c(y1, cy), box.top, box.bottom) };
     };
     const rest = frame(); T.vk = rest.k; T.vx = rest.x; T.vy = rest.y;
-    if (stage === 'inside') for (const L of slot.parts) { for (const p of [0.5, 0.8, 1, 1.09]) { L.pop.p = p; slot.apply(); slot.corners(at); } L.pop.p = 0; slot.apply(); }
+    if (stage === 'inside') for (const L of slot.parts) { const side = L.pop.side; for (const sd of [POSES.inside_upright.pop.side, POSES.inside_upright.fan[L.name]]) { if (sd == null) continue; L.pop.side = sd; for (const p of [0.5, 0.8, 1, 1.09]) { L.pop.p = p; slot.apply(); slot.corners(at); } } L.pop.p = 0; L.pop.side = side; slot.apply(); }
     if (stage === 'customize') for (let a = 0; a < 8; a++) { turn.rotation.y = (a / 8) * Math.PI * 2; slot.apply(); slot.corners(at); }
     if (stage === 'inside' || stage === 'customize') this.wider[stage] = frame();
-    this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0); this.viewNow = '';
+    this.housing.k = lk; this.S = S; this.s3 = s3; turn.rotation.set(rx, ry, 0); this.viewNow = '';
   }
   /** The fits have changed: the current state follows, wherever the page is. */
   fitsChanged() {

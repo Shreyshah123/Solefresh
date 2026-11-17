@@ -1,8 +1,10 @@
 # SoleFresh landing page
 
-Nine stages around one real 3D product (the Stride v3.2 insert). On wide screens the product stays pinned for the whole page, moves only during the transition between two stages (one short scroll-linked move each) and holds still inside a stage, where everything is click, hover or tap. From Stage 1 through the pilot stage the page comes to rest on a stage; past it (Why, Story, FAQ, Close, footer) the browser scrolls it, and the transitions there follow the scroll position. Under 900px, and on short landscape screens, the browser scrolls the page natively and the product is a band pinned under the nav through Customize.
+Ten stages around one real 3D product (the Stride v3.2 insert): who it is for, what it does, how it works, inside (the product stage), sizes and colours, the facility pilot, the comparison, story, FAQ, close. Every stage is a rest point, from the first to the footer: with a mouse or trackpad at any window size, and on touch tablets, one gesture moves one stage. Only phones keep the browser's own scrolling. With a mouse or trackpad, and on tablets, the page is the full-screen website at any window shape: each stage is one screen, the product stays pinned for the whole page and moves only during the transition between two stages, and inside a stage everything is click, hover or tap. Under 900px wide that website is drawn compact (see below). Only phones, and windows under 480px wide or 561px tall, get the stacked layout, with the product a band pinned under the nav through Sizes and colours.
 
 ## Run locally
+
+`npm run site` stops if an editorial marker (`[NEEDS DATA]`, `[YOUR ...]`, `TODO`) would reach the page: fix the copy and run it again.
 
 ```
 npm install            # from the repository root (three, lenis, playwright-core)
@@ -19,11 +21,12 @@ All copy lives in `content.json`; layout in `tools/render.mjs` (HTML) and `style
 
 - **Stage 3 steps:** `how.steps` (title, caption). The four animations are tied to step order (1 finish wearing, 2 place, 3 work, 4 remove) and live in `src/stage3.js` (see below).
 - **Stage 2 hotspots:** `what.hotspots`. Each names a real part (`part`, a node name) and where on it the leader line ends (`at`, a fraction of the part's half-size from its centre, per axis).
-- **Inside parts:** `inside.layers`, in the order of `PARTS` in `src/product-slot.js` (back to front, cord last): `id` is the node name, `name` and `role` the panel copy. `inside.prompt` is the hint shown while nothing is out.
+- **Inside (the product stage):** `inside.*`. `components` are the four chips, in order (Moisture, Odor, Scent, Pull cord): `part` is the node name, then `title`, `body`, `foot` for its card. `rest`, `loaded` and `refilled` are the cards before loading, after "Load all three" and after "Refill". `inside.optional` names the one fill that can be left out (`"odor"`, `"scent"` or `null`): that chip gets the word "optional" and its card an in/out switch. It is `null` until the owner decides, so nothing on the page says optional.
+- **The comparison:** `why.*`. `alternatives` are the options a visitor can pick; each has a value per row in `rows` (a row an option has no value for shows `unmeasured`, for every option alike), the `parts` of the product to light, and its `takeaway`. It compares how each is handled, never how well it works.
 - **Customize colours:** `customize.colors`, one `hex` each. A colour changes only the `shell_top` and `shell_bottom` materials.
 - **Customize sizes:** `customize.sizes` (S, M, L). The dimensions shown come from `assets/product/parts.json` through `src/model-data.json`, rounded to whole mm. Those figures are the overall size including the cord loop, so `customize.sizeOutside` says so; the shell of size M alone is 110 x 47 x 22 mm.
 - **Defaults:** `customize.defaults` (`color`, `size`).
-- **Contact and privacy:** `brand.contactEmail` (`[YOUR EMAIL]` until set; a real address becomes a link) and the privacy page's copy in `privacy.sections`, which names Google Sheets as where leads go. `npm run site` afterwards (the address is also in the form messages, which are in the bundle).
+- **Contact and privacy:** `brand.contactEmail` (empty: no address is shown anywhere, and the form messages and the privacy page use their `noEmail` wording; a real address becomes a link) and the privacy page's copy in `privacy.sections`, which names Google Sheets as where leads go. `npm run site` afterwards (the address is also in the form messages, which are in the bundle).
 
 ## Stage 3: How it works
 
@@ -53,24 +56,49 @@ Every stage with text beside the product has a fit: `fitStages()` in `src/main.j
 
 ## Snapping and transitions
 
-- Snap covers Stage 1 through the pilot stage. `snap.end` is its last rest point; below it (`freeScroll()` in `src/main.js`) nothing is intercepted and nothing settles: wheel, trackpad, keys and touch are the browser's, including `End`, and Lenis stands aside through its `virtualScroll` option. A scroll coming back up simply meets the snap again at `snap.end`. Every position is recomputed when the page's height changes, by a `ResizeObserver` on `main`, so FAQ items and form messages need no special handling.
-- `SNAP_MS` in `src/main.js` (default 600) is the settle duration; `?snap=450` on the URL overrides it for trying values.
-- `GESTURE_GAP_MS` in `src/main.js` (default 100) is the gesture-end debounce: a pause in wheel events longer than this starts a new gesture. `?gap=` overrides it. A new trackpad swipe is also recognised while the previous flick's momentum is still streaming, by its delta rising again after decaying.
-- Input is queued, never dropped: a same-direction step during a settle is remembered (at most one) and plays when the settle ends; an opposite step reverses to the stage the settle came from. Keys and touch swipes follow the same rule.
-- Snapping stands aside while a form or the FAQ has focus and is on screen (`snapPaused()` in `src/main.js`): the wheel, keys and touch scroll freely and nothing settles the page. It returns once focus leaves or the form has scrolled off.
+- **Who snaps:** `SNAPQ` in `src/main.js`: any fine pointer (mouse, trackpad) at any window size or shape, and touch tablets (768px wide or more, not a phone on its side). Phones keep native scrolling: a content-tall section would be hijacked by a step per swipe (`flags.phoneSnap` in `content.json` gives them CSS scroll-snap instead, proximity only: see Phones). Layout (`NARROW` stacked, `COMPACT`, or wide) and snapping are separate questions.
+- **Rest points** (`snap.measure`): every stage's top, and the end of the page (so the footer is always reachable). A stage taller than the view it has gets inner rest points, each starting at the first line or control that was not yet whole at the rest before it (`unitsOf`: text, controls, and groups that read as one, like a field with its label), just under the nav, so a rest never slices a line at the top. The last one puts the stage's end at the window's bottom when what is left fits. Two rest points closer than 40px are one, except a rest just before the page's end.
+- **One owner.** This engine is the only thing that snaps: there is no CSS scroll-snap on the page, and Lenis only plays the tween (`smoothWheel` off; its frame loop runs only while a settle or a drag is under way).
+- **Settle time:** a whole stage takes `SNAP_MS` (600, `?snap=` overrides); a shorter hop takes less (`SNAP_MS * sqrt(distance / view)`, at least 240ms). Hops beside Stage 3 keep the full curve, because its way out of the shoe is paced on it (`SNAP_EASE_INV`).
+- **Gestures:** `GESTURE_GAP_MS` (100, `?gap=`) is the gesture-end debounce. Its clock is each event's own time stamp, not the time the handler ran: on a stalled main thread a flick's events arrive late and bunched, and the handler's clock read that as two gestures. A slow small notch (a high-resolution wheel) that never reaches 30px still steps once the gesture ends. A finger swipe counts from the rest point the finger went down on.
+- **Queued, never dropped:** a same-direction step during a settle is remembered (at most one) and plays when the settle ends; an opposite step reverses to where the settle came from.
+- **Forms do not switch snapping off.** Keys typed into a field are the field's, a wheel over a long message scrolls the message, and Tab (or a form's error) moves focus and the page then rests where that control can be seen (`snap.reveal`).
+- **Keys:** PageUp/Down, Space, the arrows, Home and End all step. Arrows on a tab list or the turn buttons belong to that control. From more than two stages away, Home and End jump, as the nav links do.
+- **Resizing and rotating** stay with the stage the visitor was on, and the place within it.
 - Nav links land exactly on their anchor, put it in the URL and add a history entry. Back and Forward return to the exact position, a link with a hash lands on its anchor and a reload stays where it was.
-- `TRAVEL` in `src/main.js` is the scroll distance of each transition (0.5 viewport; 3→4 is 0.75).
-- Leaving Stage 3, the travel runs on time-linear progress: the same scroll position mapped through the inverse of `SNAP_EASE` inside the same travel window, so the product's way out of the shoe gets about 170 ms of the settle instead of a few frames. `SNAP_EASE_INV` must stay the inverse of `SNAP_EASE`. Arrivals and every other transition use plain progress.
+- `TRAVEL` in `src/main.js` is the scroll distance of each transition (0.5 viewport; 3>4 is 0.75). In the stacked layout a travel ends 40px before its stage's rest, so a few pixels of drift at rest (a focus scroll) is not a travel.
+- Leaving Stage 3, the travel runs on time-linear progress: the same scroll position mapped through the inverse of `SNAP_EASE` inside the same travel window. `SNAP_EASE_INV` must stay the inverse of `SNAP_EASE`.
 - Resting states per stage and per-transition shaping are `STATES` and `SHAPES` in `src/world.js`.
-- No shoe passes through the product. Customize to Bulk: the product settles into its seat, the shoe forms round it, then it becomes a rack; Bulk to Why: the rack folds back as the shoes fade, then the product slides away. The `pres` key (the product at its true place beside the shoes, with the phone layout's pull toward centre off) is set before a shoe shows round the product and let go only after it has gone.
+- Entrance fades exist only once `src/main.js` has run to its end (`.sf-ready`): without the script, or if it fails, every stage is simply visible. The first stage never fades.
 
-## Phones (under 900px, and screens under 520px tall)
+## Rendering tiers (weaker computers)
 
-The browser scrolls the page: no snap, no Lenis. Each section is as tall as its content.
+`src/tier.js`. The 3D starts on a tier guessed from what the browser says (cores, memory, data saver), refined once the renderer exists from the name of the graphics chip (WebGL drawn in software goes to stills; a chip built into the processor starts lower). Then the frames decide: the render loop samples frame times while something animates, and sixty slow ones (median over 22ms, or a fifth over 33ms) step down a tier. It never steps back up during a visit (sessionStorage remembers).
+
+| tier | pixel budget | density cap | anti-aliasing | rack |
+|---|---|---|---|---|
+| high | 4.2 MP | 1.5x | below 1.5x density | 8 |
+| mid | 2.6 MP | 1.25x | below 1.5x density | 8 |
+| low | 1.5 MP | 1x | off | 4 |
+| poster | no WebGL | | | |
+
+`?tier=high|mid|low|poster` forces one. On the poster tier (and with no WebGL at all) a still stands in for the product and follows every control: `showPoster()` in `src/main.js` picks the file and `lab/posters.mjs` renders all of them. Keep the two in step.
+
+The environment light is baked once (`node tools/bake-env.mjs` writes `assets/env/room.bin`, gzipped half floats) instead of being pre-filtered on every load, which blocked the page for about 0.8s on Windows. Run it again only if the light changes.
+
+## The compact layout (a mouse or trackpad window under 900px wide, a tablet in portrait)
+
+The full-screen website, drawn for a narrow or tall window (`COMPACT` in `src/main.js`, the compact block in `styles.css`). Every stage is still one screen and one rest point; its text sits above, below or beside an empty `.room` (one per stage, in `tools/render.mjs`), and `fitStages` frames the product into that room at the stage's rest: the upright poses centred and allowed to grow, How as a zoom of the whole picture (the shoes and every step as it plays, aimed at the resting picture), the rack zoomed out until it fits the window. Windows under 761px tall draw the comparison and the close tighter. A stage that still cannot fit (the pilot form in a small window) gets inner rest points, and between them the picture moves with the page (`World.setPan`), so the product stays in its room.
+
+In the wide layout How and the rack are framed too, zoomed out only when the window is too narrow for them (`frameStage` with `shrinkOnly`).
+
+## Phones (the stacked layout: a coarse pointer under 768px wide, and any window under 480px wide or 561px tall)
+
+Each section is as tall as its content. On phones the browser scrolls the page. With `flags.phoneSnap: true` in `content.json` (or `?phonesnap=1` to preview it) phones get CSS scroll-snap on each stage's start, proximity only: no script moves the page, a swipe that ends near a stage's start settles onto it, and anything else stays where the finger left it. It is off. A fine-pointer window this small snaps like any other, with the inner rest points above.
 
 - **The band:** `.world` is `position: sticky` inside `.pin`, which wraps the stages that use the product, so it scrolls away with the end of Customize and the form, the comparison, the Story, the FAQ and the close have the whole screen. Each section gives it its own height (`--band-*` in `styles.css`), bounded for short and tall screens and held back by the width where a wide scene would only add empty space. The canvas keeps the tallest of them and `--band-now` shows as much as the section has, eased through each travel, so nothing resizes during a scroll.
 - **Framing:** `frameStage()` in `src/world.js` measures what each section really puts on screen (the cord, the shoes, every Stage 3 step as it plays) and zooms and pans the whole picture to fit its band. A zoom cannot change anything's size relative to anything else, so the product stays true to the shoes. Inside and Customize also measure a popped part and a full turn: a second, wider frame the view eases to only while that happens, so at rest the product fills its space. `lab/mobile-test.mjs` checks all of it on rendered pixels.
-- **Short landscape:** under 520px tall the product sits beside the sections, in a sticky column, instead of above them (`SIDE` in `src/main.js`). Each section is framed in the whole column.
+- **Short landscape:** under 561px tall (and at least 600px wide) the product sits beside the sections, in a sticky column, instead of above them (`SIDE` in `src/main.js`). Each section is framed in the whole column.
 - **Sections:** the hero puts the pilot button right after the intro and who it's for after that; the part details sit in the page, under the part list; the routine says its action once above a strip of days. The travel from How to Inside spreads over more of its scroll than on wide screens (`PHONE_SHAPES` in `src/world.js`), because a short section leaves it less room.
 
 Keep `NARROW` and `SIDE` in `src/main.js` and the media queries in `styles.css` in step.
@@ -83,8 +111,9 @@ Keep `NARROW` and `SIDE` in `src/main.js` and the media queries in `styles.css` 
 - **Loading:** only size M loads up front. S and L load when selected and are real swaps, not a scale, because their proportions differ. One scale (`k`) serves all three, so they read at their true relative sizes. Materials stay the same instances across sizes, so colour and selection carry over; the rack is refilled from the new size.
 - **Scale in the shoe:** the 1.9-long prop stands for a 300 mm adult shoe, which gives `SEAT.scale`.
 - **Upright poses:** Stage 1 and Inside stand the product up: `POSES` at the top of `src/product-slot.js` holds `hero_upright` and `inside_upright`, with every angle, size and spacing as an editable value, and `TRAVEL_SIZE` (0.85) is the size it travels at. The tilt is as the visitor sees it: the camera looks down 14.5°, so the world turns by the tilt plus that. Stage 1 does not react to the pointer or a venue change.
-- **Inside stack:** the product opens into a stack, not a spread: each layer rises to one even `gap` (3.5 mm) above the layer behind it, in the real order, each stopping in turn so nothing passes through anything. The scent beads stay in their heel-end bay, level with the silica sachet they sit beside in the product, and show through the round vents.
-- **Pop-out:** selecting a part (on the model, through the vents, or in the part list) sends it out on a spring (`pop` in `POSES`): it slides along its gap until it is clear of what is in front of it, comes toward the viewer and ends slightly to the side, turned a little to the camera, while the rest dim. The path is a function of one value, so going back retraces it and no part passes through another. Selecting another part, the part itself, empty space, the panel's Close, Escape or a scroll away puts it back. Picking uses the real meshes (`slot.pick`).
+- **Inside stack:** the product opens into a stack, not a spread: each layer rises to one even `gap` (3.5 mm) above the layer behind it, in the real order, each stopping in turn so nothing passes through anything.
+- **Load the housing:** Inside arrives with the three fills out beside the housing (`ProductSlot.setOut`, each to its place in `POSES.inside_upright.fan`). "Load all three" puts them back one after another, then `World.setLoaded` closes the stack and turns the shell see-through. "Refill" opens it, slides one fill out, blinks it (`ProductSlot.blink`) and slides it back. A chip pops one part out on its spring (`pop` in `POSES`), the path a function of one value so going back retraces it. Picking uses the real meshes, after a box test (`slot.pick`); a see-through shell lets a press through to the fill behind it.
+- **The comparison** lights the parts that answer the picked option (`ProductSlot.setFocus`); a lit part inside the closed housing turns the shell see-through.
 - **Shell colour:** the four hex values in `content.json` are sRGB; `Color.set` converts them to linear for the material, with roughness 0.55 and no metalness. The scene's lights are set for the bone page and the shoes and would double a colour's value, so the shell's shader takes a share of them plus an even light (`SHELL_LIT`, `SHELL_EVEN`) and undoes the tone mapper's dark toe. Its top face then shows on screen within a few levels of the hex; the side wall is darker, which is what gives it form.
 - **The cord** hinges at the heel window (`setCord`): it lies flat on the floor and in the shoe, hangs when the product hovers, trails on the way in and goes taut on the way out. `cordS` and `cordL` in `STATES` are its resting pose per stage; Stage 3 adds to them.
 - **Light:** a soft key, a rim from behind so the graphite edge separates from the bone page, the room environment for soft reflections, and contact shadows on the floor and the footbed. The materials are the file's.
@@ -93,8 +122,8 @@ Keep `NARROW` and `SIDE` in `src/main.js` and the media queries in `styles.css` 
 
 | Form | Function | Vercel env var | Payload |
 |---|---|---|---|
-| Facility pilot (Stage 6) | `api/bulk.js` | `BULK_WEBHOOK_URL` | organization, type, pairs (optional), name, email, phone, message, source, at |
-| Waitlist (Stage 9) | `api/waitlist.js` | `WAITLIST_WEBHOOK_URL` | email, source, at |
+| Facility pilot (stage 6) | `api/bulk.js` | `BULK_WEBHOOK_URL` | organization, type, pairs (optional), name, email, phone, message, source, at |
+| Waitlist (stage 10, the close) | `api/waitlist.js` | `WAITLIST_WEBHOOK_URL` | email, source, at |
 
 Each function forwards JSON to its webhook: a Google Sheet, through the small script in `tools/google-sheet-webhook.gs`. The route and variable keep the word "bulk" from before the offer became a pilot.
 
@@ -121,7 +150,7 @@ Deploy `site/` as the project root: framework preset Other, no build command (co
 
 - `shoot-all.mjs` screenshots every stage at rest, every transition mid-way and one interaction per stage (`--w 390 --h 844`, `--reduced`, `--no-webgl`).
 - `frames.mjs` one screenshot of every stage at rest (`--w 390 --h 844`, `--only`, `--color`, `--size`).
-- `snap-test.mjs` one stage per gesture on wide screens, Stage 1 through the pilot stage: mouse tick, trackpad flick, keys; `--mobile` confirms there is no snap. `free-scroll-test.mjs` from the pilot stage to the footer and back with mouse, trackpad, keys and (`--mobile`) touch: no event intercepted, no settle, FAQ items opened and closed mid-scroll, the 6>7 and 7>8 transitions on the scroll position, and the way back into the snap. `tap-test.mjs` the page scrolls natively on phones and a tap on a control acts without moving it. `input-test.mjs` replays timed mouse, trackpad (contact plus momentum) and key streams and checks nothing is dropped. `perf-queue.mjs` frame times while steps queue and reverse.
+- `snap-test.mjs` the snapping contract: every stage to the footer is a rest point and one gesture moves one rest point, for a mouse tick, a burst of ticks, a trackpad flick, PageDown/PageUp, Space, the arrows and (`--tablet`) a finger swipe; End, Home, a queued tick, a reversed tick, a nav link. `--w --h` for any window; `--mobile` confirms phones do not snap. The real-window pass (a headed Chrome window sized to each test size, no emulation, wheel and trackpad-flick runs with a screenshot at every rest and mid-transition) lives with the audit files, not here. `free-scroll-test.mjs` (name kept) the late stages: each fits its view with every control on screen, pilot to footer and back always at rest, a form error does not switch snapping off, a failed submission shows above the button, a long message scrolls itself, an FAQ answer, a 160ms stall during a flick, Tab into the form.
 - `anchor-test.mjs` nav links land on their anchors and stay, hash and history, deep links, reload, snapping standing aside for forms and the FAQ; `--mobile` adds native scrolling and the band.
 - `layout-test.mjs` many window sizes in sizes M and L: Stage 2's cards, lines and product, the product clear of each stage's text, the header, no sideways overflow, phone details, WebGL off.
 - `model-test.mjs` what is downloaded and when, the parts and their PBR values, the opened layers, colour touching only the shell, size swaps, carry-forward to the rack, selection.
@@ -134,4 +163,4 @@ Deploy `site/` as the project root: framework preset Other, no build command (co
 - `s3-frames.mjs` contact sheets of every step, the loop and both scroll-outs in `lab/s3/` (`--w 390 --h 844`); `bulk-frames.mjs` the same for the Customize to Bulk and Bulk to Why travels. `perf-steps.mjs` frame times while each step plays (`--mobile`).
 - `seam.mjs` scans frames across every boundary for thin full-width lines, static or `--motion`, with `--browser edge`, `--dpr`, `--zoom`; `seam-matrix.sh` runs the whole matrix.
 - `perf-all.mjs` down the page and back with an interaction per stage (a gesture per rest point, then the wheel past the pilot stage, on wide screens; a native scroll on phones); frame times per stage and per transition. `perf-hitch.mjs` repeats one transition. `perf-bisect.mjs` runs one transition in a fresh browser with each candidate element hidden, to find whose first paint costs a dropped frame (the answer usually goes in the `.warm` block in `tools/render.mjs`).
-- `posters.mjs` re-renders the no-WebGL fallback images.
+- `posters.mjs` renders the stills that stand in for the 3D, one for every state a control can put a stage in (38 files).
