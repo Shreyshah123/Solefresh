@@ -16,6 +16,10 @@ const contact = hasContact ? `<a href="mailto:${attr(C.brand.contactEmail)}">${e
 const PILOT = C.bulk.anchor, H = C.hero;
 const WHY = C.why, startAlt = WHY.alternatives.find((m) => m.id === WHY.start) || WHY.alternatives[0];
 const cell = (m, r) => esc(m[r.id] ?? WHY.unmeasured);   // a row nobody has measured says so, for every option alike
+// Phones: each stage carries its own picture (a still that follows the stage's controls: see updatePics in src/main.js).
+// Hidden on every other layout. Decorative: the stage's text says what it shows.
+// The first stage's pictures load at once (they are on the first screens); the rest as the visitor nears them.
+const pic = (stage, name) => `<figure class="pic" data-stage-pic="${stage}" aria-hidden="true"><img alt="" src="assets/posters/${name}.webp" width="1600" height="1000" ${stage === 'explorer' ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" data-pic="${stage}"></figure>`;
 
 const html = `<!doctype html>
 <html lang="en" class="no-js">
@@ -92,6 +96,7 @@ const html = `<!doctype html>
 <section class="stage explorer stage--full" id="explorer" data-product="explorer" aria-labelledby="h-hero">
   <div class="explorer__left">
     <div class="explorer__intro stage__in">
+      ${pic('explorer', seg.items[0].id)}
       <p class="explorer__chip">${esc(H.chip)}</p>
       <h1 id="h-hero">${esc(H.heading)}</h1>
       <p class="explorer__lede">${esc(H.lede)}</p>
@@ -100,6 +105,7 @@ const html = `<!doctype html>
       <a class="explorer__alt" href="#close" data-jump="close">${esc(H.individuals)} <span aria-hidden="true">&rarr;</span></a>
     </div>
     <div class="who stage__in">
+      ${pic('explorer', seg.items[0].id)}
       <p class="who__label" id="who-label">${esc(seg.label)}</p>
       <div class="who__list" role="tablist" aria-labelledby="who-label" aria-orientation="vertical">
         ${seg.items.map((a, i) => `<button class="who__item" role="tab" type="button" id="tab-${a.id}" data-aud="${a.id}" aria-selected="${i === 0}" aria-controls="panel" tabindex="${i === 0 ? 0 : -1}">${esc(a.name)}</button>`).join('\n        ')}
@@ -125,6 +131,7 @@ const html = `<!doctype html>
 
 <!-- ================================================ STAGE 2: WHAT IT DOES == -->
 <section class="stage what stage--full" id="what" data-product="what" aria-labelledby="h-what">
+  ${pic('what', 'what')}
   <div class="what__head stage__in">
     <h2 id="h-what">${esc(C.what.heading)}</h2>
     <p class="what__lede">${esc(C.what.lede)}</p>
@@ -141,6 +148,7 @@ const html = `<!doctype html>
 
 <!-- ================================================ STAGE 3: HOW IT WORKS == -->
 <section class="stage how stage--full" id="how" data-product="how" aria-labelledby="h-how">
+  ${pic('how', 'how-0')}
   <div class="how__head stage__in"><h2 id="h-how">${esc(C.how.heading)}</h2></div>
   <div class="room" aria-hidden="true"></div>
   <div class="how__bar stage__in">
@@ -153,6 +161,7 @@ const html = `<!doctype html>
 
 <!-- ======================================================= STAGE 4: INSIDE == -->
 <section class="stage inside stage--full" id="inside" data-product="inside" aria-labelledby="h-inside">
+  ${pic('inside', 'inside-apart')}
   <div class="inside__head stage__in">
     <h2 id="h-inside">${esc(IN.heading)}</h2>
     <p class="inside__lede">${esc(IN.lede)}</p>
@@ -183,6 +192,7 @@ const html = `<!doctype html>
 
 <!-- ===================================================== STAGE 5: CUSTOMIZE == -->
 <section class="stage customize stage--full" id="customize" data-product="customize" aria-labelledby="h-customize">
+  ${pic('customize', `customize-${cz.defaults.color}-${cz.defaults.size}`)}
   <div class="customize__head stage__in">
     <h2 id="h-customize">${esc(cz.heading)}</h2>
     <p class="customize__lede">${esc(cz.lede)} <span class="fine-only">${esc(cz.dragHint.fine)}</span><span class="touch-only">${esc(cz.dragHint.touch)}</span></p>
@@ -214,6 +224,7 @@ const html = `<!doctype html>
 <section class="stage bulk" id="${PILOT}" data-product="bulk" aria-labelledby="h-bulk">
   <div class="bulk__card stage__in">
     <div class="bulk__intro">
+      ${pic('bulk', 'bulk')}
       <h2 id="h-bulk">${esc(C.bulk.heading)}</h2>
       <ul class="bulk__lines">${C.bulk.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
     </div>
@@ -236,6 +247,7 @@ const html = `<!doctype html>
 <!-- =============================================== STAGE 7: WHY SOLEFRESH == -->
 <section class="stage why" id="why" data-product="why" aria-labelledby="h-why">
   <div class="why__panel stage__in">
+    ${pic('why', `why-${startAlt.id}`)}
     <h2 id="h-why">${esc(WHY.heading)}</h2>
     <div class="room" aria-hidden="true"></div>
     <p class="why__lede">${esc(WHY.lede)}</p>
@@ -245,7 +257,7 @@ const html = `<!doctype html>
     <table class="vs">
       <thead><tr><th scope="col"><span class="vh">${esc(WHY.compareLabel)}</span></th><th scope="col" data-alt-name>${esc(startAlt.label)}</th><th scope="col" class="vs__us">${esc(WHY.solefresh.label)}</th></tr></thead>
       <tbody>
-        ${WHY.rows.map((r) => `<tr><th scope="row">${esc(r.label)}</th><td data-alt-cell="${r.id}">${cell(startAlt, r)}</td><td class="vs__us">${cell(WHY.solefresh, r)}</td></tr>`).join('\n        ')}
+        ${WHY.rows.map((r) => `<tr><th scope="row">${esc(r.label)}</th><td data-alt-cell="${r.id}" data-name="${attr(startAlt.label)}">${cell(startAlt, r)}</td><td class="vs__us" data-name="${attr(WHY.solefresh.label)}">${cell(WHY.solefresh, r)}</td></tr>`).join('\n        ')}
       </tbody>
     </table>
     <p class="why__take" aria-live="polite"><b>${esc(WHY.takeawayLabel)}</b> <span data-alt-take>${esc(startAlt.takeaway)}</span></p>
@@ -259,6 +271,7 @@ const html = `<!doctype html>
 <!-- ======================================================== STAGE 8: STORY == -->
 <section class="stage story" id="story" data-product="story" aria-labelledby="h-story">
   <div class="story__panel stage__in">
+    ${pic('story', 'story')}
     <h2 id="h-story">${esc(C.story.heading)}</h2>
     <div class="room" aria-hidden="true"></div>
     <p class="story__line">${esc(C.story.line)}</p>
@@ -272,6 +285,7 @@ const html = `<!doctype html>
 <!-- ========================================================== STAGE 9: FAQ == -->
 <section class="stage faqs" id="faq" data-product="faq" aria-labelledby="h-faq">
   <div class="faq__panel stage__in">
+    ${pic('faq', 'faq')}
     <h2 id="h-faq">${esc(C.story.faqHeading)}</h2>
     <div class="room" aria-hidden="true"></div>
     <div class="faq">
@@ -283,6 +297,7 @@ const html = `<!doctype html>
 <!-- ======================================================= STAGE 10: CLOSE == -->
 <section class="stage close" id="close" data-product="close" aria-labelledby="h-close">
   <div class="close__wrap stage__in">
+    ${pic('close', 'close')}
     <h2 id="h-close">${esc(C.close.heading)}</h2>
     <div class="room" aria-hidden="true"></div>
     <div class="paths">

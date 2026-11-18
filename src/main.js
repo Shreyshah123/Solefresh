@@ -17,7 +17,12 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const FINE = matchMedia('(hover: hover) and (pointer: fine)');
-const NARROW = matchMedia('(max-width: 479px), (max-height: 560px), (pointer: coarse) and (max-width: 767px)'); // keep in step with styles.css: the stacked layout (phones, and windows too small for anything else)
+// The stacked layout: a phone on its side, and windows too small for anything else. (styles.css also draws a phone held
+// upright on top of the stacked rules, but there the phone stages take over: PHONE, below.)
+const NARROW = matchMedia('(max-width: 479px) and (pointer: fine), (max-width: 479px) and (pointer: none), (max-height: 560px) and (pointer: fine), (max-height: 560px) and (pointer: none), (pointer: coarse) and (max-width: 767px) and (orientation: landscape), (pointer: coarse) and (max-height: 560px) and (orientation: landscape)');
+// A phone held upright: the phone stages. Every stage is a screen with its own picture area; the product (3D, or a still on
+// a light phone) sits in that area and moves with the page; the browser snaps. Keep in step with styles.css and tier.js.
+const PHONE = matchMedia('(pointer: coarse) and (max-width: 767px) and (orientation: portrait)');
 // The full-screen website in a narrow or tall window (a mouse or trackpad window under 900px wide, a tablet in portrait):
 // every stage is one screen and the product is framed into its .room. Keep in step with styles.css.
 const COMPACT = matchMedia('(min-width: 768px) and (max-width: 899px) and (min-height: 561px), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: fine), (min-width: 480px) and (max-width: 767px) and (min-height: 561px) and (pointer: none)');
@@ -135,6 +140,7 @@ const LAST_BAND = stages.map((s) => !!s.closest('.pin')).lastIndexOf(true);   //
 /** On phones everything below the band is out of the world's sight: it rests in the band's last stage. */
 const bandStage = (stage) => (NARROW.matches && stages.findIndex((s) => s.dataset.product === stage) > LAST_BAND ? stages[LAST_BAND].dataset.product : stage);
 function measureStages() {
+  layoutPhone();
   measureBands();
   tops.length = 0;
   for (const s of stages) tops.push(restY(s)); // integers: the browser rests on whole pixels
@@ -159,7 +165,7 @@ function onScroll(force = false) {
   // the shoe) in a few frames. The world can instead run that departure on time-linear progress: the same scroll
   // position mapped through the inverse of SNAP_EASE, inside the same travel window. Still a function of scroll only.
   let uLeave = u;
-  if (!narrow && (from === 'how' || to === 'how') && at > 0 && u > 0 && u < 1) {
+  if (!narrow && !PHONE.matches && (from === 'how' || to === 'how') && at > 0 && u > 0 && u < 1) {   // (a phone's finger scroll is not the snap's eased settle)
     const D = Math.max(1, tops[at] - tops[at - 1]);
     if (from === 'how') { const ta = SNAP_EASE_INV(clamp(1 - span / D, 0, 1)); uLeave = clamp((SNAP_EASE_INV(clamp((y - tops[at - 1]) / D, 0, 1)) - ta) / Math.max(1e-6, 1 - ta), 0, 1); }
     else { const tb = SNAP_EASE_INV(clamp(span / D, 0, 1)); uLeave = clamp(1 - SNAP_EASE_INV(clamp((tops[at] - y) / D, 0, 1)) / Math.max(1e-6, tb), 0, 1); }
@@ -173,7 +179,7 @@ function onScroll(force = false) {
   // the way to the next stage that offset eases out with the travel.
   // (only a stage with a room: the rack behind the pilot form is a backdrop and stays where it is)
   const roomSpan = (i) => (ROOMS[i] ? snap.spans[i] || 0 : 0);
-  if (world && !narrow) world.setPan(!COMPACT.matches ? 0 : u >= 1 || u === 0 ? -clamp(y - tops[at], 0, roomSpan(at)) : -roomSpan(at - 1) * (1 - u));
+  if (world && !narrow) world.setPan(PHONE.matches ? phonePan(y, at, u) : !COMPACT.matches ? 0 : u >= 1 || u === 0 ? -clamp(y - tops[at], 0, roomSpan(at)) : -roomSpan(at - 1) * (1 - u));
   const key = `${wf}>${wt}@${wu.toFixed(3)}`;
   if (key !== lastKey) { lastKey = key; if (world) world.setTravel(wf, wt, wu, below ? wu : uLeave); }
   const tv = u > 0 && u < 1 ? `${from}>${to}` : '';
@@ -188,6 +194,12 @@ function prefetchSizes() {
   if (sizesFetched || !worldReady || navigator.connection?.saveData) return; sizesFetched = true;
   for (const id of Object.keys(MODEL.sizes)) if (id !== world.slot.sizeId) fetch(MODEL.sizes[id].url, { priority: 'low' }).catch(() => {});
 }
+/**
+ * Phones: the product sits in its stage's picture, so it goes with the page. At rest it is held by its stage (and goes up
+ * and away with it to a second screen); between two stages it is handed from one picture to the other as the travel runs,
+ * so it is always over a picture and never over the text between them.
+ */
+function phonePan(y, at, u) { const here = -(y - tops[at]); return u > 0 && u < 1 ? -(y - tops[at - 1]) + (here + (y - tops[at - 1])) * u : here; }
 function setStage(stage) {
   markCurrent(stage);
   if (stage === 'inside' || stage === 'customize') prefetchSizes();
@@ -237,7 +249,64 @@ function placePoster() {
   pic.style.cssText = `left:${Math.round(r.left)}px;top:${Math.round(top)}px;width:${Math.round(r.width)}px;height:${room.offsetHeight}px;right:auto;bottom:auto;overflow:clip`;
   img.style.objectFit = fit; img.style.objectPosition = at; img.style.transform = zoom !== 1 ? `scale(${zoom})` : '';
 }
+// Phones: each stage has its own picture, and it follows that stage's controls (styles.css shows them only on phones).
+function picName(st) {
+  const i = state.inside;
+  if (st === 'explorer') return state.audience;
+  if (st === 'how') return `how-${state.step}-dark`;   // the shoes a shade darker, as the phone's 3D draws them (lab/posters.mjs)
+  if (st === 'inside') return i.part ? `inside-${i.part}` : i.loaded ? 'inside-loaded' : 'inside-apart';
+  if (st === 'customize') return `customize-${state.color}-${state.size}`;
+  if (st === 'why') return `why-${state.method}`;
+  return st;
+}
+/**
+ * Phones. A screen is the height the visitor really sees (--vh: Safari's toolbar shown or hidden), less the nav. A stage
+ * that needs two screens (stage 1, the pilot form, the comparison, the close) has a section its second screen starts at (a
+ * scroll-snap point, styles.css). Its first screen's picture takes whatever that screen has spare, so the section starts
+ * exactly one screen in; its second screen's picture (stage 1 has one) takes that screen's spare, or else the content is
+ * centred in it; and the stage is exactly as tall as its last screen. So no screen shows a sliver of another, and none is
+ * half empty. One-screen stages do the same in CSS (the picture is the flexible part). Without this script the snap
+ * points are still there and the screens are sized by 100dvh; they are just less exact.
+ */
+const SPLITS = [['.who', '.panel'], ['.bulk .form > :nth-child(3)', '.bulk .form'], ['.vs', '.why__foot'], ['.paths > .path:nth-child(2)', '.footer']];   // [where the second screen starts, its last element]
+function layoutPhone() {
+  if (PHONE.matches) html.style.setProperty('--vh', `${innerHeight}px`); else html.style.removeProperty('--vh');
+  for (const [a] of SPLITS) { const el = $(a); if (!el) continue; el.style.marginTop = ''; el.style.scrollMarginTop = ''; const st = el.closest('[data-product]'); st.style.minHeight = ''; st.querySelectorAll('.pic').forEach((p) => { p.style.height = ''; }); }
+  if (!PHONE.matches) return;
+  const scr = innerHeight - navH(), mt = (el) => parseFloat(getComputedStyle(el).marginTop) || 0;
+  for (const [a, z] of SPLITS) {
+    const el = $(a), end = $(z); if (!el || !end || !el.getClientRects().length) continue;
+    const air = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;   // the gap the snap leaves above the section
+    const stage = el.closest('[data-product]'), pics = [...stage.querySelectorAll('.pic')];
+    const p1 = pics.find((p) => !el.contains(p) && p.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING), p2 = pics.find((p) => el.contains(p));
+    const offset = () => el.getBoundingClientRect().top - stage.getBoundingClientRect().top;
+    // screen 1: its picture grows into the spare room, up to a little over half the screen; what is left is a margin
+    let free = scr + air - offset();
+    if (free > 0 && p1 && getComputedStyle(p1).flexGrow === '0') { const h = p1.offsetHeight, grow = Math.max(0, Math.min(free, scr * 0.56 - h)); if (grow) { p1.style.height = `${h + grow}px`; free -= grow; } }
+    else if (free < 0 && p1 && getComputedStyle(p1).flexGrow === '0') { const h = p1.offsetHeight, give = Math.min(-free, h - scr * 0.16); if (give > 0) { p1.style.height = `${h - give}px`; free += give; } }   // too much on the screen: the picture gives way first
+    if (free > 0) el.style.marginTop = `${mt(el) + free}px`;
+    const at = offset();
+    // screen 2: its picture grows, or its content is centred (the snap point stays at the screen's top: scroll-margin)
+    let free2 = scr - (end.getBoundingClientRect().bottom - el.getBoundingClientRect().top) - air - 8;
+    if (free2 > 0 && p2) { const h = p2.offsetHeight, grow = Math.max(0, Math.min(free2, scr * 0.5 - h)); if (grow) { p2.style.height = `${h + grow}px`; free2 -= grow; } }
+    if (free2 > 1) { const m = Math.floor(free2 / 2); el.style.marginTop = `${mt(el) + m}px`; el.style.scrollMarginTop = `${air + m}px`; }
+    stage.style.minHeight = `${at - air + scr}px`;
+  }
+}
+function updatePics() {
+  if (!PHONE.matches || worldReady) return;
+  for (const img of $$('[data-pic]')) {
+    const want = `assets/posters/${picName(img.dataset.pic)}.webp`;
+    if (img.getAttribute('src') === want || img.dataset.want === want) continue;
+    img.dataset.want = want;
+    const swap = () => { if (img.dataset.want !== want) return; img.setAttribute('src', want); requestAnimationFrame(() => requestAnimationFrame(() => img.classList.remove('is-swapping'))); };
+    if (RM.matches || !img.getClientRects().length) { decodedPoster(want).then(swap); continue; }
+    img.classList.add('is-swapping');                                     // out (140ms), in once the new one is decoded
+    Promise.all([decodedPoster(want), new Promise((r) => setTimeout(r, 140))]).then(swap);
+  }
+}
 function showPoster() {
+  updatePics();
   if (worldReady) return;
   placePoster();
   const img = $('[data-poster-img]'), want = `assets/posters/${posterName()}.webp`;
@@ -259,6 +328,9 @@ function preloadNeighbours() {
   (window.requestIdleCallback || setTimeout)(() => near.forEach((n) => decodedPoster(`assets/posters/${n}.webp`)));
 }
 addEventListener('scroll', () => onScroll(), { passive: true });
+{ // and once more when a scroll stops: a smooth or momentum scroll does not always report its last position, and the product must rest where the page rests
+  let t = 0; addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => onScroll(true), 120); }, { passive: true });
+}
 // A resize moves every stage: the page goes with the place it was resting on, unless the visitor is working in a form or the FAQ.
 let lastW = innerWidth;
 addEventListener('resize', () => {
@@ -288,9 +360,6 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { me
 // rest points less than a view apart, so everything in it can be reached. ONE system owns snapping: this one.
 // There is no CSS scroll-snap on the page and Lenis only plays the tween.
 const QS = new URLSearchParams(location.search);
-// Phones only (they keep native scrolling): CSS scroll-snap, proximity, on each stage's start, if flags.phoneSnap is set in
-// content.json. `?phonesnap=1` (or 0) overrides it, to compare. styles.css applies it only to phones.
-if ((QS.get('phonesnap') ?? (C.flags?.phoneSnap ? '1' : '0')) === '1') html.classList.add('phone-snap');
 const snapOn = () => SNAPQ.matches;
 const HOW = stages.findIndex((s) => s.dataset.product === 'how');
 /** A long message scrolls itself: the one place a wheel or a swipe is not a step. */
@@ -504,6 +573,9 @@ function setLenis(on) {
 setLenis(snapOn() && !RM.matches);
 NARROW.addEventListener('change', () => { snap.jump(scrollY); bandNow = -1; setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
 SIDE.addEventListener('change', () => { bandNow = -1; measureStages(); });
+PHONE.addEventListener('change', () => { setOrientation(); measureStages(); });
+// Safari's toolbar showing or hiding changes the height a phone really sees: the screens follow (not during a pinch zoom)
+if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (PHONE.matches && Math.abs(visualViewport.scale - 1) < 0.01 && html.style.getPropertyValue('--vh') !== `${innerHeight}px`) measureStages(); });
 COMPACT.addEventListener('change', () => { snap.jump(scrollY); setOrientation(); measureStages(); if (snapOn()) snap.settle(); });
 SNAPQ.addEventListener('change', () => { snap.jump(scrollY); setLenis(snapOn() && !RM.matches); measureStages(); if (snapOn()) snap.settle(); });
 addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native scroll (a key in a field, the scrollbar): Lenis keeps its own position in step
@@ -512,7 +584,7 @@ addEventListener('scroll', () => lenisAwake(), { passive: true });   // a native
 // A venue thumbnail is drawn the first time it is asked for (a hover), not at load: drawing all five cost about 300ms of the first second.
 const thumbCache = {}, thumbOf = (id) => (thumbCache[id] ||= ((a) => a.photo || drawThumb(a.venue))(C.segments.items.find((x) => x.id === id)));
 const tabs = $$('.who__item'), panel = $('#panel'), thumb = $('[data-thumb]'), thumbImg = $('[data-thumb-img]');
-function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches || COMPACT.matches ? 'horizontal' : 'vertical'); }
+function setOrientation() { $('.who__list').setAttribute('aria-orientation', NARROW.matches || COMPACT.matches || PHONE.matches ? 'horizontal' : 'vertical'); }
 setOrientation();
 function select(id, { focus = false, animate = true } = {}) {
   const a = C.segments.items.find((x) => x.id === id); if (!a) return;
@@ -577,7 +649,7 @@ let fitKey = '';
 function fitStages(force = false) {
   if (!worldReady) return;
   // on phones the address bar coming and going changes innerHeight but none of the bands: nothing to redo mid-scroll
-  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}/${COMPACT.matches}`;
+  const key = `${innerWidth}x${NARROW.matches ? Object.values(bands).join() : innerHeight}/${world.slot.sizeId}/${NARROW.matches}/${SIDE.matches}/${COMPACT.matches}/${PHONE.matches}/${tops.join()}`;
   if (key === fitKey && !force) return; fitKey = key;
   if (world.W !== worldEl.clientWidth || world.H !== worldEl.clientHeight) world.resize(); // the window's resize event comes before the canvas's own
   const centred = { center: true }, all = stages.map((s) => s.dataset.product);
@@ -590,6 +662,19 @@ function fitStages(force = false) {
   all.forEach((st) => world.frameStage(st, null));
   const maxY = Math.max(0, html.scrollHeight - innerHeight), rest = (st) => Math.min(tops[stages.findIndex((s) => s.dataset.product === st)], maxY);
   const top = (el, st) => pageTop(el) - rest(st), bottom = (el, st) => top(el, st) + el.offsetHeight, nh = navH();
+  if (PHONE.matches) {
+    // Each stage's product in its picture, at the stage's rest: the upright poses centred and free to grow into it; How and
+    // the pilot stage framed as a whole (the shoe with the product in it), so the product stays true to the shoe.
+    for (const s of stages) {
+      const st = s.dataset.product, room = s.querySelector('[data-stage-pic]'); world.fitStage(st, null);
+      if (!room || room.offsetHeight < 24) continue;
+      const r = room.getBoundingClientRect(), box = { left: r.left + 8, right: r.right - 8, top: top(room, st) + 6, bottom: bottom(room, st) - 6 };
+      if (st === 'how') world.frameStage(st, box, { grow: 2.4, balance: 0.6 });
+      else if (st === 'bulk') world.frameStage(st, { left: box.left + 18, right: box.right - 18, top: box.top + 12, bottom: box.bottom - 6 }, { grow: 1.7 });
+      else world.fitStage(st, box, { center: true, grow: 2.6 });
+    }
+    world.fitsChanged(); return;
+  }
   // The rack behind the pilot form is drawn for a wide window: in a narrower one the whole picture zooms out until it fits.
   world.frameStage('bulk', { left: 0, right: worldEl.clientWidth, top: nh, bottom: innerHeight }, { shrinkOnly: true });
   if (COMPACT.matches) {
@@ -873,7 +958,7 @@ function setAlt(id) {
   state.method = id;
   $$('.method[data-alt]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.alt === id)));
   $('[data-alt-name]').textContent = m.label;
-  for (const r of WHY.rows) $(`[data-alt-cell="${r.id}"]`).textContent = m[r.id] ?? WHY.unmeasured;
+  for (const r of WHY.rows) { const c = $(`[data-alt-cell="${r.id}"]`); c.textContent = m[r.id] ?? WHY.unmeasured; c.dataset.name = m.label; }   // data-name: the column's name, which a phone shows beside each cell
   $('[data-alt-take]').textContent = m.takeaway;
   focusWhy(); showPoster();
 }
@@ -926,6 +1011,7 @@ if (tier !== 'poster') {
     await world.load();
     worldReady = true;
     world.setColors({ shell: cz.colors.find((c) => c.id === state.color).hex }, 0);
+    if (PHONE.matches) { world.setShoeTone(0.45); world.setFloorShown(false); }   // white shoes read on a bone page in a small picture; the hero's lanes would run behind its text
     if (state.size !== world.slot.sizeId) setSizeId(state.size);   // picked while the 3D was still loading
     fitStages(true); landFirst();
     lastKey = ''; onScroll(true); updateOverlayVisibility(); insideArrive();
