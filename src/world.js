@@ -228,6 +228,7 @@ export class World {
 
     this.wider = {};      // phones: the frames for a popped part and a turned product (see frameStage)
     this.pan = 0;         // the compact layout's scroll with a tall stage (see setPan)
+    this.floorK = 1;      // the hero's venue floor (see setFloorShown)
     this.S = { ...STATES.explorer }; this.travel = { from: 'explorer', to: 'explorer', u: 0 };
     this.st3 = makeStage3();
     this.s3 = this.#freshS3(); this._P3 = { ...this.st3.REST, fxAlpha: 1 }; this._loopP = { ...this.st3.REST };
@@ -328,9 +329,9 @@ export class World {
   // (so the chosen colour carries over). Three shelves of three.
   #buildRack() {
     const spots = [], SX = 2.15, SY = 1.05;
-    for (const dy of [1, 0, -1]) for (const dx of [-1, 0, 1]) if ((dx || dy) && (this.q.rack >= 8 || Math.abs(dx) + Math.abs(dy) === 1)) spots.push([dx, dy]);   // the low tier draws four neighbours, not eight
+    for (const dy of [1, 0, -1]) for (const dx of [-1, 0, 1]) if ((dx || dy) && this.q.rack > 0 && (this.q.rack >= 8 || Math.abs(dx) + Math.abs(dy) === 1)) spots.push([dx, dy]);   // the low tier draws four neighbours, not eight; the phone tier none (the one shoe)
     const boardMat = new THREE.MeshStandardMaterial({ color: 0xd3cfc7, roughness: 0.9 });
-    for (const dy of [1, 0, -1]) {
+    for (const dy of spots.length ? [1, 0, -1] : []) {
       const board = new THREE.Mesh(new THREE.BoxGeometry(SX * 3 + 0.3, 0.05, 1.3), boardMat);
       board.userData.base = new THREE.Vector3(0, dy * SY - 0.03, 0); board.userData.board = true; board.visible = false;
       this.rack.add(board); this.units.push(board);
@@ -637,6 +638,13 @@ export class World {
     c.updateProjectionMatrix();
     this.fx.setScale(this.fxScale * k, this.renderer.getPixelRatio());
   }
+  /** The hero's venue floor shown or not (a phone: its lanes would run behind the text under the picture). */
+  setFloorShown(on) { this.floorK = on ? 1 : 0; this.kick(); }
+  /** Phones: the shoes a shade darker, so a white shoe still reads on the bone page in a small picture (1 is as made). */
+  setShoeTone(k) {
+    for (const o of [this.shoe, this.shoe2]) for (const m of o.userData.mats) { m.userData.base ??= m.color.clone(); m.color.copy(m.userData.base).multiplyScalar(k); }
+    this.kick();
+  }
   /** The compact layout: the picture moves with the page (px, up is negative) while a tall stage scrolls between its rests. */
   setPan(px) { const v = Math.round(px * 2) / 2; if (v === this.pan) return; this.pan = v; this.kick(); }
   /** Step to another tier while running (density, rack and idle time follow; anti-aliasing is fixed when the context is made). */
@@ -702,7 +710,7 @@ export class World {
     // venue floors
     const [cur, prev] = this.floors; let wc = 1, wp = 0;
     if (this.floorTween) { const ft = this.floorTween, u = ft.ms ? Math.min(1, (now - ft.start) / ft.ms) : 1, e = easeInOut(u); wc = e; wp = 1 - e; if (u >= 1) this.floorTween = null; moving = true; }
-    cur.material.opacity = wc * this.heroWeight; prev.material.opacity = wp * this.heroWeight;
+    cur.material.opacity = wc * this.heroWeight * this.floorK; prev.material.opacity = wp * this.heroWeight * this.floorK;
     cur.visible = cur.material.opacity > 0.004; prev.visible = prev.material.opacity > 0.004;
     this.#aim();
     this.#shadows();
@@ -802,6 +810,10 @@ export class World {
     const r0 = { x0, x1, y0, y1 };   // the picture at rest
     if (stage === 'how') {
       for (let i = 0; i < st.steps.length; i++) { const from = st.startOf(i, st.REST); for (let t = 0; t <= 1.001; t += 0.1) { st.evalStep(i, t, from, this.s3.P); product(); } }
+    }
+    if (stage === 'bulk' && !this.units.length) {   // no rack (a phone): the one shoe the product sits in
+      _bb.setFromObject(this.shoe);
+      for (let i = 0; i < 8; i++) at(_lo.set(i & 1 ? _bb.max.x : _bb.min.x, i & 2 ? _bb.max.y : _bb.min.y, i & 4 ? _bb.max.z : _bb.min.z));
     }
     if (stage === 'bulk' && this.units.length) {
       this.rack.updateMatrixWorld(true); _bb.setFromObject(this.rack);

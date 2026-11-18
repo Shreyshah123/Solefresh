@@ -685,112 +685,139 @@ main { position: relative; z-index: 1; padding-top: var(--top); }
   }
 }
 /* =========================================================== phone stages == */
-/* A phone held upright (a coarse pointer under 768px wide). The same idea as the full-screen site: every stage is its own
-   screen, with its own picture inside it (a still that follows the stage's controls: updatePics in src/main.js), then its
-   heading, then its controls. No band, no 3D. The browser snaps (scroll-snap-type: mandatory, one stop per stage, and
-   whole-section stops inside the few stages that need two screens); no script moves the page. Body text stays at 16px and
-   every control at 44px: what does not fit a 375x667 screen is cut down or moved, never shrunk. Comes after the stacked
-   rules it replaces. */
+/* A phone held upright (a coarse pointer under 768px wide; PHONE in src/main.js). The same idea as the full-screen site:
+   every stage is its own screen with its own picture area, then its heading, then its controls. On a capable phone the 3D
+   is one canvas fixed behind the stages: the product is framed into each stage's picture area and moves with the page (it
+   is handed from one picture to the next as the stages change), so it never sits on text. On a light phone the picture
+   area shows a still that follows the stage's controls, and crossfades when they change. The browser snaps
+   (scroll-snap-type: mandatory, one stop per stage, and a whole-section stop inside the four stages that need two
+   screens); no script moves the page. A screen is the height the visitor really sees (--vh, set by src/main.js as Safari's
+   toolbar shows or hides; 100dvh without the script), and in every screen the picture area is the part that grows, so no
+   screen is half empty and none shows a sliver of the next. Body text stays at 16px and every control at 44px. Comes
+   after the stacked rules it replaces. */
 @media (pointer: coarse) and (max-width: 767px) and (orientation: portrait) {
-  :root { --scr: calc(100svh - var(--top)); --pic: 30svh; --band-explorer: 0px; --band-what: 0px; --band-how: 0px; --band-inside: 0px; --band-customize: 0px; }
+  :root { --scr: calc(var(--vh, 100dvh) - var(--top)); --pic: 28svh; --band-explorer: 0px; --band-what: 0px; --band-how: 0px; --band-inside: 0px; --band-customize: 0px; }
   html { scroll-snap-type: y mandatory; scroll-padding-top: var(--top); touch-action: manipulation; } /* manipulation: no double-tap zoom */
-  .world, .overlay { display: none; }
+  /* the 3D: one canvas behind every stage */
+  .world { position: fixed; inset: 0; top: 0; width: auto; height: auto; z-index: 0; background: none; clip-path: none; pointer-events: none; }
+  .world::after, .world__poster, .overlay { display: none; }
   input, select, textarea { font-size: max(1rem, 16px); } /* iOS zooms into a field under 16px */
-  /* the picture: full width, cropped round the product (--fx --fy: where it is in the still; --z: how far in) */
-  .pic { display: block; flex: none; height: var(--pic); margin: 0 0 var(--s3); overflow: hidden; }
-  .pic img { width: 100%; height: 100%; object-fit: cover; object-position: var(--fx, 50%) var(--fy, 50%); transform: scale(var(--z, 1)); transform-origin: var(--fx, 50%) var(--fy, 50%); }
+  /* the picture area: a still cropped round the product (--fx --fy: where it is in the still; --z: how far in), or, with the
+     3D live, an empty frame the product is fitted into (the still fades out as the 3D arrives) */
+  .pic { display: block; flex: 1 1 var(--pic); min-height: calc(var(--pic) * .6); max-height: calc(var(--scr) * .58); margin: 0 0 var(--s3); overflow: hidden; }
+  .pic { position: relative; }
+  .pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--fx, 50%) var(--fy, 50%); transform: scale(var(--z, 1)); transform-origin: var(--fx, 50%) var(--fy, 50%); transition: opacity .24s var(--ease), translate .24s var(--ease); }
+  .pic img.is-swapping { opacity: 0; translate: 0 6px; transition-duration: .14s; }
+  .gl-live .pic img { opacity: 0; transition-duration: .5s; }
+  .gl-live .who .pic img { opacity: 1; } /* who it's for keeps its still: the 3D product is the first screen's */
+  [data-stage-pic="explorer"] { --fx: 50%; --fy: 50%; --z: 1.05; }
   [data-stage-pic="what"] { --fx: 38%; --fy: 42%; --z: 1.35; }
   [data-stage-pic="how"] { --fx: 58%; --fy: 44%; --z: 1.15; }
-  [data-stage-pic="inside"] { --fx: 28%; --fy: 52%; --z: 1.55; }
+  [data-stage-pic="inside"] { --fx: 28%; --fy: 52%; --z: 1.45; }
   [data-stage-pic="customize"] { --fx: 62%; --fy: 52%; --z: 1.5; }
-  [data-stage-pic="bulk"] { --fx: 70%; --fy: 55%; --z: 1.1; }
-  [data-stage-pic="why"] { --fx: 9%; --fy: 50%; --z: 1.9; }
-  [data-stage-pic="story"], [data-stage-pic="faq"] { --fx: 29%; --fy: 56%; --z: 2; }
-  [data-stage-pic="close"] { --fx: 65%; --fy: 47%; --z: 1.9; }
-  /* every stage one screen, one stop */
-  .stage, .stage--full, .pin .stage { min-height: var(--scr); scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: 0; padding-block: 0 var(--s5); }
-  .pin .how { padding-bottom: var(--s5); }
-  /* A stage that needs two screens: its second one starts at a whole section (the elements below), and src/main.js
-     (splitScreens) moves that section down to exactly one screen in and makes the stage's last screen full. */
-  .who, .bulk .form, .vs, .paths > .path:nth-child(2) { scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: var(--s3); }
-  /* stage 1 is two screens: what it is, then who it's for */
-  .explorer__intro { display: flex; flex-direction: column; padding: 0 var(--gutter) var(--s4); }
-  .explorer__intro .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 28svh; }
+  [data-stage-pic="bulk"] { --fx: 50%; --fy: 47%; --z: 2.6; } /* the still's middle shoe, with SoleFresh in it, not the shelf of nine */
+  [data-stage-pic="why"] { --fx: 13%; --fy: 50%; --z: 1.6; }
+  [data-stage-pic="story"], [data-stage-pic="faq"] { --fx: 30%; --fy: 56%; --z: 1.7; }
+  [data-stage-pic="close"] { --fx: 65%; --fy: 47%; --z: 1.7; }
+  /* every stage one screen (at least), one stop; its picture area takes what the screen has spare */
+  .stage, .stage--full, .pin .stage { min-height: var(--scr); scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: 0; padding-block: 0 var(--s4); }
+  .pin .how { padding-bottom: var(--s4); }
+  /* arriving: heading and controls fade and rise in as the stage snaps into view (the first stage is simply there) */
+  .sf-ready .stage .stage__in { opacity: 0; transform: translateY(14px); transition: opacity .45s var(--ease), transform .45s var(--ease); }
+  .sf-ready .stage.is-in .stage__in, .sf-ready .explorer .stage__in { opacity: 1; transform: none; transition: opacity .45s var(--ease), transform .45s var(--ease); }
+  .sf-ready .stage.is-in .stage__in:nth-child(3) { transition-delay: 70ms; }
+  .sf-ready .stage.is-in .stage__in:nth-child(4) { transition-delay: 130ms; }
+  /* the four stages that need two screens: the second starts at a whole section (src/main.js, layoutPhone, puts it exactly
+     one screen in and sizes the pictures round it) */
+  /* The snap targets are each screen's first block, not the stage: a target taller than the screen lets the browser rest
+     anywhere inside it. */
+  .explorer, .bulk, .why, .close { scroll-snap-align: none; }
+  .explorer__intro, .bulk__intro .pic, .why__panel > .pic, .close__wrap .pic { scroll-snap-align: start; scroll-snap-stop: always; }
+  .who, .bulk .form > :nth-child(3), .vs, .paths > .path:nth-child(2) { scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: var(--s3); }
+  .bulk .form > :nth-child(3) { scroll-margin-top: .3rem; } /* less than the gap above it: nothing of the field before shows */
+  .who .pic, .bulk__intro .pic, .why__panel .pic, .close__wrap .pic { flex: none; height: var(--pic); min-height: 0; max-height: none; }
+  /* stage 1: what it is (one screen), then who it's for */
+  .explorer__intro { display: flex; flex-direction: column; min-height: var(--scr); padding: 0 var(--gutter) var(--s4); }
+  .explorer__intro .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 30svh; }
   .explorer__cta { margin-top: var(--s3); }
   .who { margin-top: 0; }
-  .who .pic { --pic: 20svh; }
+  .who .pic { --pic: 14svh; }
   .who__list { flex-wrap: wrap; overflow: visible; padding: 2px var(--gutter) 0; }
   .who__item, .who__item:last-child { font-size: 1rem; scroll-snap-align: none; } /* the chips no longer scroll sideways: no snap points of their own */
   .panel { align-self: stretch; }
   .panel__line { font-size: 1.05rem; }
   .panel__note { font-size: 1rem; }
   /* stage 2 */
-  .what { --pic: 26svh; gap: var(--s3); }
+  .what { --pic: 24svh; gap: var(--s3); }
   .hs-card { padding: var(--s2) 0; }
   .hs-card__text, .what__note { font-size: 1rem; line-height: 1.45; }
-  /* stage 3 */
-  .how { --pic: 36svh; }
+  /* stage 3: the shoes get the room */
+  .how { --pic: 38svh; }
   .how__caption { font-size: 1.05rem; }
-  /* stage 4 */
+  /* stage 4: the card says what the intro said */
   .inside { --pic: 24svh; gap: var(--s3); }
+  .inside__lede { display: none; }
   .inside__list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; }
   .layer-btn { padding: 0 .25rem; font-size: .9rem; }
   .sheet__body { min-height: 0; padding: var(--s4); gap: var(--s2); }
   .sheet__role, .sheet__foot { font-size: 1rem; line-height: 1.45; }
   .inside__note { font-size: .875rem; }
-  /* sizes and colours */
-  .customize { --pic: 26svh; gap: var(--s3); }
+  /* sizes and colours: the colour and the size side by side, under the picture */
+  .customize { display: grid; grid-template: "pic pic" minmax(0, 1fr) "head head" auto "turn turn" auto "color size" auto "note note" auto / minmax(0, 1fr) minmax(0, 1fr); gap: var(--s3) .75rem; --pic: 26svh; }
+  .customize > .pic { grid-area: pic; height: auto; min-height: 0; max-height: calc(var(--scr) * .5); }
+  .customize__head { grid-area: head; } .customize__turn { grid-area: turn; justify-self: center; margin: 0; }
+  .customize__side--color { grid-area: color; margin: 0 0 0 var(--gutter); } .customize__side--size { grid-area: size; margin: 0 var(--gutter) 0 0; }
+  .customize__note { grid-area: note; }
+  .customize > .room, .customize__drag { display: none; }
   .customize__side { padding-top: var(--s3); gap: var(--s2); }
+  .swatches { grid-template-columns: repeat(2, 2.75rem); gap: .35rem; }
   .customize__pick { font-size: 1rem; }
-  /* the pilot form: two screens, the rack and what a pilot is, then the form from its second field */
-  .bulk { padding: 0 0 var(--s5); }
+  .customize__fit, .customize__lede .touch-only, .customize__lede .fine-only { display: none; } /* the turn buttons say what the hint said */
+  /* the pilot stage: the shoe with SoleFresh in it and what a pilot is, then the form from its second field, one column */
+  .bulk { padding: 0 0 var(--s4); }
   .bulk__card { gap: var(--s3); }
-  .bulk__intro .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 22svh; }
+  .bulk__intro .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 20svh; }
   .bulk__lines { margin-top: var(--s3); gap: var(--s2); }
-  .form { gap: .75rem; }
-  .form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem .75rem; } /* the second screen: the whole form */
-  .form > .field:has(#b-email), .form > .field:has(#b-phone) { grid-column: span 1; } /* email and phone share a row (they are neighbours, so the reading order stays) */
+  .form { grid-template-columns: minmax(0, 1fr); gap: .6rem; }
   .radios { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; } .radio { padding: 0 .3rem; font-size: .875rem; }
   .field textarea { min-height: 3.25rem; }
   .form__status { min-height: 0; }
   .form__actions { gap: var(--s2); }
-  /* the comparison: pick an option on the first screen; the second is one stacked card, the option beside SoleFresh, row by row */
-  .why { padding: 0 var(--gutter) var(--s5); }
-  .why__panel { gap: var(--s3); }
-  .why__panel .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 28svh; }
-  .why__lede { font-size: 1rem; }
+  /* the comparison: the picture, the options and what changes (the takeaway) on the first screen; the second is one stacked
+     card, the option beside SoleFresh row by row, then the call to action */
+  .why { padding: 0 var(--gutter) var(--s4); }
+  .why__panel { display: flex; flex-direction: column; gap: var(--s3); }
+  .why__panel > .pic { order: 0; margin-inline: calc(-1 * var(--gutter)); --pic: 24svh; }
+  .why__panel > h2 { order: 1; } .why__lede { order: 2; font-size: 1rem; } .methods { order: 3; } .why__take { order: 4; font-size: 1rem; } .vs { order: 5; } .why__foot { order: 6; }
   .vs { display: block; }
   .vs thead { display: none; }
   .vs tbody, .vs tr, .vs th, .vs td { display: block; width: auto; }
-  .vs tr { padding: var(--s3) var(--s4); border-top: 1px solid var(--hair); }
+  .vs tr { padding: .45rem .65rem; border-top: 1px solid var(--hair); }
+  .vs tbody th:first-child { width: auto; } /* the desktop table fixes the label column: a card row has the width */
   .vs tr:first-child { border-top: 0; }
   .vs tbody th, .vs tbody td { border: 0; padding: 0; }
-  .vs tbody th { margin-bottom: .2rem; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+  .vs tbody th { margin-bottom: .15rem; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
   .vs td { font-size: 1rem; line-height: 1.4; color: var(--ink-2); }
   .vs td::before { content: attr(data-name) ": "; font: 600 1rem/1.4 var(--font-display); color: var(--ink); }
-  .vs td.vs__us { margin-top: .3rem; padding: .3rem .5rem; border-radius: var(--r-sm); }
+  .vs td.vs__us { margin-top: .2rem; padding: .15rem .45rem; border-radius: var(--r-sm); }
   .vs td.vs__us::before { color: var(--cobalt); }
-  .why__take { font-size: 1rem; }
-  /* story and questions */
-  .story, .faqs { padding: 0 var(--gutter) var(--s5); }
-  .story__panel .pic, .faq__panel .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 24svh; }
-  .faq__panel .pic { --pic: 18svh; }
+  .why__fine { font-size: .8rem; }
+  /* story and questions: the picture area takes the spare */
+  .story, .faqs { display: flex; flex-direction: column; padding: 0 var(--gutter) var(--s4); }
+  .story__panel, .faq__panel { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--s3); }
+  .story__panel .pic, .faq__panel .pic { margin-inline: calc(-1 * var(--gutter)); }
+  .faq__panel .pic { --pic: 0px; min-height: 0; }
   .story__line { font-size: 1.05rem; }
   .timeline { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .timeline::before { left: 10%; right: 10%; top: 9px; bottom: auto; width: auto; height: 2px; }
   .milestone__btn { grid-template-columns: none; justify-items: center; text-align: center; gap: .4rem; min-height: 4.5rem; padding: 0 .1rem; font-size: .75rem; }
   .milestone__text { font-size: 1rem; }
   .faq__item summary { font-size: 1rem; }
-  /* the close: two screens, organizations then individuals and the footer */
+  /* the close: organizations under the picture, then individuals and the footer */
   .close { padding-top: 0; }
   .close__wrap { display: flex; flex-direction: column; gap: var(--s3); }
-  .close__wrap .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 26svh; }
+  .close__wrap .pic { margin-inline: calc(-1 * var(--gutter)); --pic: 24svh; }
   .path__text { font-size: 1rem; }
-  /* a short phone (667px and under): the second pictures go, and the one note that only repeats the heading */
-  @media (max-height: 760px) {
-    .who .pic, .faq__panel .pic { display: none; }
-    .customize__fit { display: none; }
-  }
 }
 /* short landscape: a band would leave no room under it, so the product stays beside the section it belongs to */
 @media (max-height: 560px) and (orientation: landscape) and (min-width: 600px) {

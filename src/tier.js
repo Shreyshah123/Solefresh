@@ -6,6 +6,8 @@
 //   high    the full picture: up to 1.5x pixel density inside a 4.2 megapixel budget, anti-aliased below 1.5x
 //   mid     up to 1.25x inside 2.6 megapixels
 //   low     1x inside 1.5 megapixels, no anti-aliasing, a rack of four instead of eight
+//   phone   a phone held upright: up to 2x inside 1.3 megapixels, no anti-aliasing, one shoe instead of a rack. Too slow
+//           there goes straight to the stills
 //   poster  no WebGL at all: the still pictures in assets/posters/, which follow every control (see showPoster in main.js)
 //
 // `?tier=high|mid|low|poster` on the URL forces one, for testing.
@@ -13,8 +15,11 @@ export const TIERS = {
   high: { name: 'high', dprCap: 1.5, maxPx: 4.2e6, aa: true, rack: 8, loopIdle: 10, warm: ['bulk', 'how', 'inside'] },
   mid: { name: 'mid', dprCap: 1.25, maxPx: 2.6e6, aa: true, rack: 8, loopIdle: 8, warm: ['how'] },
   low: { name: 'low', dprCap: 1, maxPx: 1.5e6, aa: false, rack: 4, loopIdle: 4, warm: [] },
+  phone: { name: 'phone', dprCap: 2, maxPx: 1.3e6, aa: false, rack: 0, loopIdle: 6, warm: ['how'] },
 };
 export const ORDER = ['high', 'mid', 'low', 'poster'];
+const ALL = [...ORDER, 'phone'];   // phone is its own path: phone -> poster
+const PHONE = '(pointer: coarse) and (max-width: 767px) and (orientation: portrait)';
 const KEY = 'sf-tier';
 
 /**
@@ -23,12 +28,12 @@ const KEY = 'sf-tier';
  */
 export function pickTier() {
   const forced = new URLSearchParams(location.search).get('tier');
-  if (ORDER.includes(forced)) return forced;
-  // A phone held upright is the phone layout: every stage carries its own still (see .pic in styles.css). No 3D there:
-  // nothing to download or draw, and the stills follow every control.
-  if (matchMedia('(pointer: coarse) and (max-width: 767px) and (orientation: portrait)').matches) return 'poster';
-  try { const s = sessionStorage.getItem(KEY); if (ORDER.includes(s)) return s; } catch {}   // what this visit already found out
+  if (ALL.includes(forced)) return forced;
+  try { const s = sessionStorage.getItem(KEY); if (ALL.includes(s)) return s; } catch {}   // what this visit already found out
   if (!window.WebGL2RenderingContext && !window.WebGLRenderingContext) return 'poster';
+  // A phone held upright: the 3D at a phone's budget, unless the phone says it is a light one (data saver, 2GB or less).
+  // Safari reports neither memory nor a reliable core count, so a recent iPhone starts here and the frame times decide.
+  if (matchMedia(PHONE).matches) return navigator.connection?.saveData || (navigator.deviceMemory && navigator.deviceMemory <= 2) ? 'poster' : 'phone';
   const nav = navigator, cores = nav.hardwareConcurrency || 8, mem = nav.deviceMemory || 8;
   if (nav.connection?.saveData || cores <= 2 || mem <= 2) return 'poster';
   if (cores <= 4 || mem <= 4) return 'low';
@@ -44,6 +49,7 @@ export function refineTier(tier, gl) {
   let info = '';
   try { const d = gl.getExtension('WEBGL_debug_renderer_info'); info = String((d && gl.getParameter(d.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || ''); } catch {}
   if (/SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(info)) return 'poster';        // a few frames a second at best
+  if (tier === 'phone') return tier;                                                               // a phone's own chip is what the phone tier is for
   const integrated = /Intel|UHD|Iris|HD Graphics|Mali|Adreno|PowerVR|Radeon\(TM\) Graphics|Vega \d+ Graphics/i.test(info);
   if (!integrated) return tier;
   const px = innerWidth * innerHeight * Math.min(devicePixelRatio || 1, 1.5) ** 2;                  // what the high tier would draw here
@@ -52,6 +58,7 @@ export function refineTier(tier, gl) {
 }
 /** The next tier down from `tier`, given the frame times that asked for it (ms). Null: stay. */
 export function tierBelow(tier, { median, slowShare }) {
+  if (tier === 'phone') return 'poster';                                          // a phone that cannot keep up gets the stills
   if (tier === 'low') return median > 40 || slowShare > 0.5 ? 'poster' : null;   // the lightest 3D is still a slideshow: stills are better
   if (median > 45) return 'low';                                                  // far off the pace: skip a step
   return ORDER[ORDER.indexOf(tier) + 1] || null;

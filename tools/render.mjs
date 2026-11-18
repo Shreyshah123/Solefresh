@@ -15,10 +15,11 @@ const hasContact = (C.brand.contactEmail || '').includes('@');
 const contact = hasContact ? `<a href="mailto:${attr(C.brand.contactEmail)}">${esc(C.brand.contactEmail)}</a>` : '';
 const PILOT = C.bulk.anchor, H = C.hero;
 const WHY = C.why, startAlt = WHY.alternatives.find((m) => m.id === WHY.start) || WHY.alternatives[0];
-const cell = (m, r) => esc(m[r.id] ?? WHY.unmeasured);
+const cell = (m, r) => esc(m[r.id] ?? WHY.unmeasured);   // a row nobody has measured says so, for every option alike
 // Phones: each stage carries its own picture (a still that follows the stage's controls: see updatePics in src/main.js).
 // Hidden on every other layout. Decorative: the stage's text says what it shows.
-const pic = (stage, name) => `<figure class="pic" data-stage-pic="${stage}" aria-hidden="true"><img alt="" src="assets/posters/${name}.webp" width="1600" height="1000" loading="lazy" decoding="async" data-pic="${stage}"></figure>`;   // a row nobody has measured says so, for every option alike
+// The first stage's pictures load at once (they are on the first screens); the rest as the visitor nears them.
+const pic = (stage, name) => `<figure class="pic" data-stage-pic="${stage}" aria-hidden="true"><img alt="" src="assets/posters/${name}.webp" width="1600" height="1000" ${stage === 'explorer' ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" data-pic="${stage}"></figure>`;
 
 const html = `<!doctype html>
 <html lang="en" class="no-js">
